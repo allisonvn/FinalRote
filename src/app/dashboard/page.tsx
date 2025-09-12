@@ -15,7 +15,7 @@ import { ChartsSection } from '@/components/dashboard/charts-section'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
-interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string }
+interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string }
 interface Experiment {
   id: string
   name: string
@@ -606,7 +606,7 @@ export default function Dashboard() {
   const generateInstallCodeForExperiment = (exp: Experiment) => {
     const experimentId = `exp_${exp.id}`
     const name = exp.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const variants = (exp.variants || []).map(v => ({ name: v.name, url: v.url || null, isControl: v.is_control }))
+    const variants = (exp.variants || []).map(v => ({ name: v.name, url: v.url || null, isControl: v.is_control, description: v.description || null }))
     const goal = exp.goal_value || exp.goal_type || 'conversion'
     const goalType = exp.goal_type || 'page_view'
     const targetUrl = exp.target_url || ''
@@ -626,7 +626,7 @@ export default function Dashboard() {
       return ''
     })()
 
-    return `<!-- 🚀 Rota Final - Experimento: ${name} -->\n<script>(function(){\n  const CONFIG={experimentId:'${experimentId}',algorithm:'${algorithm}',method:'${method}',targetUrl:'${targetUrl}',goal:'${goal}',goalType:'${goalType}',variants:${JSON.stringify(variants)}};\n  const userId=localStorage.getItem('rf_user_id')||'user_'+Math.random().toString(36).slice(2);\n  localStorage.setItem('rf_user_id',userId);\n  function assign(){\n    const saved=localStorage.getItem('rf_variant_'+CONFIG.experimentId);\n    if(saved) return saved;\n    const hash=userId.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a;},0);\n    const idx=Math.abs(hash)%CONFIG.variants.length;\n    const v=CONFIG.variants[idx]?.name||CONFIG.variants[0]?.name;\n    localStorage.setItem('rf_variant_'+CONFIG.experimentId, v);\n    return v;\n  }\n  window.rotaFinal=window.rotaFinal||{track:(e,p={})=>{const d={experiment_id:CONFIG.experimentId,event:e,variant:document.documentElement.getAttribute('data-rf-variant'),url:location.href,timestamp:new Date().toISOString(),...p};console.log('📊 Rota Final Track:',d);}};\n  const variant=assign();\n  document.documentElement.setAttribute('data-rf-variant',variant);\n  // Redirecionamento apenas para Split URL\n  if(CONFIG.method==='split_url'){\n    var cfg=CONFIG.variants.find(function(v){return v.name===variant});\n    if(cfg&&cfg.url&&cfg.isControl!==true){ if(location.href.indexOf(cfg.url)===-1){ location.href=cfg.url; return; } }\n  }\n  window.rotaFinal.track('page_view',{variant:variant,experiment_start:true});\n  ${goalHandler}\n})();</script>`
+    return `<!-- 🚀 Rota Final - Experimento: ${name} -->\n<script>(function(){\n  const CONFIG={experimentId:'${experimentId}',algorithm:'${algorithm}',method:'${method}',targetUrl:'${targetUrl}',goal:'${goal}',goalType:'${goalType}',variants:${JSON.stringify(variants)}};\n  const userId=localStorage.getItem('rf_user_id')||'user_'+Math.random().toString(36).slice(2);\n  localStorage.setItem('rf_user_id',userId);\n  function assign(){\n    const saved=localStorage.getItem('rf_variant_'+CONFIG.experimentId);\n    if(saved) return saved;\n    const hash=userId.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a;},0);\n    const idx=Math.abs(hash)%CONFIG.variants.length;\n    const v=CONFIG.variants[idx]?.name||CONFIG.variants[0]?.name;\n    localStorage.setItem('rf_variant_'+CONFIG.experimentId, v);\n    return v;\n  }\n  // Utilitários de aplicação visual SEM alterar HTML\n  function applyRules(variant){\n    try {\n      var cfg=(CONFIG.variants||[]).find(function(v){return v.name===variant});\n      var rules={};\n      if(cfg && cfg.description){ try{ rules=JSON.parse(cfg.description) }catch(e){ console.warn('Rota Final: descrição da variante não é JSON', e) } }\n      // Estrutura esperada: { hide: ['.sel'], show: ['.sel'], text: [{selector, value}], attr: [{selector, name, value}], css: [{selector, style}] }\n      // Hide\n      (rules.hide||[]).forEach(function(sel){ try{ document.querySelectorAll(sel).forEach(function(el){ el.style.setProperty('display','none','important') }) }catch(e){} })\n      // Show\n      (rules.show||[]).forEach(function(sel){ try{ document.querySelectorAll(sel).forEach(function(el){ el.style.removeProperty('display') }) }catch(e){} })\n      // Text replace\n      (rules.text||[]).forEach(function(t){ try{ var els=document.querySelectorAll(t.selector); els.forEach(function(el){ el.textContent = t.value }) }catch(e){} })\n      // Attr\n      (rules.attr||[]).forEach(function(a){ try{ document.querySelectorAll(a.selector).forEach(function(el){ el.setAttribute(a.name, a.value) }) }catch(e){} })\n      // CSS inline\n      (rules.css||[]).forEach(function(c){ try{ document.querySelectorAll(c.selector).forEach(function(el){ el.setAttribute('style', (el.getAttribute('style')||'') + ';' + c.style) }) }catch(e){} })\n      // CSS injetado\n      if(rules.injectCSS){ try{ var style=document.createElement('style'); style.textContent=String(rules.injectCSS); document.head.appendChild(style) }catch(e){} }\n    } catch(err){ console.warn('Rota Final: erro ao aplicar regras da variante', err) }\n  }\n  window.rotaFinal=window.rotaFinal||{track:(e,p={})=>{const d={experiment_id:CONFIG.experimentId,event:e,variant:document.documentElement.getAttribute('data-rf-variant'),url:location.href,timestamp:new Date().toISOString(),...p};console.log('📊 Rota Final Track:',d);}};\n  const variant=assign();\n  function init(){\n    document.documentElement.setAttribute('data-rf-variant',variant);\n    // Redirecionamento apenas para Split URL\n    if(CONFIG.method==='split_url'){\n      var cfg=CONFIG.variants.find(function(v){return v.name===variant});\n      if(cfg&&cfg.url&&cfg.isControl!==true){ if(location.href.indexOf(cfg.url)===-1){ location.href=cfg.url; return; } }\n    }\n    applyRules(variant);\n    window.rotaFinal.track('page_view',{variant:variant,experiment_start:true});\n    ${goalHandler}\n  }\n  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init) } else { init() }\n})();</script>`
   }
 
   const copyExperimentCode = async (exp: Experiment) => {
@@ -1059,7 +1059,8 @@ export default function Dashboard() {
           name: v.name,
           key: v.name.toLowerCase().replace(/\s+/g, '-'),
           is_control: v.isControl,
-          url: v.url || undefined
+          url: v.url || undefined,
+          description: v.description || undefined
         }))
       }
       
@@ -1732,72 +1733,7 @@ export default function Dashboard() {
     </div>
   )
 
-  const renderProjectsContent = () => {
-    if (projects.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            <Target className="w-8 h-8 text-primary" />
-          </div>
-          <h3 className="text-xl font-semibold">Nenhum projeto encontrado</h3>
-          <p className="text-muted-foreground text-center max-w-md">
-            Crie seu primeiro projeto para começar a organizar seus experimentos A/B
-          </p>
-          <Button onClick={() => setActiveTab('settings')} className="glass-button">
-            <Plus className="w-4 h-4 mr-2" />
-            Criar Projeto
-          </Button>
-        </div>
-      )
-    }
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map(project => {
-            const projectExperiments = experiments.filter(e => e.project_id === project.id)
-            const runningCount = projectExperiments.filter(e => e.status === 'running').length
-            const completedCount = projectExperiments.filter(e => e.status === 'completed').length
-            
-            return (
-              <Card key={project.id} className="hover:shadow-lg transition-shadow cursor-pointer group">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="group-hover:text-primary transition-colors">
-                      {project.name}
-                    </CardTitle>
-                    <Badge variant="secondary">{projectExperiments.length}</Badge>
-                  </div>
-                  <CardDescription>{project.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Em execução:</span>
-                      <span className="font-medium">{runningCount}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Finalizados:</span>
-                      <span className="font-medium">{completedCount}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Taxa de conversão média:</span>
-                      <span className="font-medium">
-                        {projectExperiments.length > 0 
-                          ? `${(projectExperiments.reduce((acc, e) => acc + 0, 0) / projectExperiments.length * 100).toFixed(1)}%`
-                          : '0%'
-                        }
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
+  // renderProjectsContent removido
 
   const getTabContent = () => {
     switch (activeTab) {
