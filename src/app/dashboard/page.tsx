@@ -405,7 +405,7 @@ export default function Dashboard() {
   const step4GoalRef = useRef<HTMLInputElement | null>(null)
 
   // Estilos estáticos para o stepper por cor (evita classes dinâmicas que o Tailwind não compila)
-  const stepColorStyles: Record<'blue' | 'green' | 'purple' | 'orange', { active: string; completed: string; labelActive: string; labelCompleted: string }> = {
+  const stepColorStyles: Record<'blue' | 'green' | 'purple' | 'orange' | 'red', { active: string; completed: string; labelActive: string; labelCompleted: string }> = {
     blue: {
       active: 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-4 ring-blue-100 dark:ring-blue-500/30',
       completed: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30',
@@ -430,6 +430,12 @@ export default function Dashboard() {
       labelActive: 'text-orange-600 dark:text-orange-400',
       labelCompleted: 'text-orange-500 dark:text-orange-400',
     },
+    red: {
+      active: 'bg-red-500 text-white shadow-lg shadow-red-500/30 ring-4 ring-red-100 dark:ring-red-500/30',
+      completed: 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30',
+      labelActive: 'text-red-600 dark:text-red-400',
+      labelCompleted: 'text-red-500 dark:text-red-400',
+    },
   }
 
   const supabase = createClient()
@@ -450,10 +456,16 @@ export default function Dashboard() {
     // Step 3: Variants
     variants: [
       { name: 'Original', description: 'Versão atual da sua página', url: '', isControl: true },
-      { name: 'Variação', description: 'Nova versão para testar', url: '', isControl: false }
+      { name: 'Variação A', description: 'Nova versão para testar', url: '', isControl: false }
     ],
     
-    // Step 4: Goals & Metrics
+    // Step 4: Conversion Setup (NEW)
+    conversionType: 'page_view', // 'page_view', 'click', 'form_submit', 'custom'
+    conversionUrl: '', // URL da página de conversão/obrigado
+    conversionSelector: '', // Para cliques ou formulários
+    conversionEvent: '', // Para eventos customizados
+    
+    // Step 5: Goals & Metrics
     primaryGoal: '',
     goalType: 'page_view', // 'page_view', 'click', 'form_submit', 'custom'
     goalValue: '',
@@ -463,7 +475,7 @@ export default function Dashboard() {
     // Algorithm
     algorithm: 'thompson_sampling', // 'uniform', 'thompson_sampling', 'ucb1'
     
-    // Step 5: Install Code (new)
+    // Step 6: Install Code (new)
     installCode: ''
   })
 
@@ -563,8 +575,13 @@ export default function Dashboard() {
       trafficAllocation: 100,
       variants: [
         { name: 'Original', description: 'Versão atual da sua página', url: '', isControl: true },
-        { name: 'Variação', description: 'Nova versão para testar', url: '', isControl: false }
+        { name: 'Variação A', description: 'Nova versão para testar', url: '', isControl: false }
       ],
+      // Novo step de conversão
+      conversionType: 'page_view',
+      conversionUrl: '',
+      conversionSelector: '',
+      conversionEvent: '',
       primaryGoal: '',
       goalType: 'page_view',
       goalValue: '',
@@ -850,12 +867,17 @@ export default function Dashboard() {
         return true
       
       case 4:
-        if (!experimentForm.primaryGoal.trim()) {
-          toast.error('Objetivo do teste é obrigatório')
+        // Validação do Step 4 - Conversão
+        if (experimentForm.conversionType === 'page_view' && !experimentForm.conversionUrl.trim()) {
+          toast.error('URL da página de conversão é obrigatória')
           return false
         }
-        if (experimentForm.goalType !== 'page_view' && !experimentForm.goalValue.trim()) {
-          toast.error('Configuração do objetivo é obrigatória')
+        if ((experimentForm.conversionType === 'click' || experimentForm.conversionType === 'form_submit') && !experimentForm.conversionSelector.trim()) {
+          toast.error('Seletor CSS é obrigatório para este tipo de conversão')
+          return false
+        }
+        if (experimentForm.conversionType === 'custom' && !experimentForm.conversionEvent.trim()) {
+          toast.error('Nome do evento personalizado é obrigatório')
           return false
         }
         return true
@@ -2485,12 +2507,12 @@ export default function Dashboard() {
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center">
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
         {[
           { number: 1, title: 'Básico', icon: Target, color: 'blue' as const },
           { number: 2, title: 'Configuração', icon: Globe, color: 'green' as const },
           { number: 3, title: 'Variantes', icon: Shuffle, color: 'purple' as const },
-          { number: 4, title: 'Objetivos', icon: TrendingUp, color: 'orange' as const }
+          { number: 4, title: 'Metas & Conversão', icon: TrendingUp, color: 'orange' as const }
         ].map((step, index) => {
           const isActive = step.number === experimentStep
           const isCompleted = step.number < experimentStep
@@ -2525,7 +2547,7 @@ export default function Dashboard() {
               </div>
               
               {index < 3 && (
-                <div className={`w-16 h-1 rounded-full transition-all duration-300 ${experimentStep > step.number ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                <div className={`w-12 h-1 rounded-full transition-all duration-300 ${experimentStep > step.number ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700'}`} />
               )}
             </div>
           )
@@ -2639,15 +2661,15 @@ export default function Dashboard() {
             onValueChange={(value) => setExperimentForm(prev => ({ ...prev, testType: value as any }))}
           >
             <SelectTrigger className="mt-1.5">
-              <SelectValue />
+              <SelectValue placeholder="Selecione o tipo de teste" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="split_url">
                 <div className="flex items-center gap-2">
                   <ArrowRight className="w-4 h-4" />
                   <div>
-                    <div className="font-medium">Split URL</div>
-                    <div className="text-xs text-muted-foreground">Teste páginas diferentes</div>
+                    <div className="font-medium">Teste de URL</div>
+                    <div className="text-xs text-muted-foreground">Testa páginas diferentes</div>
                   </div>
                 </div>
               </SelectItem>
@@ -2655,8 +2677,8 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2">
                   <Layout className="w-4 h-4" />
                   <div>
-                    <div className="font-medium">Visual</div>
-                    <div className="text-xs text-muted-foreground">Teste elementos visuais</div>
+                    <div className="font-medium">Teste Visual</div>
+                    <div className="text-xs text-muted-foreground">Testa elementos visuais</div>
                   </div>
                 </div>
               </SelectItem>
@@ -2681,7 +2703,7 @@ export default function Dashboard() {
               onValueChange={(value) => setExperimentForm(prev => ({ ...prev, audienceType: value as any }))}
             >
               <SelectTrigger className="mt-1.5">
-                <SelectValue />
+                <SelectValue placeholder="Selecione o tipo de teste" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os visitantes</SelectItem>
@@ -2834,136 +2856,219 @@ export default function Dashboard() {
   const renderStep4 = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
-          <TrendingUp className="w-8 h-8 text-purple-500" />
+        <div className="w-16 h-16 bg-gradient-to-br from-orange-500/20 to-orange-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-orange-500/20">
+          <TrendingUp className="w-8 h-8 text-orange-500" />
         </div>
-        <h3 className="text-2xl font-bold mb-2">Objetivos e Métricas</h3>
-        <p className="text-muted-foreground">Defina como o sucesso será medido</p>
+        <h3 className="text-2xl font-bold mb-2">Metas & Conversão</h3>
+        <p className="text-muted-foreground">Configure o objetivo do teste e como medir o sucesso</p>
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm font-medium text-foreground">Objetivo Principal *</label>
-          <Input 
-            ref={step4GoalRef}
-            value={experimentForm.primaryGoal}
-            onChange={(e) => setExperimentForm(prev => ({ ...prev, primaryGoal: e.target.value }))}
-            placeholder="Ex: Aumentar conversões do botão principal"
-            className="mt-1.5"
-          />
-          <p className="text-xs text-muted-foreground mt-1">Descreva o que você quer otimizar</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-6">
+        {/* Objetivo do Teste */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+          <h4 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Objetivo do Teste
+          </h4>
           <div>
-            <label className="text-sm font-medium text-foreground">Tipo de Meta</label>
-            <Select 
-              value={experimentForm.goalType} 
-              onValueChange={(value) => setExperimentForm(prev => ({ ...prev, goalType: value as any }))}
-            >
-              <SelectTrigger className="mt-1.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="page_view">Visualização de Página</SelectItem>
-                <SelectItem value="click">Clique em Elemento</SelectItem>
-                <SelectItem value="form_submit">Envio de Formulário</SelectItem>
-                <SelectItem value="custom">Evento Customizado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {experimentForm.goalType !== 'page_view' && (
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                {experimentForm.goalType === 'click' ? 'Seletor CSS' : 
-                 experimentForm.goalType === 'form_submit' ? 'ID do Formulário' : 
-                 'Nome do Evento'}
-              </label>
-              <Input 
-                value={experimentForm.goalValue}
-                onChange={(e) => setExperimentForm(prev => ({ ...prev, goalValue: e.target.value }))}
-                placeholder={
-                  experimentForm.goalType === 'click' ? 'Ex: .btn-primary' :
-                  experimentForm.goalType === 'form_submit' ? 'Ex: contact-form' :
-                  'Ex: purchase_complete'
-                }
-                className="mt-1.5"
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium text-foreground">Duração Estimada</label>
-            <div className="mt-1.5 flex items-center gap-2">
-              <Input 
-                type="number"
-                min={1}
-                max={90}
-                value={experimentForm.duration}
-                onChange={(e) => setExperimentForm(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                className="text-right"
-              />
-              <span className="text-sm text-muted-foreground">dias</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground">Tamanho Mínimo da Amostra</label>
+            <label className="text-sm font-medium text-blue-900">Qual é o objetivo principal? *</label>
             <Input 
-              type="number"
-              min={100}
-              value={experimentForm.minSampleSize}
-              onChange={(e) => setExperimentForm(prev => ({ ...prev, minSampleSize: Number(e.target.value) }))}
-              className="mt-1.5 text-right"
+              ref={step4GoalRef}
+              value={experimentForm.primaryGoal}
+              onChange={(e) => setExperimentForm(prev => ({ ...prev, primaryGoal: e.target.value }))}
+              placeholder="Ex: Aumentar conversões do botão principal"
+              className="mt-2 border-blue-200 focus:border-blue-500"
             />
+            <p className="text-xs text-blue-700 mt-1">Descreva claramente o que você quer otimizar com este teste</p>
           </div>
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-foreground">Algoritmo de Otimização</label>
-          <Select 
-            value={experimentForm.algorithm} 
-            onValueChange={(value) => setExperimentForm(prev => ({ ...prev, algorithm: value as any }))}
-          >
-            <SelectTrigger className="mt-1.5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="thompson_sampling">
-                <div>
-                  <div className="font-medium">Thompson Sampling</div>
-                  <div className="text-xs text-muted-foreground">Otimização inteligente (recomendado)</div>
-                </div>
-              </SelectItem>
-              <SelectItem value="ucb1">
-                <div>
-                  <div className="font-medium">UCB1</div>
-                  <div className="text-xs text-muted-foreground">Upper Confidence Bound</div>
-                </div>
-              </SelectItem>
-              <SelectItem value="uniform">
-                <div>
-                  <div className="font-medium">Distribuição Uniforme</div>
-                  <div className="text-xs text-muted-foreground">Tráfego igual para todas as variantes</div>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Configuração de Conversão */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
+          <h4 className="font-semibold text-green-900 mb-4 flex items-center gap-2">
+            <Flag className="w-5 h-5" />
+            Como Medir a Conversão
+          </h4>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-green-900">Tipo de Conversão *</label>
+              <Select 
+                value={experimentForm.conversionType} 
+                onValueChange={(value) => setExperimentForm(prev => ({ ...prev, conversionType: value as any }))}
+              >
+                <SelectTrigger className="mt-2 border-green-200 focus:border-green-500">
+                  <SelectValue placeholder="Selecione como medir a conversão" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="page_view">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      <div>
+                        <div className="font-medium">Visualização de Página</div>
+                        <div className="text-xs text-muted-foreground">Quando acessa uma página específica</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="click">
+                    <div className="flex items-center gap-2">
+                      <MousePointer className="w-4 h-4" />
+                      <div>
+                        <div className="font-medium">Clique em Elemento</div>
+                        <div className="text-xs text-muted-foreground">Quando clica em botão ou link</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="form_submit">
+                    <div className="flex items-center gap-2">
+                      <Database className="w-4 h-4" />
+                      <div>
+                        <div className="font-medium">Envio de Formulário</div>
+                        <div className="text-xs text-muted-foreground">Quando envia um formulário</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="custom">
+                    <div className="flex items-center gap-2">
+                      <Code className="w-4 h-4" />
+                      <div>
+                        <div className="font-medium">Evento Personalizado</div>
+                        <div className="text-xs text-muted-foreground">Evento via JavaScript</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {experimentForm.conversionType === 'page_view' && (
+              <div>
+                <label className="text-sm font-medium text-green-900">URL da Página de Conversão *</label>
+                <Input 
+                  value={experimentForm.conversionUrl}
+                  onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionUrl: e.target.value }))}
+                  placeholder="https://seusite.com/obrigado"
+                  className="mt-2 border-green-200 focus:border-green-500"
+                />
+                <p className="text-xs text-green-700 mt-1">URL da página que indica sucesso (ex: página de agradecimento)</p>
+              </div>
+            )}
+
+            {experimentForm.conversionType === 'click' && (
+              <div>
+                <label className="text-sm font-medium text-green-900">Seletor CSS do Elemento *</label>
+                <Input 
+                  value={experimentForm.conversionSelector}
+                  onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionSelector: e.target.value }))}
+                  placeholder=".btn-comprar, #botao-checkout"
+                  className="mt-2 border-green-200 focus:border-green-500"
+                />
+                <p className="text-xs text-green-700 mt-1">Seletor CSS do elemento que será monitorado</p>
+              </div>
+            )}
+
+            {experimentForm.conversionType === 'form_submit' && (
+              <div>
+                <label className="text-sm font-medium text-green-900">Seletor do Formulário *</label>
+                <Input 
+                  value={experimentForm.conversionSelector}
+                  onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionSelector: e.target.value }))}
+                  placeholder="#form-contato, .form-newsletter"
+                  className="mt-2 border-green-200 focus:border-green-500"
+                />
+                <p className="text-xs text-green-700 mt-1">Seletor CSS do formulário</p>
+              </div>
+            )}
+
+            {experimentForm.conversionType === 'custom' && (
+              <div>
+                <label className="text-sm font-medium text-green-900">Nome do Evento Personalizado *</label>
+                <Input 
+                  value={experimentForm.conversionEvent}
+                  onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionEvent: e.target.value }))}
+                  placeholder="purchase_complete, signup_success"
+                  className="mt-2 border-green-200 focus:border-green-500"
+                />
+                <p className="text-xs text-green-700 mt-1">Nome do evento que será disparado via JavaScript</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="p-4 bg-gradient-to-r from-purple-500/5 to-purple-500/10 rounded-lg border border-purple-500/20">
-          <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+        {/* Configurações Avançadas */}
+        <div className="bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 rounded-xl p-6">
+          <h4 className="font-semibold text-purple-900 mb-4 flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            Configurações do Teste
+          </h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-purple-900">Duração Estimada</label>
+              <div className="mt-2 flex items-center gap-2">
+                <Input 
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={experimentForm.duration}
+                  onChange={(e) => setExperimentForm(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                  className="text-right border-purple-200 focus:border-purple-500"
+                />
+                <span className="text-sm text-purple-700">dias</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-purple-900">Algoritmo de Otimização</label>
+              <Select 
+                value={experimentForm.algorithm} 
+                onValueChange={(value) => setExperimentForm(prev => ({ ...prev, algorithm: value as any }))}
+              >
+                <SelectTrigger className="mt-2 border-purple-200 focus:border-purple-500">
+                  <SelectValue placeholder="Selecione o algoritmo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="thompson_sampling">
+                    <div>
+                      <div className="font-medium">Thompson Sampling</div>
+                      <div className="text-xs text-muted-foreground">Otimização inteligente (recomendado)</div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="ucb1">
+                    <div>
+                      <div className="font-medium">UCB1</div>
+                      <div className="text-xs text-muted-foreground">Limite Superior de Confiança</div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="uniform">
+                    <div>
+                      <div className="font-medium">Distribuição Uniforme</div>
+                      <div className="text-xs text-muted-foreground">Tráfego igual para todas as variantes</div>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Resumo */}
+        <div className="bg-gradient-to-r from-slate-50 to-gray-50 border border-slate-200 rounded-xl p-4">
+          <h4 className="font-medium text-sm mb-2 flex items-center gap-2 text-slate-800">
             <Eye className="w-4 h-4" />
             Resumo do Experimento
           </h4>
-          <div className="space-y-1 text-xs text-muted-foreground">
+          <div className="space-y-1 text-xs text-slate-600">
             <p><span className="font-medium">Teste:</span> {experimentForm.name || 'Não definido'}</p>
             <p><span className="font-medium">Página:</span> {experimentForm.targetUrl || 'Não definida'}</p>
             <p><span className="font-medium">Variantes:</span> {experimentForm.variants.length} configuradas</p>
             <p><span className="font-medium">Objetivo:</span> {experimentForm.primaryGoal || 'Não definido'}</p>
+            <p><span className="font-medium">Conversão:</span> {
+              experimentForm.conversionType === 'page_view' ? 'Visualização de Página' :
+              experimentForm.conversionType === 'click' ? 'Clique em Elemento' :
+              experimentForm.conversionType === 'form_submit' ? 'Envio de Formulário' :
+              experimentForm.conversionType === 'custom' ? 'Evento Personalizado' : 'Não definido'
+            }</p>
             <p><span className="font-medium">Duração:</span> {experimentForm.duration} dias</p>
           </div>
         </div>
