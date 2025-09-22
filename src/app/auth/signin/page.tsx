@@ -64,7 +64,7 @@ export default function SignInPage() {
         ? `${user.user_metadata.full_name}'s Organization`
         : 'Minha Organização'
       
-      const { data: org, error: orgError } = await supabase
+      const { data: org, error: orgError } = await (supabase as any)
         .from('organizations')
         .insert({
           name: orgName,
@@ -79,7 +79,7 @@ export default function SignInPage() {
       }
 
       // Add user as owner
-      const { error: memberError } = await supabase
+      const { error: memberError } = await (supabase as any)
         .from('organization_members')
         .insert({
           organization_id: org.id,
@@ -92,12 +92,12 @@ export default function SignInPage() {
       }
 
       // Create a default project so the user can start creating experiments immediately
-      const { error: projectError } = await supabase
+      const { error: projectError } = await (supabase as any)
         .from('projects')
         .insert({
           organization_id: org.id,
           name: 'Projeto Padrão'
-        } as any)
+        })
         .select('id')
         .single()
 

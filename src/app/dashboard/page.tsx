@@ -131,7 +131,7 @@ export default function Dashboard() {
       try {
         const { data: sessionData } = await supabase.auth.getSession()
         if (!sessionData.session?.user) return
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('projects')
           .select('id, name')
           .order('created_at', { ascending: false })
@@ -1081,15 +1081,41 @@ export default function Dashboard() {
       }
 
       // Inserir experimento no Supabase (campos compatíveis com o schema)
-      const traffic = Math.max(1, Math.min(100, Math.round(Number(experimentForm.trafficAllocation || 100))))
-      const insertData: any = {
-        name: experimentForm.name.trim(),
-        project_id: projectId, // Obrigatório
-        description: experimentForm.description || null,
-        traffic_allocation: parseFloat(traffic.toFixed(2)) // Garantir precisão (5,2)
+      let traffic = Number(experimentForm.trafficAllocation || 100)
+      
+      // Garantir que o valor está dentro dos limites de NUMERIC(5,2): 0.00 a 100.00
+      traffic = Math.max(0.01, Math.min(100, Math.abs(traffic)))
+      traffic = Number(traffic.toFixed(2)) // Garantir exatamente 2 casas decimais
+      
+      // Validar se o valor final é seguro
+      if (traffic > 100 || traffic < 0.01 || !Number.isFinite(traffic)) {
+        toast.error('Valor de tráfego inválido')
+        return
+      }
+      
+      // Teste com apenas campos obrigatórios primeiro
+      const insertData = {
+        name: String(experimentForm.name || '').trim(),
+        project_id: String(projectId)
+        // Omitindo todos os campos opcionais para isolar o problema
+      }
+      
+      // Validar dados antes de enviar
+      if (!insertData.name || insertData.name.length < 2) {
+        toast.error('Nome do experimento é obrigatório e deve ter pelo menos 2 caracteres')
+        return
       }
 
-      console.log('Inserindo experimento com dados:', insertData)
+      console.log('=== DEBUG EXPERIMENT CREATION ===')
+      console.log('experimentForm completo:', experimentForm)
+      console.log('Traffic original:', experimentForm.trafficAllocation)
+      console.log('Traffic calculado:', traffic)
+      console.log('insertData final:', insertData)
+      console.log('Tipos dos campos:')
+      Object.keys(insertData).forEach(key => {
+        console.log(`  ${key}: ${typeof insertData[key]} = ${insertData[key]}`)
+      })
+      console.log('=== FIM DEBUG ===')
       
       const { data: exp, error: expError } = await supabase
         .from('experiments')
@@ -1098,9 +1124,19 @@ export default function Dashboard() {
         .single()
 
       if (expError) {
-        console.error('Erro ao salvar experimento:', expError)
+        console.error('=== ERRO DETALHADO ===')
+        console.error('Erro completo:', expError)
+        console.error('Código do erro:', expError.code)
+        console.error('Mensagem:', expError.message)
+        console.error('Detalhes:', expError.details)
         console.error('Dados enviados:', insertData)
-        toast.error(`Erro ao salvar experimento: ${expError.message || 'Erro desconhecido'}`)
+        console.error('=======================')
+        
+        if (expError.code === '22003') {
+          toast.error('Erro de overflow numérico. Valores fora dos limites permitidos.')
+        } else {
+          toast.error(`Erro ao salvar experimento: ${expError.message || 'Erro desconhecido'}`)
+        }
         return
       }
 
