@@ -26,12 +26,12 @@ export default function SignInPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Check for existing session
+    // Check for existing session and redirect immediately
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        setUser(session.user)
-        router.push('/dashboard')
+        window.location.href = '/dashboard'
+        return
       }
     }
 
@@ -41,14 +41,13 @@ export default function SignInPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          setUser(session.user)
-          
           // Create organization for new user
           if (event === 'SIGNED_UP' as any) {
             await createUserOrganization(session.user)
           }
           
-          router.push('/dashboard')
+          // Redirect immediately
+          window.location.href = '/dashboard'
         } else {
           setUser(null)
         }
@@ -56,7 +55,7 @@ export default function SignInPage() {
     )
 
     return () => subscription.unsubscribe()
-  }, [router, supabase])
+  }, [supabase])
 
   const createUserOrganization = async (user: any) => {
     try {
@@ -91,6 +90,20 @@ export default function SignInPage() {
       if (memberError) {
         console.error('Error creating membership:', memberError)
       }
+
+      // Create a default project so the user can start creating experiments immediately
+      const { error: projectError } = await supabase
+        .from('projects')
+        .insert({
+          organization_id: org.id,
+          name: 'Projeto Padrão'
+        } as any)
+        .select('id')
+        .single()
+
+      if (projectError) {
+        console.error('Error creating default project:', projectError)
+      }
     } catch (error) {
       console.error('Error setting up user:', error)
     }
@@ -115,8 +128,7 @@ export default function SignInPage() {
         }
       } else {
         setMessage('Login realizado com sucesso!')
-        // Redirecionar para o dashboard após login bem-sucedido
-        window.location.href = '/dashboard'
+        // O redirecionamento será feito pelo listener de auth state
       }
     } catch (error) {
       setMessage('Erro inesperado. Tente novamente.')
@@ -150,7 +162,7 @@ export default function SignInPage() {
           setMessage(`Erro: ${error.message}`)
         }
       } else {
-        // Se o cadastro foi bem-sucedido, tentar confirmar automaticamente
+        // Se o cadastro foi bem-sucedido, tentar confirmar automaticamente e fazer login
         if (data.user) {
           try {
             // Confirmar email automaticamente usando service role
@@ -167,7 +179,18 @@ export default function SignInPage() {
             })
             
             if (response.ok) {
-              setMessage('Conta criada e confirmada automaticamente! Você já pode fazer login.')
+              // Após confirmar, fazer login automaticamente
+              const { error: loginError } = await supabase.auth.signInWithPassword({
+                email: formData.email,
+                password: formData.password,
+              })
+              
+              if (loginError) {
+                setMessage('Conta criada e confirmada! Faça login com suas credenciais.')
+              } else {
+                setMessage('Conta criada com sucesso!')
+                // O listener de auth state vai fazer o redirecionamento
+              }
             } else {
               setMessage('Conta criada! Verifique seu email para confirmação.')
             }
@@ -192,20 +215,12 @@ export default function SignInPage() {
     }))
   }
 
+  // Se usuário já está logado, redirecionar imediatamente
   if (user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="w-6 h-6 text-white" />
-            </div>
-            <CardTitle>Redirecionando...</CardTitle>
-            <CardDescription>Você já está autenticado</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    )
+    if (typeof window !== 'undefined') {
+      window.location.href = '/dashboard'
+    }
+    return null
   }
 
   return (

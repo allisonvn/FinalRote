@@ -73,6 +73,8 @@ export default function Dashboard() {
   const [tagHighlightIndex, setTagHighlightIndex] = useState<number>(0)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  
+  const supabase = createClient()
 
   // Estado da aba Configurações (render dentro do dashboard)
   const [cfgNome, setCfgNome] = useState('Usuário Demo')
@@ -122,6 +124,29 @@ export default function Dashboard() {
     // Reset campo de nova tag ao abrir outro experimento
     setNewTagValue('')
   }, [selectedExperiment?.id])
+
+  // Carregar projetos acessíveis do usuário autenticado
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (!sessionData.session?.user) return
+        const { data, error } = await supabase
+          .from('projects')
+          .select('id, name')
+          .order('created_at', { ascending: false })
+        if (error) {
+          console.error('Erro ao carregar projetos:', error)
+          return
+        }
+        setProjects(data || [])
+      } catch (err) {
+        console.error('Erro ao buscar projetos:', err)
+      }
+    }
+    loadProjects()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const toggleGroupCollapsed = (key: string) => {
     setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -438,7 +463,7 @@ export default function Dashboard() {
     },
   }
 
-  const supabase = createClient()
+  // reuse top-level supabase instance
   
   // New experiment modal states
   const [experimentStep, setExperimentStep] = useState(1)
@@ -1037,35 +1062,81 @@ export default function Dashboard() {
       if (!validateCurrentStep()) {
         return
       }
-      
-      // Create experiment with full configuration
-      const mockExperiment: Experiment = {
-        id: Date.now().toString(),
+
+      // Utilitário simples para gerar chave slug
+      const toKey = (text: string) =>
+        (text || '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+
+      // Obter projeto para vincular o experimento (opcional)
+      const projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
+
+      // Inserir experimento no Supabase (campos compatíveis com o schema)
+      const traffic = Math.max(1, Math.min(100, Math.round(Number(experimentForm.trafficAllocation || 100))))
+      const insertData: any = {
         name: experimentForm.name.trim(),
-        status: 'draft',
-        created_at: new Date().toISOString(),
-        // projeto removido
-        description: experimentForm.description || undefined,
-        algorithm: experimentForm.algorithm as any,
-        target_url: experimentForm.targetUrl || undefined,
-        goal_type: experimentForm.goalType as any,
-        goal_value: experimentForm.goalValue || undefined,
-        duration_days: experimentForm.duration,
-        traffic_allocation: experimentForm.trafficAllocation / 100,
-        test_type: experimentForm.testType as any,
-        min_sample_size: experimentForm.minSampleSize,
-        variants: experimentForm.variants.map((v, i) => ({
-          id: `${Date.now()}-${i}`,
-          name: v.name,
-          key: v.name.toLowerCase().replace(/\s+/g, '-'),
-          is_control: v.isControl,
-          url: v.url || undefined,
-          description: v.description || undefined
-        }))
+        key: toKey(experimentForm.name.trim()),
+        description: experimentForm.description || null,
+        algorithm: (experimentForm.algorithm as any) || 'thompson_sampling',
+        traffic_allocation: traffic,
       }
-      
-      // Add to experiments list
-      setExperiments(prev => [mockExperiment, ...prev])
+
+      // Adicionar project_id apenas se estiver definido
+      if (projectId) {
+        insertData.project_id = projectId
+      }
+
+      const { data: exp, error: expError } = await supabase
+        .from('experiments')
+        .insert(insertData)
+        .select('id, name, status, created_at')
+        .single()
+
+      if (expError) {
+        console.error('Erro ao salvar experimento:', expError)
+        toast.error(expError.message || 'Erro ao salvar experimento')
+        return
+      }
+
+      // Inserir variantes
+      const variantsPayload = experimentForm.variants.map((v: any, i: number) => ({
+        experiment_id: exp.id,
+        name: v.name,
+        key: toKey(v.name),
+        is_control: Boolean(v.isControl),
+        // peso uniforme; schema tem default 50, mas distribuímos proporcionalmente
+        weight: Math.floor(100 / Math.max(1, experimentForm.variants.length)),
+      })) as any
+
+      const { data: insertedVars, error: varError } = await supabase
+        .from('variants' as any)
+        .insert(variantsPayload)
+        .select('id, name, key, is_control')
+
+      if (varError) {
+        console.error('Erro ao salvar variantes:', varError)
+        toast.error(varError.message || 'Erro ao salvar variantes')
+        return
+      }
+
+      const saved: Experiment = {
+        id: exp.id,
+        name: exp.name,
+        status: exp.status as any,
+        created_at: exp.created_at,
+        project_id: projectId || undefined,
+        variants: (insertedVars || []).map(v => ({ 
+          id: (v as any).id, 
+          name: (v as any).name, 
+          key: (v as any).key, 
+          is_control: (v as any).is_control 
+        })) as Variant[],
+      }
+
+      setExperiments(prev => [saved, ...prev])
       
       // Close modal and reset
       setShowNew(false)
@@ -1739,7 +1810,8 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'experiments':
         return renderExperimentsContent()
-      // Aba de projetos removida
+      case 'analytics':
+        return <ChartsSection {...({ experiments, stats } as any)} />
       case 'audiences':
         return renderAudiencesContent()
       case 'settings':

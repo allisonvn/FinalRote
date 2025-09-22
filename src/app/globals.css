@@ -2,40 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Modern Design System (Rota Final) */
+/* Enhanced Design System (Rota Final Pro) */
 :root {
-  /* Brand Colors */
-  --primary: 217 91% 60%;
+  /* Brand Colors - Modern Blue/Purple Gradient */
+  --primary: 221 83% 53%;
   --primary-foreground: 210 20% 98%;
-  --success: 160 84% 39%;
+  --primary-light: 221 83% 63%;
+  --primary-dark: 221 83% 43%;
+
+  /* Semantic Colors */
+  --success: 142 76% 36%;
   --success-foreground: 210 20% 98%;
-  --warning: 21 94% 52%;
+  --success-light: 142 76% 46%;
+  --warning: 38 92% 50%;
   --warning-foreground: 210 20% 98%;
-  --danger: 0 84% 60%;
+  --warning-light: 38 92% 60%;
+  --danger: 0 72% 51%;
   --danger-foreground: 210 20% 98%;
-  
-  /* Base Colors */
-  --background: 210 20% 98%;
-  --foreground: 216 26% 12%;
+  --danger-light: 0 72% 61%;
+  --info: 199 89% 48%;
+  --info-foreground: 210 20% 98%;
+  --info-light: 199 89% 58%;
+
+  /* Base Colors - Warmer whites and cooler grays */
+  --background: 220 14% 97%;
+  --foreground: 215 25% 27%;
   --card: 0 0% 100%;
-  --card-foreground: 216 26% 12%;
+  --card-foreground: 215 25% 27%;
   --popover: 0 0% 100%;
-  --popover-foreground: 216 26% 12%;
-  
-  /* UI Colors */
-  --secondary: 210 16% 93%;
-  --secondary-foreground: 216 26% 12%;
-  --muted: 210 16% 93%;
-  --muted-foreground: 214 15% 50%;
-  --accent: 210 16% 93%;
-  --accent-foreground: 216 26% 12%;
-  --destructive: 0 84% 60%;
+  --popover-foreground: 215 25% 27%;
+
+  /* UI Colors - Enhanced hierarchy */
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 215 25% 27%;
+  --muted: 220 13% 91%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 221 83% 53%;
+  --accent-foreground: 210 20% 98%;
+  --destructive: 0 72% 51%;
   --destructive-foreground: 210 20% 98%;
-  
-  /* Borders & Inputs */
-  --border: 214 13% 91%;
-  --input: 214 13% 91%;
-  --ring: 217 91% 60%;
+
+  /* Borders & Inputs - Softer, more modern */
+  --border: 220 13% 87%;
+  --input: 220 13% 87%;
+  --ring: 221 83% 53%;
   
   /* Border Radius System */
   --radius: 0.75rem;
@@ -51,45 +61,57 @@
   --shadow-large: 0 10px 15px -3px hsl(216 26% 12% / 0.1), 0 4px 6px -2px hsl(216 26% 12% / 0.05);
   --shadow-xl: 0 20px 25px -5px hsl(216 26% 12% / 0.1), 0 10px 10px -5px hsl(216 26% 12% / 0.04);
   
-  /* Gradients */
-  --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(217, 91%, 70%));
-  --gradient-success: linear-gradient(135deg, hsl(160, 84%, 39%), hsl(160, 84%, 49%));
-  --gradient-brand: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(262, 83%, 58%) 50%, hsl(336, 84%, 57%) 100%);
+  /* Enhanced Gradients */
+  --gradient-primary: linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(221, 83%, 63%) 100%);
+  --gradient-success: linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(142, 76%, 46%) 100%);
+  --gradient-brand: linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(262, 83%, 58%) 50%, hsl(290, 70%, 60%) 100%);
+  --gradient-hero: linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(259, 70%, 58%) 35%, hsl(290, 70%, 60%) 100%);
+  --gradient-surface: linear-gradient(135deg, hsl(220, 14%, 97%) 0%, hsl(220, 14%, 95%) 100%);
 }
 
 .dark {
-  /* Dark Mode Colors */
-  --background: 216 26% 6%;
+  /* Dark Mode Colors - Enhanced for better contrast */
+  --background: 220 27% 4%;
   --foreground: 210 20% 98%;
-  --card: 216 26% 8%;
+  --card: 220 27% 6%;
   --card-foreground: 210 20% 98%;
-  --popover: 216 26% 8%;
+  --popover: 220 27% 6%;
   --popover-foreground: 210 20% 98%;
-  
-  /* Dark Primary Colors */
-  --primary: 217 91% 70%;
-  --primary-foreground: 216 26% 12%;
-  --success: 160 84% 49%;
-  --success-foreground: 216 26% 12%;
-  --warning: 21 94% 62%;
-  --warning-foreground: 216 26% 12%;
-  --danger: 0 84% 70%;
-  --danger-foreground: 216 26% 12%;
-  
-  /* Dark UI Colors */
-  --secondary: 216 26% 12%;
+
+  /* Dark Brand Colors */
+  --primary: 221 83% 63%;
+  --primary-foreground: 220 27% 4%;
+  --primary-light: 221 83% 73%;
+  --primary-dark: 221 83% 53%;
+
+  /* Dark Semantic Colors */
+  --success: 142 76% 46%;
+  --success-foreground: 220 27% 4%;
+  --success-light: 142 76% 56%;
+  --warning: 38 92% 60%;
+  --warning-foreground: 220 27% 4%;
+  --warning-light: 38 92% 70%;
+  --danger: 0 72% 61%;
+  --danger-foreground: 220 27% 4%;
+  --danger-light: 0 72% 71%;
+  --info: 199 89% 58%;
+  --info-foreground: 220 27% 4%;
+  --info-light: 199 89% 68%;
+
+  /* Dark UI Colors - Better hierarchy */
+  --secondary: 220 27% 12%;
   --secondary-foreground: 210 20% 98%;
-  --muted: 216 26% 12%;
-  --muted-foreground: 214 15% 70%;
-  --accent: 216 26% 12%;
-  --accent-foreground: 210 20% 98%;
-  --destructive: 0 84% 70%;
-  --destructive-foreground: 216 26% 12%;
-  
-  /* Dark Borders & Inputs */
-  --border: 216 26% 15%;
-  --input: 216 26% 15%;
-  --ring: 217 91% 70%;
+  --muted: 220 27% 10%;
+  --muted-foreground: 215 16% 67%;
+  --accent: 221 83% 63%;
+  --accent-foreground: 220 27% 4%;
+  --destructive: 0 72% 61%;
+  --destructive-foreground: 220 27% 4%;
+
+  /* Dark Borders & Inputs - More visible */
+  --border: 220 27% 18%;
+  --input: 220 27% 18%;
+  --ring: 221 83% 63%;
   
   /* Dark Shadows */
   --shadow-soft: 0 1px 3px 0 hsl(0 0% 0% / 0.3), 0 1px 2px 0 hsl(0 0% 0% / 0.2);
