@@ -1078,10 +1078,10 @@ export default function Dashboard() {
       const traffic = Math.max(1, Math.min(100, Math.round(Number(experimentForm.trafficAllocation || 100))))
       const insertData: any = {
         name: experimentForm.name.trim(),
-        key: toKey(experimentForm.name.trim()),
         description: experimentForm.description || null,
-        algorithm: (experimentForm.algorithm as any) || 'thompson_sampling',
-        traffic_allocation: traffic,
+        traffic_allocation: parseFloat(traffic.toFixed(2)), // Garantir precisão (5,2)
+        type: 'redirect',
+        status: 'draft'
       }
 
       // Adicionar project_id apenas se estiver definido
@@ -1097,28 +1097,29 @@ export default function Dashboard() {
 
       if (expError) {
         console.error('Erro ao salvar experimento:', expError)
-        toast.error(expError.message || 'Erro ao salvar experimento')
+        toast.error(`Erro ao salvar experimento: ${expError.message || 'Erro desconhecido'}`)
         return
       }
 
       // Inserir variantes
+      const variantsCount = experimentForm.variants.length || 1
+      const trafficPerVariant = parseFloat((100 / variantsCount).toFixed(2)) // Garantir precisão (5,2)
+      
       const variantsPayload = experimentForm.variants.map((v: any, i: number) => ({
         experiment_id: exp.id,
         name: v.name,
-        key: toKey(v.name),
         is_control: Boolean(v.isControl),
-        // peso uniforme; schema tem default 50, mas distribuímos proporcionalmente
-        weight: Math.floor(100 / Math.max(1, experimentForm.variants.length)),
+        traffic_percentage: trafficPerVariant,
       })) as any
 
       const { data: insertedVars, error: varError } = await supabase
-        .from('variants' as any)
+        .from('variants')
         .insert(variantsPayload)
-        .select('id, name, key, is_control')
+        .select('id, name, is_control')
 
       if (varError) {
         console.error('Erro ao salvar variantes:', varError)
-        toast.error(varError.message || 'Erro ao salvar variantes')
+        toast.error(`Erro ao salvar variantes: ${varError.message || 'Erro desconhecido'}`)
         return
       }
 
@@ -2189,11 +2190,11 @@ export default function Dashboard() {
                 </div>
                 <div className="p-4 rounded-xl border bg-card/60">
                   <label className="text-xs text-muted-foreground">Alocação de tráfego (%)</label>
-                  <Input type="number" min={1} max={100} value={Math.round((exp.traffic_allocation||1)*100)} onChange={(e) => {
+                  <Input type="number" min={1} max={100} value={Math.round((exp.traffic_allocation||1))} onChange={(e) => {
                     const val = Math.max(1, Math.min(100, Number(e.target.value)))
-                    const frac = val/100
-                    setSelectedExperiment(se => se ? { ...se, traffic_allocation: frac } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, traffic_allocation: frac } : e))
+                    const trafficAllocation = parseFloat(val.toFixed(2)) // Garantir precisão (5,2)
+                    setSelectedExperiment(se => se ? { ...se, traffic_allocation: trafficAllocation } : se)
+                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, traffic_allocation: trafficAllocation } : e))
                   }} className="mt-1 h-9" />
                 </div>
                 <div className="p-4 rounded-xl border bg-card/60">
@@ -3097,7 +3098,7 @@ export default function Dashboard() {
       goal_type: experimentForm.goalType as any,
       goal_value: experimentForm.goalValue || undefined,
       duration_days: experimentForm.duration,
-      traffic_allocation: experimentForm.trafficAllocation / 100,
+      traffic_allocation: parseFloat((experimentForm.trafficAllocation || 100).toFixed(2)),
       variants: experimentForm.variants.map((v, i) => ({ id: `v-${i}`, name: v.name, key: v.name.toLowerCase().replace(/\s+/g, '-'), is_control: v.isControl }))
     }
 
