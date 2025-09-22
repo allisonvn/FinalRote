@@ -1122,17 +1122,22 @@ export default function Dashboard() {
       console.log('Email do usuário:', user?.email || 'NENHUM')
       console.log('Erro de auth:', authError)
       
-      // Se não está autenticado, usar created_by do usuário válido conhecido
-      if (!user || user.id === '00000000-0000-0000-0000-000000000000') {
-        console.log('Usuário não autenticado. Usando fallback.')
-        // Adicionar created_by com usuário válido conhecido
-        insertData.created_by = 'a1a4c03f-17a5-417e-8cf9-c1a9f05ac0ac'
-        insertData.user_id = 'a1a4c03f-17a5-417e-8cf9-c1a9f05ac0ac'
-      } else {
+      // Adicionar apenas campos essenciais que sabemos que funcionam
+      if (user && user.id !== '00000000-0000-0000-0000-000000000000') {
         insertData.created_by = user.id
         insertData.user_id = user.id
       }
       
+      // Garantir que temos apenas campos válidos (sem user_id por enquanto)
+      const validFields = ['name', 'project_id', 'description', 'created_by']
+      const cleanInsertData: any = {}
+      validFields.forEach(field => {
+        if (insertData[field] !== undefined) {
+          cleanInsertData[field] = insertData[field]
+        }
+      })
+      
+      console.log('Dados limpos para envio:', cleanInsertData)
       console.log('=== FIM DEBUG ===')
       
       // Usar cliente sem RLS para desenvolvimento
@@ -1148,7 +1153,7 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
-        body: JSON.stringify(insertData)
+        body: JSON.stringify(cleanInsertData)
       })
       
       const result = await response.json()
@@ -1161,7 +1166,7 @@ export default function Dashboard() {
         console.error('Código do erro:', expError.code)
         console.error('Mensagem:', expError.message)
         console.error('Detalhes:', expError.details)
-        console.error('Dados enviados:', insertData)
+        console.error('Dados enviados:', cleanInsertData)
         console.error('=======================')
         
         if (expError.code === '22003') {
