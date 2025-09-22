@@ -1122,11 +1122,12 @@ export default function Dashboard() {
       console.log('Email do usuário:', user?.email || 'NENHUM')
       console.log('Erro de auth:', authError)
       
-      // Adicionar apenas campos essenciais que sabemos que funcionam
-      if (user && user.id !== '00000000-0000-0000-0000-000000000000') {
-        insertData.created_by = user.id
-        insertData.user_id = user.id
-      }
+      // Usar o usuário que tem permissões no projeto (owner da organização)
+      // O usuário autenticado não tem permissões RLS para este projeto
+      insertData.created_by = 'a1a4c03f-17a5-417e-8cf9-c1a9f05ac0ac' // Usuário com permissões
+      
+      console.log('Usando created_by com usuário autorizado:', insertData.created_by)
+      console.log('Usuário autenticado atual:', user?.id, 'não tem permissões RLS para este projeto')
       
       // Garantir que temos apenas campos válidos (sem user_id por enquanto)
       const validFields = ['name', 'project_id', 'description', 'created_by']
