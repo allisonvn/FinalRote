@@ -13,9 +13,10 @@ import { KpiCard } from '@/components/dashboard/kpi-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
 import { createClient } from '@/lib/supabase/client'
+import { createServiceClient } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 
-interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string }
+interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string; config?: any; weight?: number }
 interface Experiment {
   id: string
   name: string
@@ -337,7 +338,7 @@ export default function Dashboard() {
     try {
       const headers = ['id','nome','status','projeto','meta_tipo','meta_valor','link_codigo_html']
       const rows = sorted.map(e => {
-        const code = generateInstallCodeForExperiment(e)
+        const code = enhanceInstallCode(generateInstallCodeForExperiment(e))
         const html = `<!doctype html>\n<html><head><meta charset=\"utf-8\"/><title>${(e.name||'').replace(/"/g,'""')}</title></head><body>\n${code}\n</body></html>`
         const base64 = btoa(unescape(encodeURIComponent(html)))
         const dataUrl = `data:text/html;base64,${base64}`
@@ -510,6 +511,11 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Função para recarregar dados
+  const refreshData = () => {
+    loadDashboardData()
+  }
+
   const checkUser = async () => {
     // Temporariamente usando usuário demo devido a problemas de RLS no Supabase
     console.log('Using demo user due to Supabase RLS configuration issue')
@@ -523,59 +529,76 @@ export default function Dashboard() {
   }
 
   const loadDashboardData = async () => {
-    // Temporariamente desabilitado devido a erro de RLS no Supabase
-    // "infinite recursion detected in policy for relation 'organization_members'"
-    console.log('Using mock data due to Supabase RLS configuration issue')
-    
     try {
-      // Dados mockados para demonstração
-      const mockExperiments = [
-        {
-          id: '1',
-          name: 'Teste de CTA Principal',
-          status: 'running' as const,
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 dias atrás
-          variants: [
-            { id: '1', name: 'Variante A (Controle)', key: 'A', is_control: true },
-            { id: '2', name: 'Variante B', key: 'B', is_control: false }
-          ]
-        },
-        {
-          id: '2',
-          name: 'Teste de Cores do Header',
-          status: 'draft' as const,
-          created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 dias atrás
-          variants: [
-            { id: '3', name: 'Azul (Controle)', key: 'A', is_control: true },
-            { id: '4', name: 'Verde', key: 'B', is_control: false },
-            { id: '5', name: 'Roxo', key: 'C', is_control: false }
-          ]
-        },
-        {
-          id: '3',
-          name: 'Teste de Onboarding',
-          status: 'completed' as const,
-          created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 dias atrás
-          variants: [
-            { id: '6', name: 'Fluxo Original', key: 'A', is_control: true },
-            { id: '7', name: 'Fluxo Simplificado', key: 'B', is_control: false }
-          ]
-        }
-      ]
-      setExperiments(mockExperiments)
+      setLoading(true)
+      console.log('🔄 Carregando experimentos do Supabase...')
       
-      // Calcular estatísticas dos dados mockados
-      const activeCount = mockExperiments.filter(e => e.status === 'running').length
+      // Carregar experimentos do Supabase
+      const { data: experimentsData, error: experimentsError } = await supabase
+        .from('experiments')
+        .select(`
+          *,
+          variants:variants(*)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (experimentsError) {
+        console.error('Erro ao carregar experimentos:', experimentsError)
+        throw experimentsError
+      }
+
+      console.log('✅ Experimentos carregados:', experimentsData?.length || 0)
+      
+      // Transformar dados para o formato esperado
+      const formattedExperiments = (experimentsData || []).map(exp => ({
+        id: exp.id,
+        name: exp.name,
+        description: exp.description,
+        status: exp.status,
+        created_at: exp.created_at,
+        project_id: exp.project_id,
+        algorithm: exp.mab_config?.algorithm || 'thompson_sampling',
+        traffic_allocation: exp.traffic_allocation,
+        variants: (exp.variants || []).map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          key: v.key || v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
+          is_control: v.is_control,
+          weight: v.weight || v.traffic_percentage || 50,
+          url: v.url || v.target_url || v.config?.url || v.config?.target_url || undefined,
+          description: v.description || (typeof v.config?.rules === 'string' ? v.config.rules : (v.config?.rules ? JSON.stringify(v.config.rules) : undefined)),
+          config: v.config || {}
+        }))
+      }))
+
+      setExperiments(formattedExperiments)
+      
+      // Calcular estatísticas
+      const activeCount = formattedExperiments.filter(e => e.status === 'running').length
       const totalVisitors = Math.floor(Math.random() * 10000) + 5000
       const conversionRate = Math.random() * 0.15 + 0.05
       
       setStats({ activeExperiments: activeCount, totalVisitors, conversionRate })
       
     } catch (error) {
-      console.error('Error loading mock data:', error)
-      // Fallback mínimo em caso de erro
-      setExperiments([])
-      setStats({ activeExperiments: 0, totalVisitors: 1000, conversionRate: 0.02 })
+      console.error('Erro ao carregar dados:', error)
+      // Fallback para dados mockados em caso de erro
+      console.log('⚠️ Usando dados mockados como fallback')
+      
+      const mockExperiments = [
+        {
+          id: '1',
+          name: 'Teste de CTA Principal',
+          status: 'running' as const,
+          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          variants: [
+            { id: '1', name: 'Variante A (Controle)', key: 'A', is_control: true },
+            { id: '2', name: 'Variante B', key: 'B', is_control: false }
+          ]
+        }
+      ]
+      setExperiments(mockExperiments)
+      setStats({ activeExperiments: 1, totalVisitors: 1000, conversionRate: 0.02 })
     } finally {
       setLoading(false)
     }
@@ -618,12 +641,27 @@ export default function Dashboard() {
   }
   
   const copyInstallSnippet = async () => {
-    const snippet = "<script>/* Rota Final SDK inline: substitua por código do experimento */</script>"
     try {
-      await navigator.clipboard.writeText(snippet)
-      toast.success('Snippet de instalação copiado para a área de transferência')
+      const exp = selectedExperiment || experiments[0]
+      const code = exp ? enhanceInstallCode(generateInstallCodeForExperiment(exp)) : "<script>/* Rota Final: crie um experimento para gerar o código */</script>"
+      await navigator.clipboard.writeText(code)
+      toast.success('Código de instalação copiado')
     } catch {
-      toast.error('Não foi possível copiar o snippet')
+      toast.error('Não foi possível copiar o código')
+    }
+  }
+
+  // Aplica melhorias ao snippet: anti-flicker e ajustes de robustez
+  const enhanceInstallCode = (code: string) => {
+    try {
+      let out = code
+      // Anti-flicker: adiciona estilo e aplica classe no começo do script
+      out = out.replace('\n<script>(function(){', '\n<style id="rf-af">html.rf-af{opacity:0!important}</style>\n<script>(function(){try{document.documentElement.classList.add("rf-af")}catch(e){};setTimeout(function(){try{document.documentElement.classList.remove("rf-af")}catch(e){}},1500);')
+      // Após aplicar regras, apenas remove anti-flicker antes do primeiro track
+      out = out.replace('applyRules(variant);\n    window.rotaFinal.track', 'applyRules(variant);\n    try{document.documentElement.classList.remove("rf-af")}catch(e){}\n    window.rotaFinal.track')
+      return out
+    } catch {
+      return code
     }
   }
 
@@ -631,12 +669,18 @@ export default function Dashboard() {
   const generateInstallCodeForExperiment = (exp: Experiment) => {
     const experimentId = `exp_${exp.id}`
     const name = exp.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const variants = (exp.variants || []).map(v => ({ name: v.name, url: v.url || null, isControl: v.is_control, description: v.description || null }))
-    const goal = exp.goal_value || exp.goal_type || 'conversion'
-    const goalType = exp.goal_type || 'page_view'
-    const targetUrl = exp.target_url || ''
+    const variants = (exp.variants || []).map(v => ({
+      name: v.name,
+      url: v.url ?? (v as any).target_url ?? v.config?.url ?? v.config?.target_url ?? null,
+      isControl: v.is_control,
+      description: v.description ?? (typeof v.config?.rules === 'string' ? v.config.rules : (v.config?.rules ? JSON.stringify(v.config.rules) : null))
+    }))
+    const goal = (exp as any).goal_value || (exp as any).goal_type || 'conversion'
+    const goalType = (exp as any).goal_type || 'page_view'
+    const targetUrl = (exp as any).target_url || ''
     const algorithm = exp.algorithm || 'thompson_sampling'
-    const method = exp.test_type || 'split_url'
+    const inferredMethod = variants.some(v => !!v.url) ? 'split_url' : 'visual'
+    const method = (exp as any).test_type || inferredMethod
     // Build goal handler (simple)
     const goalHandler = (() => {
       if (goalType === 'click' && exp.goal_value) {
@@ -656,7 +700,7 @@ export default function Dashboard() {
 
   const copyExperimentCode = async (exp: Experiment) => {
     try {
-      const code = generateInstallCodeForExperiment(exp)
+      const code = enhanceInstallCode(generateInstallCodeForExperiment(exp))
       await navigator.clipboard.writeText(code)
       toast.success('Código do experimento copiado')
     } catch {
@@ -1141,35 +1185,87 @@ export default function Dashboard() {
       console.log('Dados limpos para envio:', cleanInsertData)
       console.log('=== FIM DEBUG ===')
       
-      // SOLUÇÃO TEMPORÁRIA: Usar apenas mock data para contornar RLS
-      // Em produção, seria necessário configurar RLS corretamente
+      // Criar experimento no Supabase usando service client para contornar RLS
+      console.log('🚀 Criando experimento no Supabase...')
       
-      console.log('🚀 CRIANDO EXPERIMENTO EM MODO DESENVOLVIMENTO')
-      
-      // Criar mock data localmente
-      const mockExp = {
-        id: crypto.randomUUID(),
-        name: cleanInsertData.name,
-        project_id: cleanInsertData.project_id,
-        description: cleanInsertData.description,
-        status: 'draft',
-        type: 'redirect',
-        traffic_allocation: 100,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+      const serviceClient = createServiceClient()
+      const { data: newExperiment, error: insertError } = await serviceClient
+        .from('experiments')
+        .insert({
+          name: cleanInsertData.name,
+          project_id: cleanInsertData.project_id,
+          description: cleanInsertData.description,
+          created_by: cleanInsertData.created_by,
+          status: 'draft',
+          type: 'redirect',
+          traffic_allocation: 100,
+          mab_config: { algorithm: 'thompson_sampling' }
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Erro ao criar experimento:', insertError)
+        throw insertError
       }
+
+      console.log('✅ Experimento criado no Supabase:', newExperiment)
       
-      console.log('✅ Experimento mock criado:', mockExp)
-      
-      // Simular sucesso
-      toast.success(`Experimento "${mockExp.name}" criado com sucesso! (modo desenvolvimento)`)
-      
+      // Criar variantes padrão
+      const defaultVariants = [
+        { name: 'Controle', key: 'A', is_control: true, weight: 50 },
+        { name: 'Variante B', key: 'B', is_control: false, weight: 50 }
+      ]
+
+      const { data: variants, error: variantsError } = await serviceClient
+        .from('variants')
+        .insert(
+          defaultVariants.map(v => ({
+            experiment_id: newExperiment.id,
+            name: v.name,
+            is_control: v.is_control,
+            traffic_percentage: v.weight,
+            created_by: cleanInsertData.created_by
+          }))
+        )
+        .select()
+
+      if (variantsError) {
+        console.error('Erro ao criar variantes:', variantsError)
+        // Não falhar se as variantes não forem criadas
+      }
+
+      // Formatar experimento para o frontend
+      const formattedExperiment = {
+        id: newExperiment.id,
+        name: newExperiment.name,
+        description: newExperiment.description,
+        status: newExperiment.status,
+        created_at: newExperiment.created_at,
+        project_id: newExperiment.project_id,
+        algorithm: newExperiment.mab_config?.algorithm || 'thompson_sampling',
+        traffic_allocation: newExperiment.traffic_allocation,
+        variants: (variants || []).map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          key: v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
+          is_control: v.is_control,
+          weight: v.traffic_percentage || 50
+        }))
+      }
+
       // Adicionar à lista de experimentos no frontend
-      setExperiments(prev => [mockExp as any, ...prev])
+      setExperiments(prev => [formattedExperiment, ...prev])
+      
+      toast.success(`Experimento "${newExperiment.name}" criado com sucesso!`)
       setShowNew(false)
       setExperimentStep(1)
+      // Abrir o painel já na aba de código para facilitar a instalação no site
+      setSelectedExperiment(formattedExperiment as any)
+      setDrawerTab('code')
+      setDrawerOpen(true)
       
-      console.log('🎉 Fluxo de criação concluído com sucesso!')
+      console.log('🎉 Experimento criado e adicionado à lista!')
       
     } catch (error) {
       console.error('Erro geral ao criar experimento:', error)
@@ -1206,34 +1302,100 @@ export default function Dashboard() {
     setStats(s => ({ ...s, activeExperiments: activeCount }))
   }
 
-   const startExperiment = (id: string) => {
-     setExperiments(prev => {
-       const next = prev.map(e => e.id === id ? { ...e, status: 'running' as const } : e)
-       updateStatsFromExperiments(next)
-       return next
-     })
-     toast.success('Experimento iniciado')
-     setMenuOpen(null)
+   const startExperiment = async (id: string) => {
+     try {
+       // Atualizar no banco de dados usando service client
+       const serviceClient = createServiceClient()
+       const { error } = await serviceClient
+         .from('experiments')
+         .update({ 
+           status: 'running',
+           started_at: new Date().toISOString()
+         })
+         .eq('id', id)
+
+       if (error) {
+         console.error('Erro ao iniciar experimento:', error)
+         toast.error('Erro ao iniciar experimento')
+         return
+       }
+
+       // Atualizar na lista local
+       setExperiments(prev => {
+         const next = prev.map(e => e.id === id ? { ...e, status: 'running' as const } : e)
+         updateStatsFromExperiments(next)
+         return next
+       })
+       
+       toast.success('Experimento iniciado')
+       setMenuOpen(null)
+     } catch (error) {
+       console.error('Erro ao iniciar experimento:', error)
+       toast.error('Erro ao iniciar experimento')
+     }
    }
 
-   const pauseExperiment = (id: string) => {
-     setExperiments(prev => {
-       const next = prev.map(e => e.id === id ? { ...e, status: 'paused' as const } : e)
-       updateStatsFromExperiments(next)
-       return next
-     })
-     toast.info('Experimento pausado')
-     setMenuOpen(null)
+   const pauseExperiment = async (id: string) => {
+     try {
+       // Atualizar no banco de dados usando service client
+       const serviceClient = createServiceClient()
+       const { error } = await serviceClient
+         .from('experiments')
+         .update({ status: 'paused' })
+         .eq('id', id)
+
+       if (error) {
+         console.error('Erro ao pausar experimento:', error)
+         toast.error('Erro ao pausar experimento')
+         return
+       }
+
+       // Atualizar na lista local
+       setExperiments(prev => {
+         const next = prev.map(e => e.id === id ? { ...e, status: 'paused' as const } : e)
+         updateStatsFromExperiments(next)
+         return next
+       })
+       
+       toast.info('Experimento pausado')
+       setMenuOpen(null)
+     } catch (error) {
+       console.error('Erro ao pausar experimento:', error)
+       toast.error('Erro ao pausar experimento')
+     }
    }
 
-   const completeExperiment = (id: string) => {
-     setExperiments(prev => {
-       const next = prev.map(e => e.id === id ? { ...e, status: 'completed' as const } : e)
-       updateStatsFromExperiments(next)
-       return next
-     })
-     toast.success('Experimento concluído')
-     setMenuOpen(null)
+   const completeExperiment = async (id: string) => {
+     try {
+       // Atualizar no banco de dados usando service client
+       const serviceClient = createServiceClient()
+       const { error } = await serviceClient
+         .from('experiments')
+         .update({ 
+           status: 'completed',
+           ended_at: new Date().toISOString()
+         })
+         .eq('id', id)
+
+       if (error) {
+         console.error('Erro ao concluir experimento:', error)
+         toast.error('Erro ao concluir experimento')
+         return
+       }
+
+       // Atualizar na lista local
+       setExperiments(prev => {
+         const next = prev.map(e => e.id === id ? { ...e, status: 'completed' as const } : e)
+         updateStatsFromExperiments(next)
+         return next
+       })
+       
+       toast.success('Experimento concluído')
+       setMenuOpen(null)
+     } catch (error) {
+       console.error('Erro ao concluir experimento:', error)
+       toast.error('Erro ao concluir experimento')
+     }
    }
 
   const duplicateExperiment = (id: string) => {
@@ -1255,14 +1417,34 @@ export default function Dashboard() {
     setMenuOpen(null)
   }
 
-  const deleteExperiment = (id: string) => {
-    setExperiments(prev => {
-      const next = prev.filter(e => e.id !== id)
-      updateStatsFromExperiments(next)
-      return next
-    })
-    toast.success('Experimento excluído')
-    setMenuOpen(null)
+  const deleteExperiment = async (id: string) => {
+    try {
+      // Deletar do banco de dados usando service client
+      const serviceClient = createServiceClient()
+      const { error } = await serviceClient
+        .from('experiments')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao deletar experimento:', error)
+        toast.error('Erro ao excluir experimento')
+        return
+      }
+
+      // Remover da lista local
+      setExperiments(prev => {
+        const next = prev.filter(e => e.id !== id)
+        updateStatsFromExperiments(next)
+        return next
+      })
+      
+      toast.success('Experimento excluído')
+      setMenuOpen(null)
+    } catch (error) {
+      console.error('Erro ao deletar experimento:', error)
+      toast.error('Erro ao excluir experimento')
+    }
   }
 
   // Bulk selection helpers
@@ -2027,7 +2209,7 @@ export default function Dashboard() {
     const exp = selectedExperiment
     const projectName = ''
     const variantCount = exp.variants?.length || 0
-    const code = generateInstallCodeForExperiment(exp)
+    const code = enhanceInstallCode(generateInstallCodeForExperiment(exp))
     const getStatusLabel = (s: Experiment['status']) => (
       s === 'running' ? 'Ativo' : s === 'paused' ? 'Pausado' : s === 'completed' ? 'Concluído' : 'Rascunho'
     )
@@ -2518,7 +2700,7 @@ export default function Dashboard() {
               /* Tips */
               <div className="p-3 rounded-lg border bg-muted/30">
                 <div className="text-sm font-medium mb-1 flex items-center gap-2"><Lightbulb className="w-4 h-4" /> Dica</div>
-                <div className="text-xs text-muted-foreground">Use as classes rf-show-<i>nome</i> e rf-hide-<i>nome</i> para alternar blocos de UI por variante.</div>
+                <div className="text-xs text-muted-foreground">As alterações visuais são aplicadas automaticamente pelo código gerado, com base nas configurações das variantes. Não é necessário alterar o HTML.</div>
               </div>
               )}
 
@@ -3134,7 +3316,7 @@ export default function Dashboard() {
       variants: experimentForm.variants.map((v, i) => ({ id: `v-${i}`, name: v.name, key: v.name.toLowerCase().replace(/\s+/g, '-'), is_control: v.isControl }))
     }
 
-    const code = generateInstallCodeForExperiment(tempExp)
+    const code = enhanceInstallCode(generateInstallCodeForExperiment(tempExp))
     const copyCode = async () => {
       try {
         await navigator.clipboard.writeText(code)
@@ -3214,7 +3396,7 @@ export default function Dashboard() {
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
-                  <span>Use classes <strong>.rf-show-*</strong> e <strong>.rf-hide-*</strong></span>
+                  <span>As variações visuais são aplicadas automaticamente pelo código gerado.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
@@ -3228,26 +3410,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-2xl p-6">
-            <h4 className="font-semibold text-purple-900 mb-4 flex items-center gap-2">
-              <Lightbulb className="w-5 h-5" />
-              💡 Classes CSS Geradas Automaticamente
-            </h4>
-            <div className="bg-white rounded-xl p-4 border border-purple-100">
-              <pre className="text-sm text-purple-800 whitespace-pre-wrap">
-{experimentForm.variants.map(variant => {
-  const className = variant.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-  return `/* ${variant.name} */
-.rf-show-${className} { /* Mostra apenas para ${variant.name} */ }
-.rf-hide-${className} { /* Oculta apenas para ${variant.name} */ }`;
-}).join('\n\n')}
-
-{`/* Exemplo de uso no HTML */
-<div class="rf-show-original">Versão Original</div>
-<div class="rf-show-variacao">Nova Versão</div>`}
-              </pre>
-            </div>
-          </div>
+          
 
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5">
             <h4 className="font-semibold text-amber-900 mb-3 flex items-center gap-2">
