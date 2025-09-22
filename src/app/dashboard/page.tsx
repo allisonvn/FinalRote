@@ -1093,12 +1093,12 @@ export default function Dashboard() {
         return
       }
       
-      // Teste com apenas campos obrigatórios primeiro
-      const insertData = {
-        name: String(experimentForm.name || '').trim(),
-        project_id: String(projectId)
-        // Omitindo todos os campos opcionais para isolar o problema
-      }
+       // Teste com apenas campos obrigatórios primeiro
+       const insertData: any = {
+         name: String(experimentForm.name || '').trim(),
+         project_id: String(projectId)
+         // Omitindo todos os campos opcionais para isolar o problema
+       }
       
       // Validar dados antes de enviar
       if (!insertData.name || insertData.name.length < 2) {
@@ -1111,10 +1111,10 @@ export default function Dashboard() {
       console.log('Traffic original:', experimentForm.trafficAllocation)
       console.log('Traffic calculado:', traffic)
       console.log('insertData final:', insertData)
-      console.log('Tipos dos campos:')
-      Object.keys(insertData).forEach(key => {
-        console.log(`  ${key}: ${typeof insertData[key]} = ${insertData[key]}`)
-      })
+       console.log('Tipos dos campos:')
+       Object.keys(insertData).forEach(key => {
+         console.log(`  ${key}: ${typeof (insertData as any)[key]} = ${(insertData as any)[key]}`)
+       })
       
       // Verificar status de autenticação
       const { data: { user }, error: authError } = await supabase.auth.getUser()
