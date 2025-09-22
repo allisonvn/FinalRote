@@ -131,7 +131,7 @@ export default function Dashboard() {
       try {
         const { data: sessionData } = await supabase.auth.getSession()
         if (!sessionData.session?.user) return
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('projects')
           .select('id, name')
           .order('created_at', { ascending: false })
@@ -1091,7 +1091,7 @@ export default function Dashboard() {
 
       console.log('Inserindo experimento com dados:', insertData)
       
-      const { data: exp, error: expError } = await supabase
+      const { data: exp, error: expError } = await (supabase as any)
         .from('experiments')
         .insert(insertData)
         .select('id, name, status, created_at')
