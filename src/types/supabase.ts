@@ -7,157 +7,103 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
+  }
   public: {
     Tables: {
-      organizations: {
-        Row: {
-          id: string
-          name: string
-          slug: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          slug: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          slug?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      organization_members: {
-        Row: {
-          id: string
-          organization_id: string
-          user_id: string
-          role: 'owner' | 'admin' | 'editor' | 'viewer'
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          organization_id: string
-          user_id: string
-          role: 'owner' | 'admin' | 'editor' | 'viewer'
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          organization_id?: string
-          user_id?: string
-          role?: 'owner' | 'admin' | 'editor' | 'viewer'
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organization_members_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "organization_members_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      projects: {
-        Row: {
-          id: string
-          organization_id: string
-          name: string
-          public_key: string
-          secret_key: string
-          allowed_origins: string[]
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          organization_id: string
-          name: string
-          public_key: string
-          secret_key: string
-          allowed_origins?: string[]
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          organization_id?: string
-          name?: string
-          public_key?: string
-          secret_key?: string
-          allowed_origins?: string[]
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "projects_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       experiments: {
         Row: {
-          id: string
-          project_id: string
-          name: string
-          key: string
-          description: string | null
-          status: 'draft' | 'running' | 'paused' | 'completed'
-          algorithm: 'uniform' | 'thompson_sampling' | 'ucb1' | 'epsilon_greedy'
-          traffic_allocation: number
+          audience_targeting: Json | null
+          confidence_level: number | null
+          conversion_goals: Json | null
+          conversions_config: Json | null
           created_at: string
-          updated_at: string
-          started_at: string | null
+          created_by: string | null
+          description: string | null
           ended_at: string | null
+          hypothesis: string | null
+          id: string
+          mab_config: Json | null
+          name: string
+          notes: string | null
+          primary_goal: Json | null
+          project_id: string
+          secondary_goals: Json | null
+          started_at: string | null
+          statistical_significance: number | null
+          status: Database["public"]["Enums"]["experiment_status"] | null
+          tags: string[] | null
+          total_conversions: number | null
+          total_visitors: number | null
+          tracking_config: Json | null
+          traffic_allocation: number | null
+          type: Database["public"]["Enums"]["experiment_type"]
+          updated_at: string
+          url_targeting: Json | null
+          user_id: string | null
         }
         Insert: {
-          id?: string
-          project_id: string
-          name: string
-          key: string
-          description?: string | null
-          status?: 'draft' | 'running' | 'paused' | 'completed'
-          algorithm?: 'uniform' | 'thompson_sampling' | 'ucb1' | 'epsilon_greedy'
-          traffic_allocation?: number
+          audience_targeting?: Json | null
+          confidence_level?: number | null
+          conversion_goals?: Json | null
+          conversions_config?: Json | null
           created_at?: string
-          updated_at?: string
-          started_at?: string | null
+          created_by?: string | null
+          description?: string | null
           ended_at?: string | null
+          hypothesis?: string | null
+          id?: string
+          mab_config?: Json | null
+          name: string
+          notes?: string | null
+          primary_goal?: Json | null
+          project_id: string
+          secondary_goals?: Json | null
+          started_at?: string | null
+          statistical_significance?: number | null
+          status?: Database["public"]["Enums"]["experiment_status"] | null
+          tags?: string[] | null
+          total_conversions?: number | null
+          total_visitors?: number | null
+          tracking_config?: Json | null
+          traffic_allocation?: number | null
+          type?: Database["public"]["Enums"]["experiment_type"]
+          updated_at?: string
+          url_targeting?: Json | null
+          user_id?: string | null
         }
         Update: {
-          id?: string
-          project_id?: string
-          name?: string
-          key?: string
-          description?: string | null
-          status?: 'draft' | 'running' | 'paused' | 'completed'
-          algorithm?: 'uniform' | 'thompson_sampling' | 'ucb1' | 'epsilon_greedy'
-          traffic_allocation?: number
+          audience_targeting?: Json | null
+          confidence_level?: number | null
+          conversion_goals?: Json | null
+          conversions_config?: Json | null
           created_at?: string
-          updated_at?: string
-          started_at?: string | null
+          created_by?: string | null
+          description?: string | null
           ended_at?: string | null
+          hypothesis?: string | null
+          id?: string
+          mab_config?: Json | null
+          name?: string
+          notes?: string | null
+          primary_goal?: Json | null
+          project_id?: string
+          secondary_goals?: Json | null
+          started_at?: string | null
+          statistical_significance?: number | null
+          status?: Database["public"]["Enums"]["experiment_status"] | null
+          tags?: string[] | null
+          total_conversions?: number | null
+          total_visitors?: number | null
+          tracking_config?: Json | null
+          traffic_allocation?: number | null
+          type?: Database["public"]["Enums"]["experiment_type"]
+          updated_at?: string
+          url_targeting?: Json | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -166,7 +112,78 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
-          }
+          },
+        ]
+      }
+      variants: {
+        Row: {
+          changes: Json | null
+          conversion_rate: number | null
+          conversions: number | null
+          created_at: string
+          created_by: string | null
+          css_changes: string | null
+          description: string | null
+          experiment_id: string
+          id: string
+          is_active: boolean | null
+          is_control: boolean | null
+          js_changes: string | null
+          mab_stats: Json | null
+          name: string
+          redirect_url: string | null
+          traffic_percentage: number
+          updated_at: string
+          visitors: number | null
+        }
+        Insert: {
+          changes?: Json | null
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string
+          created_by?: string | null
+          css_changes?: string | null
+          description?: string | null
+          experiment_id: string
+          id?: string
+          is_active?: boolean | null
+          is_control?: boolean | null
+          js_changes?: string | null
+          mab_stats?: Json | null
+          name: string
+          redirect_url?: string | null
+          traffic_percentage?: number
+          updated_at?: string
+          visitors?: number | null
+        }
+        Update: {
+          changes?: Json | null
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string
+          created_by?: string | null
+          css_changes?: string | null
+          description?: string | null
+          experiment_id?: string
+          id?: string
+          is_active?: boolean | null
+          is_control?: boolean | null
+          js_changes?: string | null
+          mab_stats?: Json | null
+          name?: string
+          redirect_url?: string | null
+          traffic_percentage?: number
+          updated_at?: string
+          visitors?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variants_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -174,18 +191,119 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      is_member: {
-        Args: {
-          org_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      experiment_status:
+        | "draft"
+        | "running"
+        | "paused"
+        | "completed"
+        | "archived"
+      experiment_type: "redirect" | "element" | "split_url" | "mab"
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never

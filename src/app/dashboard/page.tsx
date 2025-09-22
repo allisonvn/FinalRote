@@ -1071,24 +1071,26 @@ export default function Dashboard() {
           .replace(/[^a-z0-9]+/g, '_')
           .replace(/^_+|_+$/g, '')
 
-      // Obter projeto para vincular o experimento (opcional)
-      const projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
+      // Obter projeto para vincular o experimento (obrigatório)
+      let projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
+      
+      // Se não há projeto, usar o projeto padrão conhecido
+      if (!projectId) {
+        projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Projeto Principal
+        console.warn('Usando projeto padrão para o experimento')
+      }
 
       // Inserir experimento no Supabase (campos compatíveis com o schema)
       const traffic = Math.max(1, Math.min(100, Math.round(Number(experimentForm.trafficAllocation || 100))))
       const insertData: any = {
         name: experimentForm.name.trim(),
+        project_id: projectId, // Obrigatório
         description: experimentForm.description || null,
-        traffic_allocation: parseFloat(traffic.toFixed(2)), // Garantir precisão (5,2)
-        type: 'redirect',
-        status: 'draft'
+        traffic_allocation: parseFloat(traffic.toFixed(2)) // Garantir precisão (5,2)
       }
 
-      // Adicionar project_id apenas se estiver definido
-      if (projectId) {
-        insertData.project_id = projectId
-      }
-
+      console.log('Inserindo experimento com dados:', insertData)
+      
       const { data: exp, error: expError } = await supabase
         .from('experiments')
         .insert(insertData)
@@ -1097,6 +1099,7 @@ export default function Dashboard() {
 
       if (expError) {
         console.error('Erro ao salvar experimento:', expError)
+        console.error('Dados enviados:', insertData)
         toast.error(`Erro ao salvar experimento: ${expError.message || 'Erro desconhecido'}`)
         return
       }
