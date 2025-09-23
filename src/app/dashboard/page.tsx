@@ -13,7 +13,6 @@ import { KpiCard } from '@/components/dashboard/kpi-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
 import { createClient } from '@/lib/supabase/client'
-import { createServiceClient } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 
 interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string; config?: any; weight?: number }
@@ -36,7 +35,15 @@ interface Experiment {
   min_sample_size?: number
   project_id?: string
 }
-interface Stats { activeExperiments: number; totalVisitors: number; conversionRate: number }
+interface Stats { 
+  activeExperiments: number; 
+  totalVisitors: number; 
+  conversionRate: number;
+  totalProjects: number;
+  totalRevenue?: number;
+  avgSessionDuration?: number;
+  bounceRate?: number;
+}
 
 export default function Dashboard() {
   const [experiments, setExperiments] = useState<Experiment[]>([])
@@ -45,7 +52,7 @@ export default function Dashboard() {
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [sort, setSort] = useState<{ key: 'name' | 'created' | 'status'; dir: 'asc' | 'desc' }>({ key: 'created', dir: 'desc' })
-  const [stats, setStats] = useState<Stats>({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0 })
+  const [stats, setStats] = useState<Stats>({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0, totalProjects: 0 })
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [showNew, setShowNew] = useState(false)
@@ -552,7 +559,7 @@ export default function Dashboard() {
       if (authError || !user) {
         console.log('⚠️ Usuário não autenticado, usando dados vazios')
         setExperiments([])
-        setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0 })
+        setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0, totalProjects: 0 })
         return
       }
       
@@ -597,19 +604,27 @@ export default function Dashboard() {
 
       setExperiments(formattedExperiments)
       
-      // Calcular estatísticas
-      const activeCount = formattedExperiments.filter(e => e.status === 'running').length
-      const totalVisitors = Math.floor(Math.random() * 10000) + 5000
-      const conversionRate = Math.random() * 0.15 + 0.05
+      // Buscar estatísticas reais
+      const { getDashboardStats } = await import('@/lib/analytics')
+      const realStats = await getDashboardStats()
       
-      setStats({ activeExperiments: activeCount, totalVisitors, conversionRate })
+      setStats(realStats)
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
       // Em caso de erro, mostrar lista vazia
       console.log('❌ Erro ao carregar experimentos, mostrando lista vazia')
       setExperiments([])
-      setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0 })
+      
+      // Buscar estatísticas mesmo em caso de erro
+      try {
+        const { getDashboardStats } = await import('@/lib/analytics')
+        const realStats = await getDashboardStats()
+        setStats(realStats)
+      } catch (statsError) {
+        console.error('Erro ao carregar estatísticas:', statsError)
+        setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0, totalProjects: 0 })
+      }
     } finally {
       setLoading(false)
     }
@@ -1210,7 +1225,7 @@ export default function Dashboard() {
       // Criar experimento no Supabase usando service client para contornar RLS
       console.log('🚀 Criando experimento no Supabase...')
       
-      const serviceClient = createServiceClient()
+      const serviceClient = createClient()
       const { data: newExperiment, error: insertError } = await serviceClient
         .from('experiments')
         .insert({
@@ -1327,7 +1342,7 @@ export default function Dashboard() {
    const startExperiment = async (id: string) => {
      try {
        // Atualizar no banco de dados usando service client
-       const serviceClient = createServiceClient()
+       const serviceClient = createClient()
        const { error } = await serviceClient
          .from('experiments')
          .update({ 
@@ -1360,7 +1375,7 @@ export default function Dashboard() {
    const pauseExperiment = async (id: string) => {
      try {
        // Atualizar no banco de dados usando service client
-       const serviceClient = createServiceClient()
+       const serviceClient = createClient()
        const { error } = await serviceClient
          .from('experiments')
          .update({ status: 'paused' })
@@ -1390,7 +1405,7 @@ export default function Dashboard() {
    const completeExperiment = async (id: string) => {
      try {
        // Atualizar no banco de dados usando service client
-       const serviceClient = createServiceClient()
+       const serviceClient = createClient()
        const { error } = await serviceClient
          .from('experiments')
          .update({ 
@@ -1456,7 +1471,7 @@ export default function Dashboard() {
       }
 
       // Deletar do banco de dados usando service client (com filtro por usuário)
-      const serviceClient = createServiceClient()
+      const serviceClient = createClient()
       const { error } = await serviceClient
         .from('experiments')
         .delete()
@@ -1564,24 +1579,12 @@ export default function Dashboard() {
     try {
       setSaving(true)
       
-      // Criar experimento mock para demonstração
-      const mockExperiment: Experiment = {
-        id: Date.now().toString(),
-        name: newForm.name.trim(),
-        status: 'draft',
-        created_at: new Date().toISOString(),
-        // projeto removido
-        variants: Array.from({ length: newForm.variants }).map((_, i) => ({
-          id: `${Date.now()}-${i}`,
-          name: `Variante ${String.fromCharCode(65 + i)}`,
-          key: String.fromCharCode(65 + i),
-          is_control: i === 0,
-        }))
-      }
-
-      setExperiments(prev => [mockExperiment, ...prev])
+      // TODO: Implementar criação real do experimento no Supabase
+      console.log('Criando experimento:', newForm.name.trim())
+      
+      // Por enquanto, apenas fechar o modal
       setShowNew(false)
-      toast.success('Experimento criado!')
+      toast.success('Funcionalidade em desenvolvimento - experimento não foi criado')
     } catch (err: any) {
       console.error(err)
       toast.error(err?.message || 'Erro ao criar experimento')
@@ -1698,7 +1701,7 @@ export default function Dashboard() {
                 <div className="text-sm text-muted-foreground">Visitantes</div>
               </div>
               <div className="card-glass rounded-2xl p-4">
-                <div className="text-3xl font-bold text-warning mb-1">{(stats.conversionRate * 100).toFixed(1)}%</div>
+                <div className="text-3xl font-bold text-warning mb-1">{stats.conversionRate.toFixed(1)}%</div>
                 <div className="text-sm text-muted-foreground">Conversão</div>
               </div>
               <div className="card-glass rounded-2xl p-4">
@@ -1820,7 +1823,7 @@ export default function Dashboard() {
         />
         <KpiCard 
           title="Taxa de Conversão" 
-          value={`${(stats.conversionRate * 100).toFixed(2)}%`}
+          value={`${stats.conversionRate.toFixed(2)}%`}
           change={8}
           trend="up"
           subtitle="média geral"
@@ -2083,160 +2086,505 @@ export default function Dashboard() {
   const countBy = (arr: string[]) => { const m: Record<string, number> = {}; for (const a of arr) m[a] = (m[a]||0)+1; return m }
 
   const renderAudiencesContent = () => {
-    const utms = getUtmEvents().reverse()
-    const summary = {
-      total: utms.length,
-      bySource: countBy(utms.map(u => u.source || 'indefinido')),
-      byCampaign: countBy(utms.map(u => u.campaign || 'indefinido'))
-    }
-    const audiences = getAudiences()
+    return <AudiencesSection />
+  }
 
-    const Builder = () => {
-      const [name, setName] = useState('Campanha X')
-      const [conds, setConds] = useState<SegmentCond[]>([{ field: 'utm_campaign', op: 'contains', value: '' }])
-      const addCond = () => setConds(prev => [...prev, { field: 'utm_source', op: 'equals', value: '' }])
-      const removeCond = (i: number) => setConds(prev => prev.filter((_, idx) => idx !== i))
-      const update = (i: number, patch: Partial<SegmentCond>) => setConds(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
-      const save = () => {
-        if (!name.trim()) { toast.error('Informe um nome'); return }
-        const item: Audience = { id: 'aud_'+Date.now(), name: name.trim(), conditions: conds }
-        const next = [item, ...audiences]
-        saveAudiences(next)
-        toast.success('Audiência salva')
+  const AudiencesSection = () => {
+    const [campaigns, setCampaigns] = useState<any[]>([])
+    const [segments, setSegments] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [periodFilter, setPeriodFilter] = useState('90d')
+    const [sourceFilter, setSourceFilter] = useState('all')
+    const [audienceTab, setAudienceTab] = useState('campanhas')
+
+    useEffect(() => {
+      loadAudienceData()
+    }, [])
+
+    const loadAudienceData = async () => {
+      setLoading(true)
+      try {
+        // Usar as funções de analytics criadas
+        const { getCampaignData, getAudienceSegments } = await import('@/lib/analytics')
+        const [campaignData, segmentData] = await Promise.all([
+          getCampaignData(),
+          getAudienceSegments()
+        ])
+        setCampaigns(campaignData)
+        setSegments(segmentData)
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error)
+      } finally {
+        setLoading(false)
       }
+    }
+
+    const filteredCampaigns = campaigns.filter(campaign => {
+      const matchesSearch = campaign.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           campaign.source?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           campaign.campaign?.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSource = sourceFilter === 'all' || campaign.source === sourceFilter
+      return matchesSearch && matchesSource
+    })
+
+    const totalMetrics = campaigns.reduce((acc, campaign) => ({
+      visitors: acc.visitors + (campaign.visitors || 0),
+      conversions: acc.conversions + (campaign.conversions || 0),
+      revenue: acc.revenue + (campaign.revenue || 0),
+      cost: acc.cost + (campaign.cost || 0)
+    }), { visitors: 0, conversions: 0, revenue: 0, cost: 0 })
+
+    const avgConversionRate = totalMetrics.visitors > 0 ? (totalMetrics.conversions / totalMetrics.visitors) * 100 : 0
+    const roas = totalMetrics.cost > 0 ? totalMetrics.revenue / totalMetrics.cost : 0
+
+    const uniqueSources = [...new Set(campaigns.map(c => c.source).filter(Boolean))]
+
+    const formatCurrency = (value: number) => {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(value)
+    }
+
+    const formatNumber = (value: number) => {
+      return new Intl.NumberFormat('pt-BR').format(value)
+    }
+
+    if (loading) {
       return (
-        <Card className="card-glass">
-          <CardHeader><CardTitle>Nova audiência</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">Nome</label>
-              <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Campanha BlackFriday - Google Ads" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Condições</label>
-              {conds.map((c, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Select value={c.field} onValueChange={(v) => update(i, { field: v as any })}>
-                    <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="utm_source">utm_source</SelectItem>
-                      <SelectItem value="utm_medium">utm_medium</SelectItem>
-                      <SelectItem value="utm_campaign">utm_campaign</SelectItem>
-                      <SelectItem value="utm_term">utm_term</SelectItem>
-                      <SelectItem value="utm_content">utm_content</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={c.op} onValueChange={(v) => update(i, { op: v as any })}>
-                    <SelectTrigger className="h-9 w-[130px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="equals">é igual a</SelectItem>
-                      <SelectItem value="contains">contém</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input className="h-9" value={c.value} onChange={(e) => update(i, { value: e.target.value })} placeholder="valor" />
-                  <Button variant="ghost" size="sm" className="h-9" onClick={() => removeCond(i)}>Remover</Button>
-                </div>
+        <div className="space-y-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded"></div>
               ))}
-              <Button variant="outline" size="sm" onClick={addCond}>Adicionar condição</Button>
             </div>
-            <div className="flex justify-end">
-              <Button onClick={save}>Salvar audiência</Button>
-            </div>
-          </CardContent>
-        </Card>
+            <div className="h-96 bg-gray-200 rounded mt-6"></div>
+          </div>
+        </div>
       )
     }
-
-    const AudiencesList = () => {
-      const [list, setList] = useState(audiences)
-      const remove = (id: string) => { const next = list.filter(a => a.id !== id); setList(next); saveAudiences(next) }
-      const matchesCount = (a: Audience) => {
-        const test = (u: UTMEvent, c: SegmentCond) => {
-          const map: any = { utm_source: u.source||'', utm_medium: u.medium||'', utm_campaign: u.campaign||'', utm_term: u.term||'', utm_content: u.content||'' }
-          const val = map[c.field].toLowerCase(); const v = c.value.toLowerCase()
-          return c.op === 'equals' ? val === v : val.includes(v)
-        }
-        return utms.filter(u => a.conditions.every(c => test(u, c))).length
-      }
-      return (
-        <Card className="card-glass">
-          <CardHeader><CardTitle>Audiências salvas</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {list.length === 0 && <div className="text-sm text-muted-foreground">Nenhuma audiência criada</div>}
-            {list.map(a => (
-              <div key={a.id} className="flex items-center justify-between p-2 rounded-lg border">
-                <div>
-                  <div className="font-medium">{a.name}</div>
-                  <div className="text-xs text-muted-foreground">{a.conditions.map(c => `${c.field} ${c.op === 'equals' ? '=' : 'contém'} "${c.value}"`).join(' • ')}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{matchesCount(a)} ocorrências</span>
-                  <Button variant="ghost" size="sm" onClick={() => remove(a.id)} className="h-8">Excluir</Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )
-    }
-
-    const SummaryCards = () => (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="card-glass"><CardHeader><CardTitle>Total de sessões com UTM</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{summary.total}</div></CardContent></Card>
-        <Card className="card-glass"><CardHeader><CardTitle>Fontes</CardTitle></CardHeader><CardContent><div className="flex flex-wrap gap-2 text-xs">{Object.entries(summary.bySource).map(([k,v]) => (<span key={k} className="chip">{k}: {v as number}</span>))}</div></CardContent></Card>
-        <Card className="card-glass"><CardHeader><CardTitle>Campanhas</CardTitle></CardHeader><CardContent><div className="flex flex-wrap gap-2 text-xs">{Object.entries(summary.byCampaign).map(([k,v]) => (<span key={k} className="chip">{k}: {v as number}</span>))}</div></CardContent></Card>
-      </div>
-    )
 
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Audiências</h1>
-          <p className="text-muted-foreground">Defina audiências com base em UTMs e campanhas</p>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total de Visitantes</p>
+                <p className="text-2xl font-bold text-gray-900">{formatNumber(totalMetrics.visitors)}</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+              <span className="text-green-600">+12.5%</span>
+              <span className="text-gray-500 ml-1">vs mês anterior</span>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Taxa de Conversão</p>
+                <p className="text-2xl font-bold text-gray-900">{avgConversionRate.toFixed(2)}%</p>
+              </div>
+              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Target className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+              <span className="text-green-600">+2.1%</span>
+              <span className="text-gray-500 ml-1">vs mês anterior</span>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Receita Total</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalMetrics.revenue)}</p>
+              </div>
+              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <ArrowRight className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+              <span className="text-green-600">+8.3%</span>
+              <span className="text-gray-500 ml-1">vs mês anterior</span>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">ROAS</p>
+                <p className="text-2xl font-bold text-gray-900">{roas.toFixed(2)}x</p>
+              </div>
+              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+              <span className="text-green-600">+15.7%</span>
+              <span className="text-gray-500 ml-1">vs mês anterior</span>
+            </div>
+          </Card>
         </div>
-        <SummaryCards />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="space-y-6 lg:col-span-2">
-            {/* UTMs recentes */}
-            <Card className="card-glass">
-              <CardHeader><CardTitle>UTMs recentes</CardTitle></CardHeader>
-              <CardContent>
-                {utms.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">Nenhum evento UTM capturado ainda</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-muted-foreground">
-                          <th className="py-2 pr-4">Data</th>
-                          <th className="py-2 pr-4">utm_source</th>
-                          <th className="py-2 pr-4">utm_medium</th>
-                          <th className="py-2 pr-4">utm_campaign</th>
-                          <th className="py-2 pr-4">Página</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {utms.slice(0, 20).map((u, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="py-2 pr-4">{new Date(u.ts).toLocaleString('pt-BR')}</td>
-                            <td className="py-2 pr-4">{u.source || '-'}</td>
-                            <td className="py-2 pr-4">{u.medium || '-'}</td>
-                            <td className="py-2 pr-4">{u.campaign || '-'}</td>
-                            <td className="py-2 pr-4">{u.path}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+
+        {/* Filters */}
+        <Card className="p-6">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4">
+                  <Users className="h-4 w-4" />
+                </div>
+                <Input
+                  placeholder="Buscar campanhas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-80"
+                />
+              </div>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Todas as fontes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as fontes</SelectItem>
+                  {uniqueSources.map(source => (
+                    <SelectItem key={source} value={source}>{source}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                  <SelectItem value="60d">Últimos 60 dias</SelectItem>
+                  <SelectItem value="90d">Últimos 90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Filtros Avançados
+              </Button>
+              <Button variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                Período
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Tabs */}
+        <Card>
+          <div className="border-b">
+            <div className="flex space-x-8 px-6">
+              <button
+                onClick={() => setAudienceTab('campanhas')}
+                className={`py-4 text-sm font-medium border-b-2 transition-colors ${
+                  audienceTab === 'campanhas'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Campanhas
+              </button>
+              <button
+                onClick={() => setAudienceTab('segmentos')}
+                className={`py-4 text-sm font-medium border-b-2 transition-colors ${
+                  audienceTab === 'segmentos'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Segmentos
+              </button>
+              <button
+                onClick={() => setAudienceTab('analytics')}
+                className={`py-4 text-sm font-medium border-b-2 transition-colors ${
+                  audienceTab === 'analytics'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Analytics
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {audienceTab === 'campanhas' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Campanhas Ativas</h3>
+                    <p className="text-sm text-gray-600">
+                      {filteredCampaigns.length} campanhas encontradas
+                    </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Campanha
+                  </Button>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left p-4 font-medium text-gray-900">Campanha</th>
+                        <th className="text-left p-4 font-medium text-gray-900">Fonte</th>
+                        <th className="text-left p-4 font-medium text-gray-900">Visitantes</th>
+                        <th className="text-left p-4 font-medium text-gray-900">Conversões</th>
+                        <th className="text-left p-4 font-medium text-gray-900">Taxa Conv.</th>
+                        <th className="text-left p-4 font-medium text-gray-900">Receita</th>
+                        <th className="text-left p-4 font-medium text-gray-900">CPC</th>
+                        <th className="text-left p-4 font-medium text-gray-900">CTR</th>
+                        <th className="text-left p-4 font-medium text-gray-900">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredCampaigns.map((campaign) => (
+                        <tr key={campaign.id} className="hover:bg-gray-50">
+                          <td className="p-4">
+                            <div>
+                              <p className="font-medium text-gray-900">{campaign.name}</p>
+                              <p className="text-sm text-gray-500">{campaign.campaign}</p>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant="outline">{campaign.source}</Badge>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-medium">{formatNumber(campaign.visitors)}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-medium">{formatNumber(campaign.conversions)}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className={`font-medium ${campaign.conversionRate > 3 ? 'text-green-600' : 'text-gray-900'}`}>
+                              {campaign.conversionRate?.toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-medium">{formatCurrency(campaign.revenue)}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-gray-600">
+                              {campaign.cpc ? formatCurrency(campaign.cpc) : '-'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-gray-600">
+                              {campaign.ctr ? `${campaign.ctr.toFixed(2)}%` : '-'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <Badge 
+                              variant={campaign.status === 'active' ? 'default' : 'secondary'}
+                              className={campaign.status === 'active' ? 'bg-green-100 text-green-800' : ''}
+                            >
+                              {campaign.status === 'active' ? 'Ativa' : 'Pausada'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {audienceTab === 'segmentos' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Segmentos de Audiência</h3>
+                    <p className="text-sm text-gray-600">
+                      {segments.length} segmentos identificados
+                    </p>
+                  </div>
+                  <Button>
+                    <Target className="h-4 w-4 mr-2" />
+                    Criar Segmento
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {segments.map((segment) => (
+                    <Card key={segment.id} className="p-6 hover:shadow-md transition-shadow">
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{segment.name}</h4>
+                            <p className="text-sm text-gray-600">{segment.description}</p>
+                          </div>
+                          <Badge variant="outline" className="ml-2">
+                            {formatNumber(segment.visitors)}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-600">Taxa de Conversão</p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {segment.conversionRate?.toFixed(2)}%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Valor Médio</p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {formatCurrency(segment.avgValue)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-gray-600">Receita Total</p>
+                          <p className="text-xl font-bold text-gray-900">
+                            {formatCurrency(segment.totalRevenue)}
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <Button size="sm" variant="outline" className="flex-1">
+                            <Eye className="h-4 w-4 mr-1" />
+                            Visualizar
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex-1">
+                            <Target className="h-4 w-4 mr-1" />
+                            Segmentar
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {audienceTab === 'analytics' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Performance por Fonte</h3>
+                  <div className="space-y-4">
+                    {uniqueSources.map(source => {
+                      const sourceCampaigns = campaigns.filter(c => c.source === source)
+                      const sourceMetrics = sourceCampaigns.reduce((acc, c) => ({
+                        visitors: acc.visitors + (c.visitors || 0),
+                        revenue: acc.revenue + (c.revenue || 0),
+                        conversions: acc.conversions + (c.conversions || 0)
+                      }), { visitors: 0, revenue: 0, conversions: 0 })
+                      
+                      const convRate = sourceMetrics.visitors > 0 ? 
+                        (sourceMetrics.conversions / sourceMetrics.visitors) * 100 : 0
+
+                      return (
+                        <div key={source} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline">{source}</Badge>
+                            <div>
+                              <p className="font-medium">{formatNumber(sourceMetrics.visitors)} visitantes</p>
+                              <p className="text-sm text-gray-600">{convRate.toFixed(2)}% conversão</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">{formatCurrency(sourceMetrics.revenue)}</p>
+                            <p className="text-sm text-gray-600">{formatNumber(sourceMetrics.conversions)} conversões</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Métricas Principais</h3>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <MousePointer className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">CTR Médio</p>
+                          <p className="text-sm text-gray-600">Taxa de clique</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold">6.42%</p>
+                        <p className="text-sm text-green-600">+1.2% ↗</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                          <Zap className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">CPC Médio</p>
+                          <p className="text-sm text-gray-600">Custo por clique</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold">R$ 2,45</p>
+                        <p className="text-sm text-red-600">+0.15 ↗</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Eye className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">CPM Médio</p>
+                          <p className="text-sm text-gray-600">Custo por mil impressões</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold">R$ 15,67</p>
+                        <p className="text-sm text-green-600">-2.3% ↘</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                          <Users className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">LTV Médio</p>
+                          <p className="text-sm text-gray-600">Valor de vida do cliente</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold">R$ 234,50</p>
+                        <p className="text-sm text-green-600">+12.5% ↗</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
           </div>
-          <div className="space-y-6">
-            <Builder />
-            <AudiencesList />
-          </div>
-        </div>
+        </Card>
       </div>
     )
   }

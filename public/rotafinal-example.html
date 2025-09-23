@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo de Integração RotaFinal</title>
+    
+    <!-- Anti-flicker script (deve ser carregado primeiro) -->
+    <script>
+    (function() {
+      var s = document.createElement('style');
+      s.innerHTML = '.rf-hide{opacity:0 !important;visibility:hidden !important;}body.rf-ready .rf-hide{opacity:1 !important;visibility:visible !important;transition:opacity 200ms,visibility 200ms;}';
+      document.head.appendChild(s);
+      
+      window.rfAntiFlicker = {
+        hide: function(sel) {
+          var els = document.querySelectorAll(sel);
+          for (var i = 0; i < els.length; i++) {
+            els[i].classList.add('rf-hide');
+          }
+        },
+        ready: function() {
+          document.body.classList.add('rf-ready');
+          var els = document.querySelectorAll('.rf-hide');
+          for (var i = 0; i < els.length; i++) {
+            els[i].classList.remove('rf-hide');
+          }
+        }
+      };
+    })();
+    </script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .variant-a { background: #28a745; }
+        .variant-b { background: #dc3545; }
+        .variant-c { background: #ffc107; color: #000; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Exemplo de Integração RotaFinal</h1>
+    
+    <!-- Elementos que serão testados -->
+    <div id="hero-section">
+        <h2 data-rf-hide>Carregando experimento...</h2>
+        
+        <!-- Variante A: Verde -->
+        <div class="variant-a hidden" data-variant="a">
+            <h2>🎉 Oferta Especial - Variante A!</h2>
+            <p>Economize 50% na sua primeira compra!</p>
+            <button class="button" onclick="trackConversion('cta_clicked', 50)">Comprar Agora</button>
+        </div>
+        
+        <!-- Variante B: Vermelho -->
+        <div class="variant-b hidden" data-variant="b">
+            <h2>🔥 Oferta Limitada - Variante B!</h2>
+            <p>Últimas unidades com 30% de desconto!</p>
+            <button class="button" onclick="trackConversion('cta_clicked', 30)">Comprar Agora</button>
+        </div>
+        
+        <!-- Variante C: Amarelo -->
+        <div class="variant-c hidden" data-variant="c">
+            <h2>⚡ Promoção Relâmpago - Variante C!</h2>
+            <p>Desconto de 40% por tempo limitado!</p>
+            <button class="button" onclick="trackConversion('cta_clicked', 40)">Comprar Agora</button>
+        </div>
+    </div>
+    
+    <!-- SDK RotaFinal -->
+    <script src="/rotafinal-sdk.js"></script>
+    
+    <script>
+        // Configuração do SDK
+        const rf = new RotaFinal({
+            apiKey: 'pk_live_sua_chave_aqui', // Substitua pela sua chave
+            debug: true
+        });
+        
+        // Executar experimento
+        async function runExperiment() {
+            try {
+                // Esconder elementos até carregar variante
+                rfAntiFlicker.hide('[data-variant]');
+                
+                // Obter variante
+                const variant = await rf.getVariant('hero_banner_test', {
+                    userAttributes: {
+                        source: 'example_page',
+                        device: 'desktop'
+                    }
+                });
+                
+                console.log('Variante atribuída:', variant);
+                
+                // Aplicar variante
+                const variantElement = document.querySelector(`[data-variant="${variant}"]`);
+                if (variantElement) {
+                    variantElement.classList.remove('hidden');
+                }
+                
+                // Marcar como pronto
+                rfAntiFlicker.ready();
+                
+            } catch (error) {
+                console.error('Erro no experimento:', error);
+                // Fallback: mostrar variante de controle
+                const controlElement = document.querySelector('[data-variant="a"]');
+                if (controlElement) {
+                    controlElement.classList.remove('hidden');
+                }
+                rfAntiFlicker.ready();
+            }
+        }
+        
+        // Função para rastrear conversões
+        function trackConversion(eventName, value) {
+            rf.conversion(eventName, value, {
+                experiment: 'hero_banner_test',
+                page: 'example'
+            });
+            alert(`Conversão rastreada: ${eventName} - R$ ${value}`);
+        }
+        
+        // Executar quando a página carregar
+        document.addEventListener('DOMContentLoaded', runExperiment);
+        
+        // Exemplo de como obter métricas
+        async function getMetrics() {
+            const metrics = await rf.getMetrics('hero_banner_test');
+            console.log('Métricas do experimento:', metrics);
+        }
+        
+        // Botão para ver métricas (apenas para demonstração)
+        setTimeout(() => {
+            const metricsBtn = document.createElement('button');
+            metricsBtn.textContent = 'Ver Métricas';
+            metricsBtn.className = 'button';
+            metricsBtn.onclick = getMetrics;
+            document.body.appendChild(metricsBtn);
+        }, 2000);
+    </script>
+</body>
+</html>
