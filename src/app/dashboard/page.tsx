@@ -517,15 +517,27 @@ export default function Dashboard() {
   }
 
   const checkUser = async () => {
-    // Temporariamente usando usuário demo devido a problemas de RLS no Supabase
-    console.log('Using demo user due to Supabase RLS configuration issue')
-    setUser({ 
-      id: 'demo-user', 
-      email: 'demo@rotafinal.com',
-      user_metadata: {
-        full_name: 'Usuário Demo'
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      
+      if (error) {
+        console.error('Erro ao verificar autenticação:', error)
+        // Redirecionar para login se não autenticado
+        window.location.href = '/auth/signin'
+        return
       }
-    })
+
+      if (user) {
+        console.log('✅ Usuário autenticado:', user.email)
+        setUser(user)
+      } else {
+        console.log('❌ Usuário não autenticado, redirecionando...')
+        window.location.href = '/auth/signin'
+      }
+    } catch (error) {
+      console.error('Erro na verificação de usuário:', error)
+      window.location.href = '/auth/signin'
+    }
   }
 
   const loadDashboardData = async () => {
@@ -533,13 +545,25 @@ export default function Dashboard() {
       setLoading(true)
       console.log('🔄 Carregando experimentos do Supabase...')
       
-      // Carregar experimentos do Supabase
+      // Verificar autenticação primeiro
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      console.log('👤 Usuário autenticado:', user?.id || 'NENHUM')
+      
+      if (authError || !user) {
+        console.log('⚠️ Usuário não autenticado, usando dados vazios')
+        setExperiments([])
+        setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0 })
+        return
+      }
+      
+      // Carregar experimentos do usuário autenticado
       const { data: experimentsData, error: experimentsError } = await supabase
         .from('experiments')
         .select(`
           *,
           variants:variants(*)
         `)
+        .eq('created_by', user.id)
         .order('created_at', { ascending: false })
 
       if (experimentsError) {
@@ -547,7 +571,7 @@ export default function Dashboard() {
         throw experimentsError
       }
 
-      console.log('✅ Experimentos carregados:', experimentsData?.length || 0)
+      console.log('✅ Experimentos carregados para o usuário:', experimentsData?.length || 0)
       
       // Transformar dados para o formato esperado
       const formattedExperiments = (experimentsData || []).map(exp => ({
@@ -582,31 +606,26 @@ export default function Dashboard() {
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
-      // Fallback para dados mockados em caso de erro
-      console.log('⚠️ Usando dados mockados como fallback')
-      
-      const mockExperiments = [
-        {
-          id: '1',
-          name: 'Teste de CTA Principal',
-          status: 'running' as const,
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          variants: [
-            { id: '1', name: 'Variante A (Controle)', key: 'A', is_control: true },
-            { id: '2', name: 'Variante B', key: 'B', is_control: false }
-          ]
-        }
-      ]
-      setExperiments(mockExperiments)
-      setStats({ activeExperiments: 1, totalVisitors: 1000, conversionRate: 0.02 })
+      // Em caso de erro, mostrar lista vazia
+      console.log('❌ Erro ao carregar experimentos, mostrando lista vazia')
+      setExperiments([])
+      setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0 })
     } finally {
       setLoading(false)
     }
   }
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/auth/signin'
+    try {
+      console.log('🚪 Fazendo logout...')
+      await supabase.auth.signOut()
+      console.log('✅ Logout realizado com sucesso')
+      window.location.href = '/auth/signin'
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error)
+      // Forçar redirecionamento mesmo com erro
+      window.location.href = '/auth/signin'
+    }
   }
 
   const handleNewExperiment = () => {
@@ -1166,12 +1185,15 @@ export default function Dashboard() {
       console.log('Email do usuário:', user?.email || 'NENHUM')
       console.log('Erro de auth:', authError)
       
-      // Usar o usuário que tem permissões no projeto (owner da organização)
-      // O usuário autenticado não tem permissões RLS para este projeto
-      insertData.created_by = 'a1a4c03f-17a5-417e-8cf9-c1a9f05ac0ac' // Usuário com permissões
+      // Usar o usuário autenticado atual
+      insertData.created_by = user?.id
       
-      console.log('Usando created_by com usuário autorizado:', insertData.created_by)
-      console.log('Usuário autenticado atual:', user?.id, 'não tem permissões RLS para este projeto')
+      if (!insertData.created_by) {
+        toast.error('Usuário não autenticado')
+        return
+      }
+      
+      console.log('Usando created_by do usuário autenticado:', insertData.created_by)
       
       // Garantir que temos apenas campos válidos (sem user_id por enquanto)
       const validFields = ['name', 'project_id', 'description', 'created_by']
@@ -1419,12 +1441,27 @@ export default function Dashboard() {
 
   const deleteExperiment = async (id: string) => {
     try {
-      // Deletar do banco de dados usando service client
+      // Verificar se o usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('Usuário não autenticado')
+        return
+      }
+
+      // Verificar se o experimento pertence ao usuário
+      const experimentToDelete = experiments.find(e => e.id === id)
+      if (!experimentToDelete) {
+        toast.error('Experimento não encontrado')
+        return
+      }
+
+      // Deletar do banco de dados usando service client (com filtro por usuário)
       const serviceClient = createServiceClient()
       const { error } = await serviceClient
         .from('experiments')
         .delete()
         .eq('id', id)
+        .eq('created_by', user.id) // Apenas deletar se for o criador
 
       if (error) {
         console.error('Erro ao deletar experimento:', error)

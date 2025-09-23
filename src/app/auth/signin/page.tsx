@@ -165,16 +165,14 @@ export default function SignInPage() {
         // Se o cadastro foi bem-sucedido, tentar confirmar automaticamente e fazer login
         if (data.user) {
           try {
-            // Confirmar email automaticamente usando service role
-            const response = await fetch(`https://xtexltigzzayfrscvzaa.supabase.co/auth/v1/admin/users/${data.user.id}`, {
-              method: 'PUT',
+            // Confirmar email automaticamente usando API route segura
+            const response = await fetch('/api/auth/confirm-email', {
+              method: 'POST',
               headers: {
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0ZXhsdGlnenpheWZyc2N2emFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUyNzc2MiwiZXhwIjoyMDczMTAzNzYyfQ.BElrinV8Gkt4VGigpZMX9zbbJI5uYfp2DKQEtF8qbqs',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0ZXhsdGlnenpheWZyc2N2emFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUyNzc2MiwiZXhwIjoyMDczMTAzNzYyfQ.BElrinV8Gkt4VGigpZMX9zbbJI5uYfp2DKQEtF8qbqs',
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                email_confirm: true
+                userId: data.user.id
               })
             })
             
