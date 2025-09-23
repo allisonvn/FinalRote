@@ -42,44 +42,44 @@ export function DashboardNav({
     {
       key: 'overview',
       label: 'Visão Geral',
-      icon: <BarChart3 className="h-4 w-4" />,
+      icon: <BarChart3 className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Dashboard principal'
     },
     {
       key: 'experiments',
       label: 'Experimentos',
-      icon: <Zap className="h-4 w-4" />,
+      icon: <Zap className="h-4 w-4" strokeWidth={1.75} />,
       badge: stats?.activeExperiments,
       description: 'Testes A/B ativos'
     },
     {
       key: 'analytics',
       label: 'Relatórios',
-      icon: <TrendingUp className="h-4 w-4" />,
+      icon: <TrendingUp className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Relatórios e insights'
     },
     {
       key: 'audiences',
       label: 'Audiências',
-      icon: <Users className="h-4 w-4" />,
+      icon: <Users className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Segmentação de usuários'
     },
     {
       key: 'events',
       label: 'Eventos',
-      icon: <Activity className="h-4 w-4" />,
+      icon: <Activity className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Tracking e conversões'
     },
     {
       key: 'data',
       label: 'Dados',
-      icon: <Database className="h-4 w-4" />,
+      icon: <Database className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Exportação e APIs'
     },
     {
       key: 'settings',
       label: 'Configurações',
-      icon: <Settings className="h-4 w-4" />,
+      icon: <Settings className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Conta e preferências'
     }
   ]

@@ -55,6 +55,7 @@ import {
   ScatterChart
 } from 'recharts'
 import { cn } from '@/lib/utils'
+import { useApp } from '@/providers/app-provider'
 
 interface Experiment {
   id: string
@@ -87,7 +88,8 @@ interface ChartsSectionProps {
 }
 
 export function ChartsSection({ className, experiments = [], stats }: ChartsSectionProps) {
-  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d' | '1y'>('30d')
+  const { preferences, updatePreference } = useApp()
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d' | '1y'>(preferences.defaultTimeRange || '30d')
   const [selectedExperiment, setSelectedExperiment] = useState<string>('all')
   const [metricType, setMetricType] = useState<'conversion' | 'revenue' | 'engagement'>('conversion')
   const [viewType, setViewType] = useState<'overview' | 'detailed' | 'comparison'>('overview')
@@ -101,13 +103,16 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
 
   // Dados de performance baseados apenas em dados reais
   const [performanceData, setPerformanceData] = useState([])
+  const [experimentMetrics, setExperimentMetrics] = useState<any[]>([])
+  const [deviceData, setDeviceData] = useState<any[]>([])
+  const [funnelData, setFunnelData] = useState<any[]>([])
 
   // Carregar dados de performance
   useEffect(() => {
     const loadPerformanceData = async () => {
       try {
         const { getVisitorTrends } = await import('@/lib/analytics')
-        const trends = await getVisitorTrends()
+        const trends = await getVisitorTrends(timeRange, selectedExperiment !== 'all' ? selectedExperiment : undefined)
         setPerformanceData(trends)
       } catch (error) {
         console.error('Erro ao carregar dados de performance:', error)
@@ -115,7 +120,12 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
       }
     }
     loadPerformanceData()
-  }, [])
+  }, [timeRange, selectedExperiment])
+
+  useEffect(() => {
+    // Sincronizar quando preferências mudam (global)
+    setTimeRange(preferences.defaultTimeRange || '30d')
+  }, [preferences.defaultTimeRange])
 
   // Generate real-time data for experiments
   const experimentSummaryData = experiments.map((exp, index) => {
@@ -149,7 +159,10 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
     const loadRevenueData = async () => {
       try {
         const { getRevenueData } = await import('@/lib/analytics')
-        const realRevenueData = await getRevenueData()
+        const realRevenueData = await getRevenueData(
+          (timeRange as any),
+          selectedExperiment !== 'all' ? selectedExperiment : undefined
+        )
         setRevenueData(realRevenueData)
       } catch (error) {
         console.error('Erro ao carregar dados de receita:', error)
@@ -157,9 +170,33 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
       }
     }
     loadRevenueData()
-  }, [])
+  }, [timeRange, selectedExperiment])
 
-  const significanceData = experimentSummaryData.slice(0, 4).map(exp => ({
+  // Carregar métricas reais de experimentos e device breakdown
+  useEffect(() => {
+    const loadMore = async () => {
+      try {
+        const { getExperimentMetrics, getDeviceBreakdown, getFunnelData } = await import('@/lib/analytics')
+        const [metrics, devices, funnel] = await Promise.all([
+          getExperimentMetrics(timeRange),
+          getDeviceBreakdown(timeRange === '24h' ? '7d' : (timeRange as any), selectedExperiment !== 'all' ? selectedExperiment : undefined),
+          getFunnelData(timeRange === '24h' ? '7d' : (timeRange as any))
+        ])
+        setExperimentMetrics(metrics)
+        setDeviceData(devices)
+        setFunnelData(funnel)
+      } catch (e) {
+        console.error('Erro ao carregar métricas adicionais:', e)
+        setExperimentMetrics([])
+        setDeviceData([])
+        setFunnelData([])
+      }
+    }
+    loadMore()
+  }, [timeRange])
+
+  const filteredMetrics = selectedExperiment === 'all' ? experimentMetrics : experimentMetrics.filter((m:any) => m.id === selectedExperiment)
+  const significanceData = filteredMetrics.slice(0, 4).map((exp:any) => ({
     experiment: exp.name.length > 12 ? exp.name.substring(0, 12) + '...' : exp.name,
     significance: exp.significance,
     sample_size: exp.visitors
@@ -230,7 +267,7 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
           </div>
         </div>
 
-        {/* Advanced Filters with Glassmorphism */}
+        {/* Advanced Filters with Glassmorphism + Device Breakdown */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 rounded-2xl blur-xl" />
           <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-xl">
@@ -239,7 +276,12 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                 <Calendar className="w-4 h-4" />
                 Período
               </label>
-              <Select value={timeRange} onValueChange={(value) => setTimeRange(value as any)}>
+              <Select value={timeRange} onValueChange={(value) => {
+                setTimeRange(value as any)
+                if (value === '7d' || value === '30d' || value === '90d') {
+                  updatePreference('defaultTimeRange', value as any)
+                }
+              }}>
                 <SelectTrigger className="bg-white/70 dark:bg-gray-800/70 border-emerald-200 dark:border-emerald-700 hover:border-emerald-300 dark:hover:border-emerald-600 transition-all duration-200">
                   <SelectValue />
                 </SelectTrigger>
@@ -303,6 +345,27 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                 </SelectContent>
               </Select>
             </div>
+            {/* Device Breakdown (period) */}
+            <div className="lg:col-span-2">
+              <Card className="card-glass">
+                <div className="p-4 flex items-center justify-between">
+                  <div className="text-sm font-medium text-muted-foreground">Distribuição por Dispositivo</div>
+                  <div className="text-xs text-muted-foreground">{deviceData.reduce((s:any,d:any)=>s+(d.visitors||0),0).toLocaleString('pt-BR')} visitantes</div>
+                </div>
+                <div className="p-4 h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={deviceData} dataKey="visitors" nameKey="device" outerRadius={80} innerRadius={48} paddingAngle={3}>
+                        {deviceData.map((entry:any, index:number) => (
+                          <Cell key={`cell-${index}`} fill={['#10b981','#3b82f6','#f59e0b','#a855f7'][index % 4]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v:any)=>[v,'Visitantes']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -321,8 +384,8 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                   Melhoria Média
                 </p>
                 <p className="text-3xl font-bold text-emerald-800 dark:text-emerald-200">
-                  +{experimentSummaryData.length > 0 ?
-                    (experimentSummaryData.reduce((acc, exp) => acc + exp.improvement, 0) / experimentSummaryData.length).toFixed(1)
+                  +{filteredMetrics.length > 0 ?
+                    (filteredMetrics.reduce((acc: number, exp: any) => acc + (exp.improvement || 0), 0) / filteredMetrics.length).toFixed(1)
                     : '0.0'}%
                 </p>
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">vs controle</p>
@@ -346,8 +409,8 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                   Significância
                 </p>
                 <p className="text-3xl font-bold text-blue-800 dark:text-blue-200">
-                  {experimentSummaryData.length > 0 ?
-                    (experimentSummaryData.reduce((acc, exp) => acc + exp.significance, 0) / experimentSummaryData.length).toFixed(1)
+                  {filteredMetrics.length > 0 ?
+                    (filteredMetrics.reduce((acc: number, exp: any) => acc + (exp.significance || 0), 0) / filteredMetrics.length).toFixed(1)
                     : '0.0'}%
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">confiança</p>
@@ -371,8 +434,8 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                   Receita Extra
                 </p>
                 <p className="text-3xl font-bold text-purple-800 dark:text-purple-200">
-                  R$ {experimentSummaryData.length > 0 ?
-                    (experimentSummaryData.reduce((acc, exp) => acc + exp.revenue_impact, 0) / 1000).toFixed(0)
+                  R$ {revenueData.length > 0 ?
+                    (revenueData.reduce((sum: number, r: any) => sum + ((r.control||0) + (r.variants||0)), 0) / 1000).toFixed(0)
                     : '0'}k
                 </p>
                 <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">este mês</p>
@@ -588,7 +651,7 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
         </Card>
       </div>
 
-      {/* Experiment Summary Table with Modern Design */}
+      {/* Experiment Summary Table with Modern Design (real metrics) */}
       <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-cyan-500/5" />
         <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm" />
@@ -627,16 +690,15 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="text-left py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Experimento</th>
                   <th className="text-left py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Status</th>
-                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Controle</th>
-                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Melhor Variante</th>
+                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Taxa Conv.</th>
                   <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Melhoria</th>
                   <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Significância</th>
                   <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Visitantes</th>
-                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Receita</th>
+                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Conversões</th>
                 </tr>
               </thead>
               <tbody>
-                {experimentSummaryData.map((exp, index) => (
+                {experimentMetrics.map((exp: any, index: number) => (
                   <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="py-4 px-2">
                       <div className="flex items-center gap-3">
@@ -645,27 +707,22 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                       </div>
                     </td>
                     <td className="py-4 px-2">
-                      <Badge 
-                        variant={exp.status === 'running' ? 'default' : exp.status === 'completed' ? 'secondary' : 'outline'}
-                        className={
-                          exp.status === 'running' ? 'bg-green-100 text-green-800 border-green-200' :
-                          exp.status === 'completed' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                          'bg-yellow-100 text-yellow-800 border-yellow-200'
-                        }
-                      >
+                      <Badge className={
+                        exp.status === 'running' ? 'bg-success text-success-foreground' :
+                        exp.status === 'completed' ? 'bg-info text-info-foreground' : 'bg-warning text-warning-foreground'
+                      }>
                         {exp.status === 'running' ? 'Ativo' : exp.status === 'completed' ? 'Concluído' : 'Pausado'}
                       </Badge>
                     </td>
-                    <td className="py-4 px-2 text-right font-medium">{exp.control_rate}%</td>
-                    <td className="py-4 px-2 text-right font-medium">{exp.best_variant_rate}%</td>
+                    <td className="py-4 px-2 text-right font-medium">{(exp.conversionRate || 0).toFixed(2)}%</td>
                     <td className="py-4 px-2 text-right">
                       <span className={`font-bold ${exp.improvement > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {exp.improvement > 0 ? '+' : ''}{exp.improvement}%
+                        {exp.improvement > 0 ? '+' : ''}{exp.improvement?.toFixed(1)}%
                       </span>
                     </td>
                     <td className="py-4 px-2 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <span className="font-medium">{exp.significance}%</span>
+                        <span className="font-medium">{(exp.significance || 0).toFixed(1)}%</span>
                         {exp.significance >= 95 ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         ) : exp.significance >= 85 ? (
@@ -675,19 +732,85 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-2 text-right font-medium">{exp.visitors.toLocaleString()}</td>
-                    <td className="py-4 px-2 text-right">
-                      <span className="font-bold text-green-600">
-                        R$ {(exp.revenue_impact / 1000).toFixed(0)}k
-                      </span>
-                    </td>
+                    <td className="py-4 px-2 text-right font-medium">{(exp.visitors || 0).toLocaleString()}</td>
+                    <td className="py-4 px-2 text-right font-medium">{(exp.conversions || 0).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+                try {
+                  const rows = experimentMetrics.map((e:any) => ({ name: e.name, status: e.status, conversionRate: e.conversionRate, improvement: e.improvement, significance: e.significance, visitors: e.visitors, conversions: e.conversions }))
+                  const header = 'name,status,conversionRate,improvement,significance,visitors,conversions\n'
+                  const csv = header + rows.map((r:any) => [r.name, r.status, r.conversionRate, r.improvement, r.significance, r.visitors, r.conversions].join(',')).join('\n')
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = 'experiment_metrics.csv'
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch (e) { console.error('CSV export error', e) }
+              }}>
+                <Download className="h-4 w-4" /> Exportar CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Top Experimentos por Uplift + Funil de Eventos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Uplift */}
+        <Card className="relative overflow-hidden group card-glass">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChartIcon className="h-5 w-5" /> Top Experimentos por Uplift
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[...experimentMetrics].sort((a:any,b:any)=> (b.improvement||0)-(a.improvement||0)).slice(0,6)} layout="vertical" margin={{ left: 16, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" tickFormatter={(v)=>`${v}%`} />
+                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" width={140} tickFormatter={(v)=> String(v).slice(0,24) + (String(v).length>24?'…':'')} />
+                  <Tooltip formatter={(v)=>[`${Number(v).toFixed(1)}%`,'Uplift']} />
+                  <Bar dataKey="improvement" fill="hsl(var(--success))" radius={[0,6,6,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Funil de Eventos */}
+        <Card className="relative overflow-hidden group card-glass">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LineChartIcon className="h-5 w-5" /> Funil de Eventos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={funnelData.map((f:any)=>({
+                  stage: f.stage === 'page_view' ? 'Visualizações' : f.stage === 'click' ? 'Cliques' : 'Conversões',
+                  eventos: f.events,
+                  visitantes: f.visitors
+                }))}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="stage" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v)=> v >= 1000 ? `${(v/1000).toFixed(1)}k` : v} />
+                  <Tooltip />
+                  <Bar dataKey="eventos" name="Eventos" fill="hsl(var(--primary))" radius={[6,6,0,0]} />
+                  <Bar dataKey="visitantes" name="Visitantes" fill="hsl(var(--info))" radius={[6,6,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Revenue Impact Chart with Enhanced Design */}
       <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0">
@@ -709,10 +832,22 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                 Receita adicional gerada pelos experimentos otimizados
               </p>
             </div>
-            <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700 px-3 py-1">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              +R$ 47k este mês
-            </Badge>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+              try {
+                const rows = revenueData.map((r:any) => ({ period: r.period, control: r.control, variants: r.variants, lift: r.lift }))
+                const header = 'period,control,variants,lift\n'
+                const csv = header + rows.map((r:any) => [r.period, r.control, r.variants, r.lift].join(',')).join('\n')
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'revenue_data.csv'
+                a.click()
+                URL.revokeObjectURL(url)
+              } catch (e) { console.error('CSV export error', e) }
+            }}>
+              <Download className="h-4 w-4" /> Exportar CSV
+            </Button>
           </div>
         </CardHeader>
 
@@ -722,25 +857,25 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
               <ComposedChart data={revenueData}>
                 <defs>
                   <linearGradient id="controlBarGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#64748b" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#64748b" stopOpacity={0.6}/>
+                    <stop offset="5%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.25}/>
                   </linearGradient>
                   <linearGradient id="variantsBarGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.6}/>
+                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.45}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" stroke="#e2e8f0" />
+                <CartesianGrid strokeDasharray="3 3" className="opacity-40" stroke="hsl(var(--border))" />
                 <XAxis
                   dataKey="period"
-                  stroke="#64748b"
+                  stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
                   yAxisId="revenue"
-                  stroke="#64748b"
+                  stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
@@ -749,7 +884,7 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                 <YAxis
                   yAxisId="lift"
                   orientation="right"
-                  stroke="#64748b"
+                  stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
@@ -780,7 +915,7 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                 />
                 <Bar yAxisId="revenue" dataKey="control" fill="url(#controlBarGradient)" name="Controle" radius={[4, 4, 0, 0]} />
                 <Bar yAxisId="revenue" dataKey="variants" fill="url(#variantsBarGradient)" name="Variantes" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="lift" type="monotone" dataKey="lift" stroke="#f59e0b" strokeWidth={4} name="Lift" dot={{ fill: '#f59e0b', r: 8, strokeWidth: 2, stroke: '#fff' }} />
+                <Line yAxisId="lift" type="monotone" dataKey="lift" stroke="hsl(var(--warning))" strokeWidth={4} name="Lift" dot={{ fill: 'hsl(var(--warning))', r: 8, strokeWidth: 2, stroke: 'hsl(var(--card))' }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

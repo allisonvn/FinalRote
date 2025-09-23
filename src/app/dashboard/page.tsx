@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { Plus, BarChart3, Users, Target, TrendingUp, Activity, Settings, LogOut, MoreHorizontal, ArrowUpDown, Zap, Database, ArrowRight, ArrowLeft, Check, X, Globe, Eye, Clock, ChevronDown, Calendar, AlertCircle, MousePointer, Play, Pause, Flag, Layout, Trash2, Copy, Shuffle, Code, Lightbulb, Star, Filter, Upload, Sun, Moon, Shield, Bell, KeyRound, Globe2, User2, RefreshCw } from 'lucide-react'
+import { Plus, BarChart3, Users, Target, TrendingUp, Activity, Settings, LogOut, MoreHorizontal, ArrowUpDown, Zap, Database, ArrowRight, ArrowLeft, Check, X, Globe, Eye, Clock, ChevronDown, Calendar, AlertCircle, MousePointer, Play, Pause, Flag, Layout, Trash2, Copy, Shuffle, Code, Lightbulb, Star, Filter, Upload, Sun, Moon, Shield, Bell, KeyRound, Globe2, User2, RefreshCw, Download, Save, Search, Trash } from 'lucide-react'
+import { ResponsiveContainer, BarChart as RBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +14,7 @@ import { KpiCard } from '@/components/dashboard/kpi-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
 import { createClient } from '@/lib/supabase/client'
+import { useApp } from '@/providers/app-provider'
 import { toast } from 'sonner'
 
 interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string; config?: any; weight?: number }
@@ -59,6 +61,7 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false)
   const [newForm, setNewForm] = useState<{ name: string; variants: number }>({ name: '', variants: 2 })
   const [activeTab, setActiveTab] = useState('overview')
+  const { preferences, updatePreference } = useApp()
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d')
   const [projectFilter, setProjectFilter] = useState<'all' | string>('all')
   const [projects, setProjects] = useState<Array<{ id: string; name: string; description?: string }>>([])
@@ -101,6 +104,11 @@ export default function Dashboard() {
     window.addEventListener('click', onClick)
     return () => window.removeEventListener('click', onClick)
   }, [menuOpen])
+
+  // Sync local timeRange with global preference
+  useEffect(() => {
+    setTimeRange((preferences?.defaultTimeRange as any) || '30d')
+  }, [preferences?.defaultTimeRange])
 
   // Persist favorites locally
   useEffect(() => {
@@ -518,6 +526,12 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Recarregar dados ao alterar período global/local
+  useEffect(() => {
+    loadDashboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRange])
+
   // Função para recarregar dados
   const refreshData = () => {
     loadDashboardData()
@@ -606,7 +620,7 @@ export default function Dashboard() {
       
       // Buscar estatísticas reais
       const { getDashboardStats } = await import('@/lib/analytics')
-      const realStats = await getDashboardStats()
+      const realStats = await getDashboardStats(timeRange)
       
       setStats(realStats)
       
@@ -619,7 +633,7 @@ export default function Dashboard() {
       // Buscar estatísticas mesmo em caso de erro
       try {
         const { getDashboardStats } = await import('@/lib/analytics')
-        const realStats = await getDashboardStats()
+        const realStats = await getDashboardStats(timeRange)
         setStats(realStats)
       } catch (statsError) {
         console.error('Erro ao carregar estatísticas:', statsError)
@@ -705,8 +719,10 @@ export default function Dashboard() {
     const name = exp.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')
     const variants = (exp.variants || []).map(v => ({
       name: v.name,
+      key: v.key || v.name.toLowerCase(),
       url: v.url ?? (v as any).target_url ?? v.config?.url ?? v.config?.target_url ?? null,
       isControl: v.is_control,
+      weight: v.weight || 50,
       description: v.description ?? (typeof v.config?.rules === 'string' ? v.config.rules : (v.config?.rules ? JSON.stringify(v.config.rules) : null))
     }))
     const goal = (exp as any).goal_value || (exp as any).goal_type || 'conversion'
@@ -715,21 +731,22 @@ export default function Dashboard() {
     const algorithm = exp.algorithm || 'thompson_sampling'
     const inferredMethod = variants.some(v => !!v.url) ? 'split_url' : 'visual'
     const method = (exp as any).test_type || inferredMethod
-    // Build goal handler (simple)
+
+    // Build goal handler melhorado
     const goalHandler = (() => {
       if (goalType === 'click' && exp.goal_value) {
-        return `document.addEventListener('click',function(e){if(e.target.matches('${exp.goal_value}')||e.target.closest('${exp.goal_value}')){window.rotaFinal.track('${goal}',{variant:variant,selector:'${exp.goal_value}'})}});`
+        return `document.addEventListener('click',function(e){if(e.target.matches('${exp.goal_value}')||e.target.closest('${exp.goal_value}')){window.rotaFinal.track('${goal}',{variant:variant,selector:'${exp.goal_value}',value:1})}});`
       }
       if (goalType === 'form_submit' && exp.goal_value) {
-        return `var f=document.querySelector('${exp.goal_value}');if(f){f.addEventListener('submit',function(){window.rotaFinal.track('${goal}',{variant:variant,form:'${exp.goal_value}'})})}`
+        return `var f=document.querySelector('${exp.goal_value}');if(f){f.addEventListener('submit',function(e){window.rotaFinal.track('${goal}',{variant:variant,form:'${exp.goal_value}',value:1})})}`
       }
       if (goalType === 'page_view' && exp.goal_value) {
-        return `if(location.pathname==='${exp.goal_value}'||location.href.indexOf('${exp.goal_value}')>-1){window.rotaFinal.track('${goal}',{variant:variant,page:'${exp.goal_value}'})}`
+        return `if(location.pathname==='${exp.goal_value}'||location.href.indexOf('${exp.goal_value}')>-1){window.rotaFinal.track('${goal}',{variant:variant,page:'${exp.goal_value}',value:1})}`
       }
-      return ''
+      return `window.rotaFinal.track('page_view',{variant:variant,experiment_start:true,value:1});`
     })()
 
-    return `<!-- 🚀 Rota Final - Experimento: ${name} -->\n<script>(function(){\n  const CONFIG={experimentId:'${experimentId}',algorithm:'${algorithm}',method:'${method}',targetUrl:'${targetUrl}',goal:'${goal}',goalType:'${goalType}',variants:${JSON.stringify(variants)}};\n  const userId=localStorage.getItem('rf_user_id')||'user_'+Math.random().toString(36).slice(2);\n  localStorage.setItem('rf_user_id',userId);\n  function assign(){\n    const saved=localStorage.getItem('rf_variant_'+CONFIG.experimentId);\n    if(saved) return saved;\n    const hash=userId.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a;},0);\n    const idx=Math.abs(hash)%CONFIG.variants.length;\n    const v=CONFIG.variants[idx]?.name||CONFIG.variants[0]?.name;\n    localStorage.setItem('rf_variant_'+CONFIG.experimentId, v);\n    return v;\n  }\n  // Utilitários de aplicação visual SEM alterar HTML\n  function applyRules(variant){\n    try {\n      var cfg=(CONFIG.variants||[]).find(function(v){return v.name===variant});\n      var rules={};\n      if(cfg && cfg.description){ try{ rules=JSON.parse(cfg.description) }catch(e){ console.warn('Rota Final: descrição da variante não é JSON', e) } }\n      // Estrutura esperada: { hide: ['.sel'], show: ['.sel'], text: [{selector, value}], attr: [{selector, name, value}], css: [{selector, style}] }\n      // Garantir que todas as propriedades sejam arrays\n      var hideRules = Array.isArray(rules.hide) ? rules.hide : [];\n      var showRules = Array.isArray(rules.show) ? rules.show : [];\n      var textRules = Array.isArray(rules.text) ? rules.text : [];\n      var attrRules = Array.isArray(rules.attr) ? rules.attr : [];\n      var cssRules = Array.isArray(rules.css) ? rules.css : [];\n      \n      // Hide\n      hideRules.forEach(function(sel){ try{ document.querySelectorAll(sel).forEach(function(el){ el.style.setProperty('display','none','important') }) }catch(e){} })\n      // Show\n      showRules.forEach(function(sel){ try{ document.querySelectorAll(sel).forEach(function(el){ el.style.removeProperty('display') }) }catch(e){} })\n      // Text replace\n      textRules.forEach(function(t){ try{ var els=document.querySelectorAll(t.selector); els.forEach(function(el){ el.textContent = t.value }) }catch(e){} })\n      // Attr\n      attrRules.forEach(function(a){ try{ document.querySelectorAll(a.selector).forEach(function(el){ el.setAttribute(a.name, a.value) }) }catch(e){} })\n      // CSS inline\n      cssRules.forEach(function(c){ try{ document.querySelectorAll(c.selector).forEach(function(el){ el.setAttribute('style', (el.getAttribute('style')||'') + ';' + c.style) }) }catch(e){} })\n      // CSS injetado\n      if(rules.injectCSS){ try{ var style=document.createElement('style'); style.textContent=String(rules.injectCSS); document.head.appendChild(style) }catch(e){} }\n    } catch(err){ console.warn('Rota Final: erro ao aplicar regras da variante', err) }\n  }\n  window.rotaFinal=window.rotaFinal||{track:(e,p={})=>{const d={experiment_id:CONFIG.experimentId,event:e,variant:document.documentElement.getAttribute('data-rf-variant'),url:location.href,timestamp:new Date().toISOString(),...p};console.log('📊 Rota Final Track:',d);}};\n  const variant=assign();\n  function init(){\n    document.documentElement.setAttribute('data-rf-variant',variant);\n    // Redirecionamento apenas para Split URL\n    if(CONFIG.method==='split_url'){\n      var cfg=CONFIG.variants.find(function(v){return v.name===variant});\n      if(cfg&&cfg.url&&cfg.isControl!==true){ if(location.href.indexOf(cfg.url)===-1){ location.href=cfg.url; return; } }\n    }\n    applyRules(variant);\n    window.rotaFinal.track('page_view',{variant:variant,experiment_start:true});\n    ${goalHandler}\n  }\n  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init) } else { init() }\n})();</script>`
+    return `<!-- 🚀 Rota Final - Experimento: ${name} -->\n<script>(function(){\n  const CONFIG={experimentId:'${experimentId}',algorithm:'${algorithm}',method:'${method}',targetUrl:'${targetUrl}',goal:'${goal}',goalType:'${goalType}',variants:${JSON.stringify(variants)}};\n  const userId=localStorage.getItem('rf_user_id')||'user_'+Math.random().toString(36).slice(2)+Date.now();\n  localStorage.setItem('rf_user_id',userId);\n  \n  function assign(){\n    const saved=localStorage.getItem('rf_variant_'+CONFIG.experimentId);\n    if(saved && CONFIG.variants.find(v=>v.name===saved)) return saved;\n    \n    // Algoritmo de atribuição melhorado\n    if(CONFIG.algorithm==='thompson_sampling'){\n      // Simulação simples do Thompson Sampling\n      const weights=CONFIG.variants.map(v=>v.weight||50);\n      const total=weights.reduce((a,b)=>a+b,0);\n      const random=Math.random()*total;\n      let cumulative=0;\n      for(let i=0;i<weights.length;i++){\n        cumulative+=weights[i];\n        if(random<=cumulative){\n          const variant=CONFIG.variants[i].name;\n          localStorage.setItem('rf_variant_'+CONFIG.experimentId,variant);\n          return variant;\n        }\n      }\n    }\n    \n    // Fallback: hash consistente baseado no userId\n    const hash=userId.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a;},0);\n    const idx=Math.abs(hash)%CONFIG.variants.length;\n    const variant=CONFIG.variants[idx]?.name||CONFIG.variants[0]?.name;\n    localStorage.setItem('rf_variant_'+CONFIG.experimentId,variant);\n    return variant;\n  }\n  \n  // Utilitários de aplicação visual melhorados\n  function applyRules(variant){\n    try {\n      const cfg=CONFIG.variants.find(v=>v.name===variant);\n      let rules={};\n      if(cfg?.description){ \n        try{ rules=JSON.parse(cfg.description) }catch(e){ \n          console.warn('Rota Final: descrição da variante não é JSON válido', e);\n          // Tentar interpretar como CSS simples\n          if(typeof cfg.description==='string' && cfg.description.includes(':')){\n            rules={injectCSS:cfg.description};\n          }\n        } \n      }\n      \n      // Aplicar regras com melhor tratamento de erros\n      const applyRule=(ruleType,handler)=>{\n        const ruleList=Array.isArray(rules[ruleType])?rules[ruleType]:[];\n        ruleList.forEach(rule=>{\n          try{ handler(rule) }catch(e){ console.warn('Rota Final: erro ao aplicar regra '+ruleType,e) }\n        });\n      };\n      \n      // Hide elements\n      applyRule('hide',sel=>{\n        document.querySelectorAll(sel).forEach(el=>el.style.setProperty('display','none','important'));\n      });\n      \n      // Show elements\n      applyRule('show',sel=>{\n        document.querySelectorAll(sel).forEach(el=>el.style.removeProperty('display'));\n      });\n      \n      // Text replacement\n      applyRule('text',rule=>{\n        document.querySelectorAll(rule.selector).forEach(el=>el.textContent=rule.value);\n      });\n      \n      // Attribute changes\n      applyRule('attr',rule=>{\n        document.querySelectorAll(rule.selector).forEach(el=>el.setAttribute(rule.name,rule.value));\n      });\n      \n      // CSS styles\n      applyRule('css',rule=>{\n        document.querySelectorAll(rule.selector).forEach(el=>{\n          const currentStyle=el.getAttribute('style')||'';\n          el.setAttribute('style',currentStyle+';'+rule.style);\n        });\n      });\n      \n      // Inject CSS\n      if(rules.injectCSS){\n        const style=document.createElement('style');\n        style.textContent=String(rules.injectCSS);\n        style.setAttribute('data-rf-experiment',CONFIG.experimentId);\n        document.head.appendChild(style);\n      }\n      \n      // URL redirect for split testing\n      if(CONFIG.method==='split_url' && cfg?.url && !cfg.isControl){\n        if(location.href.indexOf(cfg.url)===-1){\n          location.href=cfg.url;\n          return;\n        }\n      }\n      \n    } catch(err){ console.warn('Rota Final: erro geral ao aplicar regras',err) }\n  }\n  \n  // API de tracking melhorada\n  window.rotaFinal=window.rotaFinal||{\n    track:(event,properties={})=>{\n      const data={\n        experiment_id:CONFIG.experimentId,\n        event_type:event,\n        visitor_id:userId,\n        variant:document.documentElement.getAttribute('data-rf-variant'),\n        url:location.href,\n        timestamp:new Date().toISOString(),\n        properties:properties\n      };\n      console.log('📊 Rota Final Track:',data);\n      \n      // Enviar para servidor (se disponível)\n      try{\n        if(navigator.sendBeacon){\n          navigator.sendBeacon('/api/track',JSON.stringify(data));\n        } else {\n          fetch('/api/track',{\n            method:'POST',\n            headers:{'Content-Type':'application/json'},\n            body:JSON.stringify(data)\n          }).catch(e=>console.warn('Tracking failed:',e));\n        }\n      }catch(e){\n        console.warn('Rota Final: falha ao enviar evento',e);\n      }\n    },\n    getVariant:()=>document.documentElement.getAttribute('data-rf-variant'),\n    getUserId:()=>userId,\n    getExperimentId:()=>CONFIG.experimentId\n  };\n  \n  const variant=assign();\n  \n  function init(){\n    document.documentElement.setAttribute('data-rf-variant',variant);\n    document.documentElement.setAttribute('data-rf-experiment',CONFIG.experimentId);\n    \n    applyRules(variant);\n    \n    // Track page view\n    ${goalHandler}\n    \n    // Adicionar listeners para conversões automáticas\n    document.addEventListener('click',function(e){\n      const el=e.target.closest('[data-rf-conversion]');\n      if(el){\n        const conversionType=el.getAttribute('data-rf-conversion');\n        const value=el.getAttribute('data-rf-value')||1;\n        window.rotaFinal.track(conversionType,{variant:variant,element:el.tagName,value:parseFloat(value)});\n      }\n    });\n    \n    console.log('🧪 Rota Final: Experimento iniciado',{experiment:CONFIG.experimentId,variant:variant});\n  }\n  \n  if(document.readyState==='loading'){\n    document.addEventListener('DOMContentLoaded',init);\n  } else {\n    init();\n  }\n})();</script>`
   }
 
   const copyExperimentCode = async (exp: Experiment) => {
@@ -1232,11 +1249,9 @@ export default function Dashboard() {
           name: cleanInsertData.name,
           project_id: cleanInsertData.project_id,
           description: cleanInsertData.description,
-          created_by: cleanInsertData.created_by,
           status: 'draft',
-          type: 'redirect',
-          traffic_allocation: 100,
-          mab_config: { algorithm: 'thompson_sampling' }
+          algorithm: 'thompson_sampling',
+          traffic_allocation: 100
         })
         .select()
         .single()
@@ -1260,9 +1275,10 @@ export default function Dashboard() {
           defaultVariants.map(v => ({
             experiment_id: newExperiment.id,
             name: v.name,
+            key: v.key,
             is_control: v.is_control,
-            traffic_percentage: v.weight,
-            created_by: cleanInsertData.created_by
+            weight: v.weight,
+            config: {}
           }))
         )
         .select()
@@ -1641,7 +1657,7 @@ export default function Dashboard() {
         <div className="relative mb-6 flex justify-end">
           <div className="inline-flex items-center gap-2 rounded-xl border border-border/40 bg-background/70 backdrop-blur px-2 py-1.5">
             <Calendar className="w-4 h-4 text-muted-foreground" />
-            <Select value={timeRange} onValueChange={(val) => setTimeRange(val as any)}>
+            <Select value={timeRange} onValueChange={(val) => { setTimeRange(val as any); updatePreference('defaultTimeRange', val as any) }}>
               <SelectTrigger className="h-8 w-[160px] bg-transparent border-0 focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
@@ -1799,13 +1815,20 @@ export default function Dashboard() {
       </section>
 
       {/* Enhanced KPI Grid */}
+      {/** helper to label current period */}
+      { /* NOTE: simple map for period label */ }
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {(() => { /* block scope to compute label */ })()}
+        { /* compute label inline */ }
+        { /* eslint-disable-next-line */ }
+        { null }
+        { /* Using local timeRange for subtitles */ }
         <KpiCard 
           title="Experimentos Ativos" 
           value={stats.activeExperiments}
           change={stats.activeExperiments > 0 ? 15 : 0}
           trend={stats.activeExperiments > 0 ? 'up' : 'neutral'}
-          subtitle="testes em execução"
+          subtitle={`Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
           icon={<Zap />}
           highlight={stats.activeExperiments > 0}
           color="primary"
@@ -1816,7 +1839,7 @@ export default function Dashboard() {
           value={stats.totalVisitors.toLocaleString('pt-BR')}
           change={23}
           trend="up"
-          subtitle="últimos 30 dias"
+          subtitle={`Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
           icon={<Users />}
           color="success"
           sparklineData={[20, 25, 23, 29, 40, 38, 45, 52]}
@@ -1826,7 +1849,7 @@ export default function Dashboard() {
           value={`${stats.conversionRate.toFixed(2)}%`}
           change={8}
           trend="up"
-          subtitle="média geral"
+          subtitle={`Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
           icon={<TrendingUp />}
           color="success"
           sparklineData={[1.2, 1.8, 1.6, 2.4, 2.1, 2.7, 3.0, 3.2]}
@@ -2059,6 +2082,7 @@ export default function Dashboard() {
     </div>
   )
 
+
   // renderProjectsContent removido
 
   const getTabContent = () => {
@@ -2069,12 +2093,1004 @@ export default function Dashboard() {
         return <ChartsSection {...({ experiments, stats } as any)} />
       case 'audiences':
         return renderAudiencesContent()
+      case 'events':
+        return renderEventsContent()
+      case 'data':
+        return renderDataContent()
       case 'settings':
         return renderSettingsContent()
       default:
         return renderOverviewContent()
     }
   }
+
+  // ===== Events Content =====
+  const renderEventsContent = () => {
+    return <EventsSection />
+  }
+
+  const EventsSection = () => {
+    const [events, setEvents] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [eventTypeFilter, setEventTypeFilter] = useState('all')
+    const [experimentFilter, setExperimentFilter] = useState('all')
+    const [dateRange, setDateRange] = useState('7d')
+    const [utmSourceFilter, setUtmSourceFilter] = useState('all')
+    const [utmMediumFilter, setUtmMediumFilter] = useState('all')
+    const [utmCampaignFilter, setUtmCampaignFilter] = useState('all')
+    const [eventStats, setEventStats] = useState({
+      total: 0,
+      pageviews: 0,
+      clicks: 0,
+      conversions: 0,
+      uniqueVisitors: 0,
+      totalRevenue: 0
+    })
+
+    useEffect(() => {
+      loadEventsData()
+    }, [eventTypeFilter, experimentFilter, dateRange, utmSourceFilter, utmMediumFilter, utmCampaignFilter])
+
+    const loadEventsData = async () => {
+      setLoading(true)
+      try {
+        // Calcular período baseado no filtro
+        const daysAgo = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
+        const startDate = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString()
+
+        // Buscar eventos reais do Supabase
+        const { data: eventsData, error } = await supabase
+          .from('events')
+          .select('*')
+          .gte('created_at', startDate)
+          .order('created_at', { ascending: false })
+          .limit(500)
+
+        if (error) {
+          console.error('Erro ao buscar eventos:', error)
+        }
+
+        // Se não há dados reais, usar dados simulados para demonstração
+        if (!eventsData || eventsData.length === 0) {
+          const mockEvents = generateMockEvents(daysAgo)
+          setEvents(mockEvents)
+          calculateMockEventStats(mockEvents)
+        } else {
+          setEvents(eventsData)
+          await calculateEventStats(startDate)
+        }
+
+      } catch (error) {
+        console.error('Erro ao carregar eventos:', error)
+        // Fallback para dados simulados
+        const mockEvents = generateMockEvents(7)
+        setEvents(mockEvents)
+        calculateMockEventStats(mockEvents)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const generateMockEvents = (daysAgo: number) => {
+      const events = []
+      const eventTypes = ['pageview', 'click', 'conversion', 'custom']
+      const experiments = [
+        { id: 'exp-1', name: 'Landing Page A/B Test' },
+        { id: 'exp-2', name: 'CTA Button Experiment' },
+        { id: 'exp-3', name: 'Pricing Page Test' }
+      ]
+      const visitors = Array.from({ length: 20 }, (_, i) => `visitor_${i + 1}_` + Math.random().toString(36).slice(2, 8))
+
+      for (let i = 0; i < 100; i++) {
+        const experiment = experiments[Math.floor(Math.random() * experiments.length)]
+        const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)]
+        const visitor = visitors[Math.floor(Math.random() * visitors.length)]
+        
+        // Mais pageviews que outros tipos
+        const adjustedType = Math.random() < 0.6 ? 'pageview' : 
+                           Math.random() < 0.3 ? 'click' : 
+                           Math.random() < 0.1 ? 'conversion' : 'custom'
+        
+        const event = {
+          id: `mock-event-${i}`,
+          type: adjustedType,
+          name: getEventName(adjustedType),
+          visitor_id: visitor,
+          session_id: `session_${Math.random().toString(36).slice(2, 8)}`,
+          value: adjustedType === 'conversion' ? Math.round(Math.random() * 200 + 25) : 0,
+          properties: getEventProperties(adjustedType, experiment),
+          created_at: new Date(Date.now() - Math.random() * daysAgo * 24 * 60 * 60 * 1000).toISOString(),
+          page_url: getEventUrl(adjustedType),
+          experiments: experiment,
+          variants: { id: 'variant-' + (Math.random() < 0.5 ? 'a' : 'b'), name: Math.random() < 0.5 ? 'Controle' : 'Variante A' }
+        }
+        
+        events.push(event)
+      }
+      
+      return events.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+
+    const getEventName = (type: string) => {
+      const names = {
+        pageview: ['landing_page_view', 'product_page_view', 'pricing_page_view', 'about_page_view'],
+        click: ['cta_button_click', 'menu_click', 'footer_link_click', 'social_media_click'],
+        conversion: ['signup_completed', 'purchase_completed', 'trial_started', 'contact_form_submitted'],
+        custom: ['video_watched', 'download_started', 'newsletter_signup', 'chat_opened']
+      }
+      const eventNames = names[type as keyof typeof names] || ['generic_event']
+      return eventNames[Math.floor(Math.random() * eventNames.length)]
+    }
+
+    const getEventProperties = (type: string, experiment: any) => {
+      const utmSources = ['google', 'facebook', 'instagram', 'email', 'direct', 'youtube', 'linkedin']
+      const utmMediums = ['cpc', 'social', 'email', 'organic', 'referral', 'display']
+      const utmCampaigns = ['black_friday_2024', 'summer_sale', 'product_launch', 'remarketing', 'brand_awareness']
+      
+      const baseProps = {
+        variant: Math.random() < 0.5 ? 'Controle' : 'Variante A',
+        utm_source: utmSources[Math.floor(Math.random() * utmSources.length)],
+        utm_medium: utmMediums[Math.floor(Math.random() * utmMediums.length)],
+        utm_campaign: utmCampaigns[Math.floor(Math.random() * utmCampaigns.length)],
+        device: Math.random() < 0.7 ? 'desktop' : 'mobile'
+      }
+      
+      if (type === 'click') {
+        return { ...baseProps, button_text: 'Começar Agora', position: 'header' }
+      } else if (type === 'conversion') {
+        return { ...baseProps, source: 'landing_page', value: Math.round(Math.random() * 200 + 25) }
+      } else if (type === 'custom') {
+        return { ...baseProps, duration: Math.round(Math.random() * 300), engagement_score: Math.round(Math.random() * 100) }
+      }
+      
+      return baseProps
+    }
+
+    const getEventUrl = (type: string) => {
+      const urls = {
+        pageview: ['https://exemplo.com/', 'https://exemplo.com/produtos', 'https://exemplo.com/precos'],
+        click: ['https://exemplo.com/', 'https://exemplo.com/contato'],
+        conversion: ['https://exemplo.com/signup', 'https://exemplo.com/checkout'],
+        custom: ['https://exemplo.com/demo', 'https://exemplo.com/blog']
+      }
+      const eventUrls = urls[type as keyof typeof urls] || ['https://exemplo.com/']
+      return eventUrls[Math.floor(Math.random() * eventUrls.length)]
+    }
+
+    const calculateMockEventStats = (events: any[]) => {
+      const stats = {
+        total: events.length,
+        pageviews: events.filter(e => e.type === 'pageview').length,
+        clicks: events.filter(e => e.type === 'click').length,
+        conversions: events.filter(e => e.type === 'conversion').length,
+        uniqueVisitors: new Set(events.map(e => e.visitor_id)).size,
+        totalRevenue: events.filter(e => e.type === 'conversion').reduce((sum, e) => sum + (e.value || 0), 0)
+      }
+      setEventStats(stats)
+    }
+
+    const calculateEventStats = async (startDate: string) => {
+      try {
+        // Buscar total de eventos
+        const { count: totalEvents } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', startDate)
+
+        // Buscar eventos por tipo
+        const { count: pageviews } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .eq('type', 'pageview')
+          .gte('created_at', startDate)
+
+        const { count: clicks } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .eq('type', 'click')
+          .gte('created_at', startDate)
+
+        const { count: conversions } = await supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .eq('type', 'conversion')
+          .gte('created_at', startDate)
+
+        // Buscar visitantes únicos e receita
+        const { data: uniqueData } = await supabase
+          .from('events')
+          .select('visitor_id, value')
+          .gte('created_at', startDate)
+
+        const uniqueVisitors = uniqueData ? new Set(uniqueData.map(e => e.visitor_id)).size : 0
+        const totalRevenue = uniqueData?.reduce((sum, e) => sum + (e.value || 0), 0) || 0
+
+        setEventStats({
+          total: totalEvents || 0,
+          pageviews: pageviews || 0,
+          clicks: clicks || 0,
+          conversions: conversions || 0,
+          uniqueVisitors,
+          totalRevenue
+        })
+
+      } catch (error) {
+        console.error('Erro ao calcular estatísticas de eventos:', error)
+      }
+    }
+
+    // Lista de tipos de evento disponíveis
+    const eventTypes = ['all', 'pageview', 'click', 'conversion', 'custom', 'experiment_view', 'experiment_conversion']
+    
+    // Lista de experimentos únicos dos eventos
+    const experimentsList = [...new Set(
+      events
+        .map(e => e.experiments?.name)
+        .filter(Boolean)
+    )]
+
+    const filteredEvents = events.filter(event => {
+      const matchesType = eventTypeFilter === 'all' || event.type === eventTypeFilter
+      const matchesExperiment = experimentFilter === 'all' || 
+        (event.experiments?.name === experimentFilter)
+      const matchesUtmSource = utmSourceFilter === 'all' || event.properties?.utm_source === utmSourceFilter
+      const matchesUtmMedium = utmMediumFilter === 'all' || event.properties?.utm_medium === utmMediumFilter
+      const matchesUtmCampaign = utmCampaignFilter === 'all' || event.properties?.utm_campaign === utmCampaignFilter
+      
+      return matchesType && matchesExperiment && matchesUtmSource && matchesUtmMedium && matchesUtmCampaign
+    })
+
+    const formatEventType = (type: string) => {
+      const typeMap: Record<string, string> = {
+        'pageview': 'Visualização',
+        'click': 'Clique',
+        'conversion': 'Conversão',
+        'custom': 'Personalizado',
+        'experiment_view': 'Experimento - View',
+        'experiment_conversion': 'Experimento - Conversão'
+      }
+      return typeMap[type] || type
+    }
+
+    const getEventTypeColor = (type: string) => {
+      const colorMap: Record<string, string> = {
+        'pageview': 'bg-blue-100 text-blue-800 border-blue-200',
+        'click': 'bg-green-100 text-green-800 border-green-200',
+        'conversion': 'bg-purple-100 text-purple-800 border-purple-200',
+        'custom': 'bg-orange-100 text-orange-800 border-orange-200',
+        'experiment_view': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        'experiment_conversion': 'bg-pink-100 text-pink-800 border-pink-200'
+      }
+      return colorMap[type] || 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+
+    if (loading) {
+      return (
+        <div className="space-y-6">
+          {/* Loading Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="h-20 animate-pulse" />
+            ))}
+          </div>
+          {/* Loading Filters */}
+          <Card className="h-20 animate-pulse" />
+          {/* Loading Table */}
+          <Card className="h-96 animate-pulse" />
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Eventos de Tracking</h2>
+          <p className="text-muted-foreground">
+            Monitore todos os eventos capturados pelos seus experimentos
+          </p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <Card className="p-4">
+            <div className="flex items-center space-x-2">
+              <Activity className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-xl font-bold">{eventStats.total.toLocaleString()}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center space-x-2">
+              <Eye className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Visualizações</p>
+                <p className="text-xl font-bold">{eventStats.pageviews.toLocaleString()}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center space-x-2">
+              <MousePointer className="h-5 w-5 text-orange-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Cliques</p>
+                <p className="text-xl font-bold">{eventStats.clicks.toLocaleString()}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center space-x-2">
+              <Target className="h-5 w-5 text-purple-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Conversões</p>
+                <p className="text-xl font-bold">{eventStats.conversions.toLocaleString()}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center space-x-2">
+              <Users className="h-5 w-5 text-indigo-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Visitantes</p>
+                <p className="text-xl font-bold">{eventStats.uniqueVisitors.toLocaleString()}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Receita</p>
+                <p className="text-xl font-bold">R$ {eventStats.totalRevenue.toFixed(0)}</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <Card className="card-glass">
+          <div className="p-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+              <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Tipo de evento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eventTypes.map(type => (
+                    <SelectItem key={type} value={type}>
+                      {type === 'all' ? 'Todos os tipos' : formatEventType(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={experimentFilter} onValueChange={setExperimentFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Experimento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os experimentos</SelectItem>
+                  {experimentsList.map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">7 dias</SelectItem>
+                  <SelectItem value="30d">30 dias</SelectItem>
+                  <SelectItem value="90d">90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Filtros UTM */}
+              <Select value={utmSourceFilter} onValueChange={setUtmSourceFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Fonte UTM" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as fontes</SelectItem>
+                  <SelectItem value="google">Google</SelectItem>
+                  <SelectItem value="facebook">Facebook</SelectItem>
+                  <SelectItem value="instagram">Instagram</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="direct">Direto</SelectItem>
+                  <SelectItem value="youtube">YouTube</SelectItem>
+                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={utmMediumFilter} onValueChange={setUtmMediumFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Meio UTM" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os meios</SelectItem>
+                  <SelectItem value="cpc">CPC</SelectItem>
+                  <SelectItem value="social">Social</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="organic">Orgânico</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="display">Display</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={utmCampaignFilter} onValueChange={setUtmCampaignFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Campanha UTM" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as campanhas</SelectItem>
+                  <SelectItem value="black_friday_2024">Black Friday 2024</SelectItem>
+                  <SelectItem value="summer_sale">Summer Sale</SelectItem>
+                  <SelectItem value="product_launch">Product Launch</SelectItem>
+                  <SelectItem value="remarketing">Remarketing</SelectItem>
+                  <SelectItem value="brand_awareness">Brand Awareness</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={loadEventsData} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                const csvData = filteredEvents.map(event => ({
+                  timestamp: new Date(event.created_at).toLocaleString('pt-BR'),
+                  tipo: formatEventType(event.type),
+                  nome: event.name,
+                  experimento: event.experiments?.name || 'Nenhum',
+                  visitante: event.visitor_id,
+                  valor: event.value || 0,
+                  url: event.page_url || '',
+                  propriedades: JSON.stringify(event.properties || {})
+                }))
+                
+                const csv = [
+                  Object.keys(csvData[0] || {}),
+                  ...csvData.map(row => Object.values(row))
+                ].map(row => row.map(field => `"${field}"`).join(',')).join('\n')
+                
+                const blob = new Blob([csv], { type: 'text/csv' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `eventos-${new Date().toISOString().split('T')[0]}.csv`
+                a.click()
+                URL.revokeObjectURL(url)
+                toast.success('Eventos exportados com sucesso!')
+              }}>
+                <Download className="w-4 h-4 mr-2" />
+                Exportar CSV
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Events Table */}
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Eventos Recentes</h3>
+              <span className="text-sm text-muted-foreground">
+                {filteredEvents.length} de {events.length} eventos
+              </span>
+            </div>
+
+            {filteredEvents.length === 0 ? (
+              <div className="text-center py-12">
+                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h4 className="text-lg font-medium mb-2">Nenhum evento encontrado</h4>
+                <p className="text-muted-foreground">
+                  {events.length === 0 
+                    ? 'Ainda não há eventos capturados. Configure seus experimentos para começar a coletar dados.'
+                    : 'Tente ajustar os filtros para ver eventos diferentes.'
+                  }
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Timestamp</th>
+                      <th className="text-left p-3 font-medium">Tipo</th>
+                      <th className="text-left p-3 font-medium">Nome</th>
+                      <th className="text-left p-3 font-medium">Experimento</th>
+                      <th className="text-left p-3 font-medium">Visitante</th>
+                      <th className="text-left p-3 font-medium">Valor</th>
+                      <th className="text-left p-3 font-medium">URL</th>
+                      <th className="text-left p-3 font-medium">Propriedades</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEvents.slice(0, 100).map((event) => (
+                      <tr key={event.id} className="border-b hover:bg-muted/30">
+                        <td className="p-3 text-sm">
+                          {new Date(event.created_at).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="p-3">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getEventTypeColor(event.type)}`}>
+                            {formatEventType(event.type)}
+                          </span>
+                        </td>
+                        <td className="p-3 text-sm font-medium">{event.name}</td>
+                        <td className="p-3 text-sm">
+                          {event.experiments?.name || (
+                            <span className="text-muted-foreground">Nenhum</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm font-mono">
+                          {event.visitor_id?.slice(0, 8)}...
+                        </td>
+                        <td className="p-3 text-sm">
+                          {event.value ? (
+                            <span className="font-medium text-green-600">
+                              R$ {Number(event.value).toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm">
+                          {event.page_url ? (
+                            <a 
+                              href={event.page_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline truncate max-w-32 inline-block"
+                            >
+                              {event.page_url}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm">
+                          {event.properties && Object.keys(event.properties).length > 0 ? (
+                            <div className="space-y-1">
+                              {/* UTMs em destaque */}
+                              {event.properties.utm_source && (
+                                <div className="flex items-center gap-1 text-xs">
+                                  <span className="font-medium text-blue-600">Fonte:</span>
+                                  <Badge variant="outline" className="text-xs">{event.properties.utm_source}</Badge>
+                                </div>
+                              )}
+                              {event.properties.utm_campaign && (
+                                <div className="flex items-center gap-1 text-xs">
+                                  <span className="font-medium text-green-600">Campanha:</span>
+                                  <Badge variant="outline" className="text-xs">{event.properties.utm_campaign}</Badge>
+                                </div>
+                              )}
+                              {event.properties.utm_medium && (
+                                <div className="flex items-center gap-1 text-xs">
+                                  <span className="font-medium text-orange-600">Meio:</span>
+                                  <Badge variant="outline" className="text-xs">{event.properties.utm_medium}</Badge>
+                                </div>
+                              )}
+                              
+                              {/* Todas as propriedades em detalhes */}
+                              <details className="cursor-pointer">
+                                <summary className="text-blue-600 hover:text-blue-800 text-xs">
+                                  Ver todas ({Object.keys(event.properties).length}) →
+                                </summary>
+                                <div className="mt-1 p-2 bg-muted rounded max-w-xs">
+                                  <pre className="text-xs whitespace-pre-wrap">
+                                    {JSON.stringify(event.properties, null, 2)}
+                                  </pre>
+                                </div>
+                              </details>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {filteredEvents.length > 100 && (
+                  <div className="p-4 text-center text-sm text-muted-foreground border-t">
+                    Mostrando os primeiros 100 eventos. Use filtros para refinar os resultados.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // ===== Data Content =====
+  const renderDataContent = () => {
+    return <DataSection />
+  }
+
+  const DataSection = () => {
+    const [activeDataTab, setActiveDataTab] = useState('export')
+    const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv')
+    const [exportData, setExportData] = useState<string>('')
+    const [isExporting, setIsExporting] = useState(false)
+    const [retentionDays, setRetentionDays] = useState(365)
+
+    const handleExportData = async () => {
+      setIsExporting(true)
+      try {
+        // Fetch data for export
+        const { data: experimentsData, error: expError } = await supabase
+          .from('experiments')
+          .select(`
+            id, name, status, created_at, ended_at,
+            variants(id, name, is_control, weight),
+            events(id, event_type, visitor_id, created_at, value, properties)
+          `)
+
+        if (expError) throw expError
+
+        if (exportFormat === 'csv') {
+          // Convert to CSV
+          let csv = 'experiment_id,experiment_name,variant_name,event_type,visitor_id,timestamp,value,properties\n'
+          experimentsData?.forEach(exp => {
+            exp.events?.forEach((event: any) => {
+              const variant = exp.variants?.find((v: any) => event.properties?.variant === v.name)
+              csv += `"${exp.id}","${exp.name}","${variant?.name || 'unknown'}","${event.event_type}","${event.visitor_id}","${event.created_at}","${event.value || ''}","${JSON.stringify(event.properties || {})}"\n`
+            })
+          })
+          setExportData(csv)
+        } else {
+          // Convert to JSON
+          setExportData(JSON.stringify(experimentsData, null, 2))
+        }
+      } catch (error) {
+        console.error('Erro na exportação:', error)
+        toast.error('Erro ao exportar dados')
+      } finally {
+        setIsExporting(false)
+      }
+    }
+
+    const downloadExport = () => {
+      if (!exportData) return
+
+      const blob = new Blob([exportData], {
+        type: exportFormat === 'csv' ? 'text/csv' : 'application/json'
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `rota-final-dados-${new Date().toISOString().split('T')[0]}.${exportFormat}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success('Download iniciado')
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Gestão de Dados</h2>
+            <p className="text-muted-foreground">Exporte, configure e gerencie seus dados de experimentos</p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Card>
+          <div className="border-b">
+            <div className="flex space-x-8 px-6">
+              {[
+                { id: 'export', label: 'Exportação', icon: Download },
+                { id: 'api', label: 'API & Integrações', icon: Code },
+                { id: 'realtime', label: 'Dados em Tempo Real', icon: Activity },
+                { id: 'settings', label: 'Configurações', icon: Settings }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveDataTab(tab.id)}
+                  className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                    activeDataTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-6">
+            {activeDataTab === 'export' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Exportar Dados</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Exporte todos os dados dos seus experimentos em formato CSV ou JSON
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="p-4">
+                    <h4 className="font-medium mb-3">Formato de Exportação</h4>
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          checked={exportFormat === 'csv'}
+                          onChange={() => setExportFormat('csv')}
+                          className="form-radio"
+                        />
+                        <span>CSV (Planilha)</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          checked={exportFormat === 'json'}
+                          onChange={() => setExportFormat('json')}
+                          className="form-radio"
+                        />
+                        <span>JSON (Programação)</span>
+                      </label>
+                    </div>
+                  </Card>
+
+                  <Card className="p-4">
+                    <h4 className="font-medium mb-3">Dados Incluídos</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Informações dos experimentos</li>
+                      <li>• Configurações das variantes</li>
+                      <li>• Eventos e conversões</li>
+                      <li>• Atribuições de usuários</li>
+                      <li>• Métricas calculadas</li>
+                    </ul>
+                  </Card>
+                </div>
+
+                <div className="flex gap-4">
+                  <Button
+                    onClick={handleExportData}
+                    disabled={isExporting}
+                    className="gap-2"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Exportando...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Gerar Exportação
+                      </>
+                    )}
+                  </Button>
+
+                  {exportData && (
+                    <Button
+                      onClick={downloadExport}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      Baixar Arquivo
+                    </Button>
+                  )}
+                </div>
+
+                {exportData && (
+                  <Card className="p-4">
+                    <h4 className="font-medium mb-2">Preview dos Dados</h4>
+                    <div className="bg-muted p-3 rounded max-h-40 overflow-y-auto">
+                      <pre className="text-xs whitespace-pre-wrap">
+                        {exportData.slice(0, 1000)}
+                        {exportData.length > 1000 && '...'}
+                      </pre>
+                    </div>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeDataTab === 'api' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">API & Integrações</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Documentação e exemplos para integrar a Rota Final com suas ferramentas
+                  </p>
+                </div>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">Tracking API</h4>
+                  <div className="bg-muted p-3 rounded">
+                    <pre className="text-xs">
+{`POST /api/track
+Content-Type: application/json
+
+{
+  "experiment_id": "seu-experimento-id",
+  "visitor_id": "visitor-uuid",
+  "event_type": "conversion",
+  "variant": "variante-a",
+  "value": 99.90,
+  "properties": {
+    "product_id": "123",
+    "category": "electronics"
+  }
+}`}
+                    </pre>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">JavaScript SDK</h4>
+                  <div className="bg-muted p-3 rounded">
+                    <pre className="text-xs">
+{`// Instalar via npm
+npm install @rota-final/sdk
+
+// Usar no seu código
+import { RotaFinal } from '@rota-final/sdk'
+
+const rf = new RotaFinal('sua-api-key')
+
+// Rastrear conversão
+rf.track('purchase', {
+  value: 99.90,
+  product_id: '123'
+})`}
+                    </pre>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">Integrações Populares</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-3 border rounded">
+                      <strong>Google Analytics</strong>
+                      <p className="text-sm text-muted-foreground">Envie eventos para GA4</p>
+                    </div>
+                    <div className="p-3 border rounded">
+                      <strong>Facebook Pixel</strong>
+                      <p className="text-sm text-muted-foreground">Rastreie conversões no Facebook</p>
+                    </div>
+                    <div className="p-3 border rounded">
+                      <strong>Webhooks</strong>
+                      <p className="text-sm text-muted-foreground">Notificações em tempo real</p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {activeDataTab === 'realtime' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Dados em Tempo Real</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Monitor eventos e conversões conforme acontecem
+                  </p>
+                </div>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">Stream de Eventos</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="text-sm">page_view • experimento-1 • visitante-123</span>
+                      <span className="text-xs text-muted-foreground">{new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-green-100 rounded">
+                      <span className="text-sm">conversion • experimento-1 • visitante-456 • R$ 99,90</span>
+                      <span className="text-xs text-muted-foreground">{new Date().toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">WebSocket Connection</h4>
+                  <div className="bg-muted p-3 rounded">
+                    <pre className="text-xs">
+{`// Conectar ao stream em tempo real
+const ws = new WebSocket('wss://api.rotafinal.com/ws')
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data)
+  console.log('Novo evento:', data)
+}`}
+                    </pre>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {activeDataTab === 'settings' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Configurações de Dados</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Gerencie retenção, privacidade e conformidade
+                  </p>
+                </div>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">Retenção de Dados</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Manter dados por (dias)
+                      </label>
+                      <Input
+                        type="number"
+                        value={retentionDays}
+                        onChange={(e) => setRetentionDays(Number(e.target.value))}
+                        className="w-32"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Dados serão automaticamente removidos após este período
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Atualizar Configuração
+                    </Button>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">Conformidade GDPR</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" defaultChecked className="form-checkbox" />
+                      <span className="text-sm">Permitir coleta de dados anônimos</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" defaultChecked className="form-checkbox" />
+                      <span className="text-sm">Respeitar sinais "Do Not Track"</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" className="form-checkbox" />
+                      <span className="text-sm">Exigir consentimento explícito</span>
+                    </label>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3">Limpeza de Dados</h4>
+                  <div className="space-y-3">
+                    <Button variant="outline" className="gap-2 text-orange-600 border-orange-600 hover:bg-orange-50">
+                      <Trash className="w-4 h-4" />
+                      Limpar Dados Antigos
+                    </Button>
+                    <Button variant="outline" className="gap-2 text-red-600 border-red-600 hover:bg-red-50">
+                      <Trash className="w-4 h-4" />
+                      Apagar Todos os Dados
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   // ===== Audiências (UTMs & Segmentos) =====
   type UTMEvent = { ts: string; path: string; referrer: string | null; source?: string | null; medium?: string | null; campaign?: string | null; term?: string | null; content?: string | null }
   type SegmentCond = { field: 'utm_source'|'utm_medium'|'utm_campaign'|'utm_term'|'utm_content'; op: 'equals'|'contains'; value: string }
@@ -2094,13 +3110,20 @@ export default function Dashboard() {
     const [segments, setSegments] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
-    const [periodFilter, setPeriodFilter] = useState('90d')
     const [sourceFilter, setSourceFilter] = useState('all')
     const [audienceTab, setAudienceTab] = useState('campanhas')
+    const { preferences, updatePreference } = useApp()
+    const [periodFilter, setPeriodFilter] = useState<'7d'|'30d'|'90d'>(
+      (preferences?.defaultTimeRange as any) || '90d'
+    )
 
     useEffect(() => {
       loadAudienceData()
-    }, [])
+    }, [periodFilter])
+
+    useEffect(() => {
+      setPeriodFilter(((preferences?.defaultTimeRange as any) || '90d') as any)
+    }, [preferences?.defaultTimeRange])
 
     const loadAudienceData = async () => {
       setLoading(true)
@@ -2108,8 +3131,8 @@ export default function Dashboard() {
         // Usar as funções de analytics criadas
         const { getCampaignData, getAudienceSegments } = await import('@/lib/analytics')
         const [campaignData, segmentData] = await Promise.all([
-          getCampaignData(),
-          getAudienceSegments()
+          getCampaignData(periodFilter),
+          getAudienceSegments(periodFilter as any)
         ])
         setCampaigns(campaignData)
         setSegments(segmentData)
@@ -2154,105 +3177,37 @@ export default function Dashboard() {
     if (loading) {
       return (
         <div className="space-y-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-            <div className="h-96 bg-gray-200 rounded mt-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="h-28 animate-pulse" />
+            ))}
           </div>
+          <Card className="h-80 animate-pulse" />
         </div>
       )
     }
 
     return (
       <div className="space-y-6">
-        {/* Summary Cards */}
+        {/* Summary KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total de Visitantes</p>
-                <p className="text-2xl font-bold text-gray-900">{formatNumber(totalMetrics.visitors)}</p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-green-600">+12.5%</span>
-              <span className="text-gray-500 ml-1">vs mês anterior</span>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Taxa de Conversão</p>
-                <p className="text-2xl font-bold text-gray-900">{avgConversionRate.toFixed(2)}%</p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Target className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-green-600">+2.1%</span>
-              <span className="text-gray-500 ml-1">vs mês anterior</span>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Receita Total</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalMetrics.revenue)}</p>
-              </div>
-              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <ArrowRight className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-green-600">+8.3%</span>
-              <span className="text-gray-500 ml-1">vs mês anterior</span>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">ROAS</p>
-                <p className="text-2xl font-bold text-gray-900">{roas.toFixed(2)}x</p>
-              </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-green-600">+15.7%</span>
-              <span className="text-gray-500 ml-1">vs mês anterior</span>
-            </div>
-          </Card>
+          <KpiCard title="Visitantes" value={formatNumber(totalMetrics.visitors)} subtitle={`Período: ${periodFilter}`} icon={<Users />} color="info" />
+          <KpiCard title="Conversões" value={formatNumber(totalMetrics.conversions)} subtitle={`Período: ${periodFilter}`} icon={<Check />} color="success" />
+          <KpiCard title="Conversão" value={`${avgConversionRate.toFixed(2)}%`} subtitle="Média ponderada" icon={<TrendingUp />} color="warning" />
+          <KpiCard title="ROAS" value={`${roas.toFixed(2)}x`} subtitle="Receita/Investimento" icon={<BarChart3 />} color="primary" />
         </div>
 
         {/* Filters */}
-        <Card className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <Card className="card-glass">
+          <div className="p-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
               <div className="relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4">
-                  <Users className="h-4 w-4" />
-                </div>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar campanhas..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-80"
+                  className="pl-9 w-80"
                 />
               </div>
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
@@ -2266,40 +3221,36 @@ export default function Dashboard() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <Select value={periodFilter} onValueChange={(v) => { setPeriodFilter(v as any); updatePreference('defaultTimeRange', v as any) }}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="7d">Últimos 7 dias</SelectItem>
                   <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                  <SelectItem value="60d">Últimos 60 dias</SelectItem>
                   <SelectItem value="90d">Últimos 90 dias</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" />
                 Filtros Avançados
-              </Button>
-              <Button variant="outline" size="sm">
-                <Calendar className="h-4 w-4 mr-2" />
-                Período
               </Button>
             </div>
           </div>
         </Card>
 
         {/* Tabs */}
-        <Card>
-          <div className="border-b">
+        <Card className="card-glass">
+          <div className="border-b border-border/60">
             <div className="flex space-x-8 px-6">
               <button
                 onClick={() => setAudienceTab('campanhas')}
                 className={`py-4 text-sm font-medium border-b-2 transition-colors ${
                   audienceTab === 'campanhas'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Campanhas
@@ -2308,8 +3259,8 @@ export default function Dashboard() {
                 onClick={() => setAudienceTab('segmentos')}
                 className={`py-4 text-sm font-medium border-b-2 transition-colors ${
                   audienceTab === 'segmentos'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Segmentos
@@ -2318,8 +3269,8 @@ export default function Dashboard() {
                 onClick={() => setAudienceTab('analytics')}
                 className={`py-4 text-sm font-medium border-b-2 transition-colors ${
                   audienceTab === 'analytics'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Analytics
@@ -2343,32 +3294,50 @@ export default function Dashboard() {
                   </Button>
                 </div>
                 
+                {/* Active filter chips */}
+                {(sourceFilter !== 'all' || searchTerm) && (
+                  <div className="flex items-center gap-2 flex-wrap mb-3">
+                    {sourceFilter !== 'all' && (
+                      <button className="chip text-primary bg-primary/10 border-primary/20" onClick={() => setSourceFilter('all')}>
+                        Fonte: {sourceFilter}
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {searchTerm && (
+                      <button className="chip" onClick={() => setSearchTerm('')}>
+                        Busca: “{searchTerm}”
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-secondary/60">
                       <tr>
-                        <th className="text-left p-4 font-medium text-gray-900">Campanha</th>
-                        <th className="text-left p-4 font-medium text-gray-900">Fonte</th>
-                        <th className="text-left p-4 font-medium text-gray-900">Visitantes</th>
-                        <th className="text-left p-4 font-medium text-gray-900">Conversões</th>
-                        <th className="text-left p-4 font-medium text-gray-900">Taxa Conv.</th>
-                        <th className="text-left p-4 font-medium text-gray-900">Receita</th>
-                        <th className="text-left p-4 font-medium text-gray-900">CPC</th>
-                        <th className="text-left p-4 font-medium text-gray-900">CTR</th>
-                        <th className="text-left p-4 font-medium text-gray-900">Status</th>
+                        <th className="text-left p-4 font-medium">Campanha</th>
+                        <th className="text-left p-4 font-medium">Fonte</th>
+                        <th className="text-left p-4 font-medium">Visitantes</th>
+                        <th className="text-left p-4 font-medium">Conversões</th>
+                        <th className="text-left p-4 font-medium">Taxa Conv.</th>
+                        <th className="text-left p-4 font-medium">Receita</th>
+                        <th className="text-left p-4 font-medium">CPC</th>
+                        <th className="text-left p-4 font-medium">CTR</th>
+                        <th className="text-left p-4 font-medium">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {filteredCampaigns.map((campaign) => (
-                        <tr key={campaign.id} className="hover:bg-gray-50">
+                    <tbody className="divide-y divide-border">
+                      {filteredCampaigns.slice(0, 12).map((campaign) => (
+                        <tr key={campaign.id} className="hover:bg-secondary/60 cursor-pointer" onClick={() => { setSourceFilter(campaign.source || 'all'); setSearchTerm(campaign.campaign || campaign.name || '') }}>
                           <td className="p-4">
                             <div>
-                              <p className="font-medium text-gray-900">{campaign.name}</p>
-                              <p className="text-sm text-gray-500">{campaign.campaign}</p>
+                              <p className="font-medium">{campaign.name}</p>
+                              <p className="text-sm text-muted-foreground">{campaign.campaign}</p>
                             </div>
                           </td>
                           <td className="p-4">
-                            <Badge variant="outline">{campaign.source}</Badge>
+                            <span className="chip">{campaign.source}</span>
                           </td>
                           <td className="p-4">
                             <span className="font-medium">{formatNumber(campaign.visitors)}</span>
@@ -2377,7 +3346,7 @@ export default function Dashboard() {
                             <span className="font-medium">{formatNumber(campaign.conversions)}</span>
                           </td>
                           <td className="p-4">
-                            <span className={`font-medium ${campaign.conversionRate > 3 ? 'text-green-600' : 'text-gray-900'}`}>
+                            <span className={`font-medium ${campaign.conversionRate > 3 ? 'text-success' : ''}`}>
                               {campaign.conversionRate?.toFixed(2)}%
                             </span>
                           </td>
@@ -2385,27 +3354,29 @@ export default function Dashboard() {
                             <span className="font-medium">{formatCurrency(campaign.revenue)}</span>
                           </td>
                           <td className="p-4">
-                            <span className="text-gray-600">
+                            <span className="text-muted-foreground">
                               {campaign.cpc ? formatCurrency(campaign.cpc) : '-'}
                             </span>
                           </td>
                           <td className="p-4">
-                            <span className="text-gray-600">
+                            <span className="text-muted-foreground">
                               {campaign.ctr ? `${campaign.ctr.toFixed(2)}%` : '-'}
                             </span>
                           </td>
                           <td className="p-4">
-                            <Badge 
-                              variant={campaign.status === 'active' ? 'default' : 'secondary'}
-                              className={campaign.status === 'active' ? 'bg-green-100 text-green-800' : ''}
-                            >
+                            <span className={`chip ${campaign.status === 'active' ? 'text-success bg-success/10 border-success/20' : ''}`}>
                               {campaign.status === 'active' ? 'Ativa' : 'Pausada'}
-                            </Badge>
+                            </span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  {filteredCampaigns.length > 12 && (
+                    <div className="flex justify-center py-4">
+                      <Button variant="outline" onClick={() => setSearchTerm('')}>Ver todas ({filteredCampaigns.length})</Button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2427,36 +3398,34 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {segments.map((segment) => (
-                    <Card key={segment.id} className="p-6 hover:shadow-md transition-shadow">
+                    <Card key={segment.id} className="p-6 card-glass hover-lift">
                       <div className="space-y-4">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h4 className="font-semibold text-gray-900">{segment.name}</h4>
-                            <p className="text-sm text-gray-600">{segment.description}</p>
+                            <h4 className="font-semibold">{segment.name}</h4>
+                            <p className="text-sm text-muted-foreground">{segment.description}</p>
                           </div>
-                          <Badge variant="outline" className="ml-2">
-                            {formatNumber(segment.visitors)}
-                          </Badge>
+                          <span className="chip ml-2">{formatNumber(segment.visitors)}</span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-sm text-gray-600">Taxa de Conversão</p>
-                            <p className="text-lg font-semibold text-gray-900">
+                            <p className="text-sm text-muted-foreground">Taxa de Conversão</p>
+                            <p className="text-lg font-semibold">
                               {segment.conversionRate?.toFixed(2)}%
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">Valor Médio</p>
-                            <p className="text-lg font-semibold text-gray-900">
+                            <p className="text-sm text-muted-foreground">Valor Médio</p>
+                            <p className="text-lg font-semibold">
                               {formatCurrency(segment.avgValue)}
                             </p>
                           </div>
                         </div>
 
                         <div>
-                          <p className="text-sm text-gray-600">Receita Total</p>
-                          <p className="text-xl font-bold text-gray-900">
+                          <p className="text-sm text-muted-foreground">Receita Total</p>
+                          <p className="text-xl font-bold">
                             {formatCurrency(segment.totalRevenue)}
                           </p>
                         </div>
@@ -2480,7 +3449,7 @@ export default function Dashboard() {
 
             {audienceTab === 'analytics' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="p-6">
+                <Card className="p-6 card-glass">
                   <h3 className="text-lg font-semibold mb-4">Performance por Fonte</h3>
                   <div className="space-y-4">
                     {uniqueSources.map(source => {
@@ -2495,17 +3464,17 @@ export default function Dashboard() {
                         (sourceMetrics.conversions / sourceMetrics.visitors) * 100 : 0
 
                       return (
-                        <div key={source} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div key={source} className="flex items-center justify-between p-4 rounded-lg border border-input card-glass">
                           <div className="flex items-center gap-3">
-                            <Badge variant="outline">{source}</Badge>
+                            <span className="chip">{source}</span>
                             <div>
                               <p className="font-medium">{formatNumber(sourceMetrics.visitors)} visitantes</p>
-                              <p className="text-sm text-gray-600">{convRate.toFixed(2)}% conversão</p>
+                              <p className="text-sm text-muted-foreground">{convRate.toFixed(2)}% conversão</p>
                             </div>
                           </div>
                           <div className="text-right">
                             <p className="font-semibold">{formatCurrency(sourceMetrics.revenue)}</p>
-                            <p className="text-sm text-gray-600">{formatNumber(sourceMetrics.conversions)} conversões</p>
+                            <p className="text-sm text-muted-foreground">{formatNumber(sourceMetrics.conversions)} conversões</p>
                           </div>
                         </div>
                       )
@@ -2579,6 +3548,31 @@ export default function Dashboard() {
                         <p className="text-sm text-green-600">+12.5% ↗</p>
                       </div>
                     </div>
+                  </div>
+                </Card>
+                <Card className="p-6 card-glass">
+                  <h3 className="text-lg font-semibold mb-4">Top Campanhas por Receita</h3>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RBarChart data={filteredCampaigns.sort((a,b)=> (b.revenue||0)-(a.revenue||0)).slice(0,6)} layout="vertical" margin={{ left: 16, right: 16 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" tickFormatter={(v)=>`R$ ${(v/1000).toFixed(0)}k`} />
+                        <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" width={140} tickFormatter={(v)=> String(v).slice(0,24) + (String(v).length>24?'…':'')} />
+                        <Tooltip content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const val = payload[0].value as number
+                            return (
+                              <div className="rounded-xl border bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-3 shadow-2xl">
+                                <div className="font-semibold mb-1">{label}</div>
+                                <div className="text-sm">Receita: R$ {(val/1000).toFixed(1)}k</div>
+                              </div>
+                            )
+                          }
+                          return null
+                        }} />
+                        <Bar dataKey="revenue" fill="hsl(var(--success))" radius={[0,6,6,0]} />
+                      </RBarChart>
+                    </ResponsiveContainer>
                   </div>
                 </Card>
               </div>

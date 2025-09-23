@@ -113,10 +113,15 @@ export function ExperimentCard({
   return (
     <div
       className={cn(
-        'group relative rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md',
-        isPinned && 'ring-2 ring-primary/20 bg-primary/5'
+        'group relative overflow-hidden rounded-xl border border-input bg-card p-6',
+        'card-glass hover-lift shadow-soft hover:shadow-large transition-all',
+        isPinned && 'ring-1 ring-primary/30 bg-primary/5'
       )}
     >
+      {/* Subtle pattern background */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_hsl(var(--foreground))_1px,_transparent_0)] [background-size:16px_16px]" />
+      </div>
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
@@ -127,7 +132,7 @@ export function ExperimentCard({
             >
               {experiment.name}
             </h3>
-            {isPinned && <Pin className="h-3 w-3 text-primary" />}
+            {isPinned && <Pin className="h-3 w-3 text-primary" strokeWidth={1.75} />}
           </div>
           {experiment.description && (
             <p className="text-sm text-muted-foreground line-clamp-2">
@@ -143,46 +148,46 @@ export function ExperimentCard({
               size="sm"
               className="opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             {canStart && (
               <DropdownMenuItem onClick={() => onStart?.(experiment.id)}>
-                <Play className="mr-2 h-4 w-4" />
+                <Play className="mr-2 h-4 w-4" strokeWidth={1.75} />
                 Iniciar
               </DropdownMenuItem>
             )}
             {canPause && (
               <DropdownMenuItem onClick={() => onPause?.(experiment.id)}>
-                <Pause className="mr-2 h-4 w-4" />
+                <Pause className="mr-2 h-4 w-4" strokeWidth={1.75} />
                 Pausar
               </DropdownMenuItem>
             )}
             {canStop && (
               <DropdownMenuItem onClick={() => onStop?.(experiment.id)}>
-                <Square className="mr-2 h-4 w-4" />
+                <Square className="mr-2 h-4 w-4" strokeWidth={1.75} />
                 Finalizar
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onEdit?.(experiment.id)}>
-              <Edit className="mr-2 h-4 w-4" />
+              <Edit className="mr-2 h-4 w-4" strokeWidth={1.75} />
               Editar
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onDuplicate?.(experiment.id)}>
-              <Copy className="mr-2 h-4 w-4" />
+              <Copy className="mr-2 h-4 w-4" strokeWidth={1.75} />
               Duplicar
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => togglePin(experiment.id)}>
               {isPinned ? (
                 <>
-                  <PinOff className="mr-2 h-4 w-4" />
+                  <PinOff className="mr-2 h-4 w-4" strokeWidth={1.75} />
                   Desafixar
                 </>
               ) : (
                 <>
-                  <Pin className="mr-2 h-4 w-4" />
+                  <Pin className="mr-2 h-4 w-4" strokeWidth={1.75} />
                   Fixar
                 </>
               )}
@@ -192,7 +197,7 @@ export function ExperimentCard({
               onClick={() => onDelete?.(experiment.id)}
               className="text-danger focus:text-danger"
             >
-              <Trash2 className="mr-2 h-4 w-4" />
+              <Trash2 className="mr-2 h-4 w-4" strokeWidth={1.75} />
               Excluir
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -202,7 +207,7 @@ export function ExperimentCard({
       {/* Status badge */}
       <div className="flex items-center gap-2 mb-4">
         <Badge className={cn('gap-1', status.color)}>
-          <StatusIcon className="h-3 w-3" />
+          <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
           {status.label}
         </Badge>
         {experiment.algorithm && (
@@ -237,17 +242,17 @@ export function ExperimentCard({
       {/* Metrics */}
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="text-center">
-          <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+          <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" strokeWidth={1.75} />
           <p className="text-xs text-muted-foreground">Visitantes</p>
           <p className="text-sm font-semibold">1.2k</p>
         </div>
         <div className="text-center">
-          <TrendingUp className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+          <TrendingUp className="h-4 w-4 mx-auto mb-1 text-muted-foreground" strokeWidth={1.75} />
           <p className="text-xs text-muted-foreground">Taxa Conv.</p>
           <p className="text-sm font-semibold">3.4%</p>
         </div>
         <div className="text-center">
-          <BarChart3 className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+          <BarChart3 className="h-4 w-4 mx-auto mb-1 text-muted-foreground" strokeWidth={1.75} />
           <p className="text-xs text-muted-foreground">Uplift</p>
           <p className="text-sm font-semibold text-success">+12%</p>
         </div>
@@ -256,13 +261,16 @@ export function ExperimentCard({
       {/* Footer */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
-          <Clock className="h-3 w-3" />
+          <Clock className="h-3 w-3" strokeWidth={1.75} />
           {formatDate(experiment.created_at)}
         </div>
         {experiment.traffic_allocation && (
           <span>{experiment.traffic_allocation}% tráfego</span>
         )}
       </div>
+
+      {/* Bottom accent */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/40 to-primary opacity-70" />
     </div>
   )
 }

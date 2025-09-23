@@ -11,6 +11,9 @@ class RotaFinal {
     this.cache = new Map();
     this.userId = this.getUserId();
     
+    // Inicializar captura de UTMs
+    this.initUTMCapture();
+    
     if (this.debug) {
       console.log('RotaFinal SDK initialized:', { apiKey: this.apiKey, userId: this.userId });
     }
@@ -83,6 +86,13 @@ class RotaFinal {
    */
   async conversion(eventName, value = null, properties = {}) {
     try {
+      // Incluir dados UTM automaticamente
+      const utmData = this.getUTMData();
+      const enrichedProperties = {
+        ...properties,
+        ...utmData
+      };
+
       const response = await fetch(`${this.baseUrl}/functions/v1/track-event`, {
         method: 'POST',
         headers: {
@@ -93,7 +103,7 @@ class RotaFinal {
           event_name: eventName,
           user_id: this.userId,
           value: value,
-          properties: properties,
+          properties: enrichedProperties,
           timestamp: new Date().toISOString()
         })
       });
@@ -102,7 +112,7 @@ class RotaFinal {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      if (this.debug) console.log('RotaFinal: Event tracked', { eventName, value, properties });
+      if (this.debug) console.log('RotaFinal: Event tracked', { eventName, value, properties: enrichedProperties });
       
       return await response.json();
     } catch (error) {
@@ -175,6 +185,138 @@ class RotaFinal {
     }
 
     return variant;
+  }
+
+  /**
+   * Inicializa captura de UTMs
+   */
+  initUTMCapture() {
+    if (typeof window === 'undefined') return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'src', 'sck', 'msclkid', 'ttclid'
+    ];
+
+    let hasUTMs = false;
+
+    utmParams.forEach(param => {
+      const value = urlParams.get(param);
+      if (value) {
+        const sanitizedValue = this.sanitizeUTMValue(value, param);
+        
+        localStorage.setItem(`rf_${param}`, sanitizedValue);
+        this.setCookie(param, sanitizedValue, 30);
+        
+        hasUTMs = true;
+        if (this.debug) console.log(`RotaFinal: UTM captured ${param} = ${sanitizedValue}`);
+      }
+    });
+
+    // Limpar URL se capturou UTMs
+    if (hasUTMs && window.history && window.history.replaceState) {
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+      if (this.debug) console.log('RotaFinal: URL cleaned, UTM parameters preserved');
+    }
+  }
+
+  /**
+   * Sanitiza valor de UTM
+   */
+  sanitizeUTMValue(value, param) {
+    if (!value) return value;
+    
+    if (['utm_source', 'utm_medium', 'utm_campaign'].includes(param)) {
+      return value.trim().replace(/\s+/g, '_');
+    }
+    
+    return value.trim();
+  }
+
+  /**
+   * Define cookie
+   */
+  setCookie(name, value, days) {
+    if (typeof document === 'undefined') return;
+    
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    
+    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; Secure; SameSite=Lax`;
+  }
+
+  /**
+   * Obtém cookie
+   */
+  getCookie(name) {
+    if (typeof document === 'undefined') return null;
+    
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      return parts.pop().split(';').shift();
+    }
+    return null;
+  }
+
+  /**
+   * Obtém dados UTM salvos
+   */
+  getUTMData() {
+    if (typeof window === 'undefined') return {};
+
+    const utmData = {};
+    const utmParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'src', 'sck', 'msclkid', 'ttclid'
+    ];
+
+    utmParams.forEach(param => {
+      const value = localStorage.getItem(`rf_${param}`) || this.getCookie(param);
+      if (value) {
+        utmData[param] = value;
+      }
+    });
+
+    return utmData;
+  }
+
+  /**
+   * API pública para obter parâmetros UTM
+   */
+  getUTMParams() {
+    return this.getUTMData();
+  }
+
+  /**
+   * API pública para obter parâmetro UTM específico
+   */
+  getUTMParam(param) {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(`rf_${param}`) || this.getCookie(param);
+  }
+
+  /**
+   * Limpar parâmetros UTM salvos
+   */
+  clearUTMParams() {
+    if (typeof window === 'undefined') return;
+
+    const utmParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'src', 'sck', 'msclkid', 'ttclid'
+    ];
+
+    utmParams.forEach(param => {
+      localStorage.removeItem(`rf_${param}`);
+      if (typeof document !== 'undefined') {
+        document.cookie = `${param}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      }
+    });
+
+    if (this.debug) console.log('RotaFinal: UTM parameters cleared');
   }
 }
 

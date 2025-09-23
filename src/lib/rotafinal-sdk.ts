@@ -97,12 +97,19 @@ class RotaFinal {
   private init(): void {
     if (this.initialized) return
 
+    // Inicializar captura de UTMs
+    this.initUTMCapture()
+
     // Auto-tracking de page view
     if (this.config.enableAutoPageView && typeof window !== 'undefined') {
+      const utmData = this.getUTMData()
+      const sessionInfo = this.getSessionInfo()
       this.track('page_view', window.location.pathname, {
         url: window.location.href,
         referrer: document.referrer,
-        title: document.title
+        title: document.title,
+        ...utmData,
+        ...sessionInfo
       })
 
       // Escutar mudanças de rota (SPA)
@@ -241,7 +248,217 @@ class RotaFinal {
    * Marca uma conversão
    */
   conversion(name: string, value?: number, properties?: Record<string, any>): void {
-    this.track('conversion', name, properties, value)
+    const utmData = this.getUTMData()
+    this.track('conversion', name, {
+      ...properties,
+      ...utmData
+    }, value)
+  }
+
+  /**
+   * Inicializa captura de UTMs
+   */
+  private initUTMCapture(): void {
+    if (typeof window === 'undefined') return
+
+    const urlParams = new URLSearchParams(window.location.search)
+    const utmParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'src', 'sck', 'msclkid', 'ttclid'
+    ]
+
+    let hasUTMs = false
+
+    utmParams.forEach(param => {
+      const value = urlParams.get(param)
+      if (value) {
+        // Sanitizar valor
+        const sanitizedValue = this.sanitizeUTMValue(value, param)
+        
+        // Salvar em localStorage e cookie
+        localStorage.setItem(`rf_${param}`, sanitizedValue)
+        this.setCookie(param, sanitizedValue, 30)
+        
+        hasUTMs = true
+        this.log(`UTM captured: ${param} = ${sanitizedValue}`)
+      }
+    })
+
+    // Limpar URL se capturou UTMs
+    if (hasUTMs && window.history?.replaceState) {
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash
+      window.history.replaceState({}, document.title, cleanUrl)
+      this.log('URL cleaned, UTM parameters preserved')
+    }
+  }
+
+  /**
+   * Sanitiza valor de UTM
+   */
+  private sanitizeUTMValue(value: string, param: string): string {
+    if (!value) return value
+    
+    // Para UTM source, medium, campaign - limpar espaços
+    if (['utm_source', 'utm_medium', 'utm_campaign'].includes(param)) {
+      return value.trim().replace(/\s+/g, '_')
+    }
+    
+    return value.trim()
+  }
+
+  /**
+   * Define cookie
+   */
+  private setCookie(name: string, value: string, days: number): void {
+    if (typeof document === 'undefined') return
+    
+    const expires = new Date()
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000))
+    
+    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; Secure; SameSite=Lax`
+  }
+
+  /**
+   * Obtém cookie
+   */
+  private getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null
+    
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+    if (parts.length === 2) {
+      return parts.pop()?.split(';').shift() || null
+    }
+    return null
+  }
+
+  /**
+   * Obtém dados UTM salvos
+   */
+  private getUTMData(): Record<string, string> {
+    if (typeof window === 'undefined') return {}
+
+    const utmData: Record<string, string> = {}
+    const utmParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'src', 'sck', 'msclkid', 'ttclid'
+    ]
+
+    utmParams.forEach(param => {
+      // Priorizar localStorage, fallback para cookie
+      const value = localStorage.getItem(`rf_${param}`) || this.getCookie(param)
+      if (value) {
+        utmData[param] = value
+      }
+    })
+
+    return utmData
+  }
+
+  /**
+   * API pública para obter parâmetros UTM
+   */
+  public getUTMParams(): Record<string, string> {
+    return this.getUTMData()
+  }
+
+  /**
+   * API pública para obter parâmetro UTM específico
+   */
+  public getUTMParam(param: string): string | null {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem(`rf_${param}`) || this.getCookie(param)
+  }
+
+  /**
+   * Limpar parâmetros UTM salvos
+   */
+  public clearUTMParams(): void {
+    if (typeof window === 'undefined') return
+
+    const utmParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'src', 'sck', 'msclkid', 'ttclid'
+    ]
+
+    utmParams.forEach(param => {
+      localStorage.removeItem(`rf_${param}`)
+      if (typeof document !== 'undefined') {
+        document.cookie = `${param}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+      }
+    })
+
+    this.log('UTM parameters cleared')
+  }
+
+  /**
+   * Obtém informações da sessão atual
+   */
+  private getSessionInfo(): Record<string, string> {
+    if (typeof window === 'undefined') return {}
+
+    const userAgent = navigator.userAgent
+    let deviceType = 'desktop'
+    let browserName = 'unknown'
+    let browserVersion = 'unknown'
+    let osName = 'unknown'
+    let osVersion = 'unknown'
+
+    // Detectar tipo de dispositivo
+    if (/tablet|ipad|playbook|silk/i.test(userAgent)) {
+      deviceType = 'tablet'
+    } else if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(userAgent)) {
+      deviceType = 'mobile'
+    }
+
+    // Detectar browser
+    if (userAgent.indexOf('Chrome') > -1) {
+      browserName = 'Chrome'
+      const match = userAgent.match(/Chrome\/([0-9.]+)/)
+      browserVersion = match ? match[1] : 'unknown'
+    } else if (userAgent.indexOf('Firefox') > -1) {
+      browserName = 'Firefox'
+      const match = userAgent.match(/Firefox\/([0-9.]+)/)
+      browserVersion = match ? match[1] : 'unknown'
+    } else if (userAgent.indexOf('Safari') > -1) {
+      browserName = 'Safari'
+      const match = userAgent.match(/Version\/([0-9.]+)/)
+      browserVersion = match ? match[1] : 'unknown'
+    } else if (userAgent.indexOf('Edge') > -1) {
+      browserName = 'Edge'
+      const match = userAgent.match(/Edge\/([0-9.]+)/)
+      browserVersion = match ? match[1] : 'unknown'
+    }
+
+    // Detectar OS
+    if (userAgent.indexOf('Windows NT') > -1) {
+      osName = 'Windows'
+      const match = userAgent.match(/Windows NT ([0-9.]+)/)
+      osVersion = match ? match[1] : 'unknown'
+    } else if (userAgent.indexOf('Mac OS X') > -1) {
+      osName = 'macOS'
+      const match = userAgent.match(/Mac OS X ([0-9_.]+)/)
+      osVersion = match ? match[1].replace(/_/g, '.') : 'unknown'
+    } else if (userAgent.indexOf('Linux') > -1) {
+      osName = 'Linux'
+    } else if (/Android/.test(userAgent)) {
+      osName = 'Android'
+      const match = userAgent.match(/Android ([0-9.]+)/)
+      osVersion = match ? match[1] : 'unknown'
+    } else if (/iPhone|iPad|iPod/.test(userAgent)) {
+      osName = 'iOS'
+      const match = userAgent.match(/OS ([0-9_]+)/)
+      osVersion = match ? match[1].replace(/_/g, '.') : 'unknown'
+    }
+
+    return {
+      device_type: deviceType,
+      browser_name: browserName,
+      browser_version: browserVersion,
+      os_name: osName,
+      os_version: osVersion,
+      screen_resolution: `${screen.width}x${screen.height}`
+    }
   }
 
   /**

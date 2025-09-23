@@ -55,7 +55,7 @@ export function DashboardHeader({
           {/* Search - Desktop */}
           <div className="hidden md:flex flex-1 max-w-xl mx-8">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.75} />
               <Input
                 placeholder="Buscar experimentos, projetos..."
                 value={query}
@@ -73,14 +73,14 @@ export function DashboardHeader({
                 onClick={onNewExperiment}
                 className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-medium"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2" strokeWidth={1.75} />
                 Novo Experimento
               </Button>
             </div>
 
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-4 w-4" />
+              <Bell className="h-4 w-4" strokeWidth={1.75} />
               <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-danger text-danger-foreground">
                 3
               </Badge>
@@ -111,18 +111,18 @@ export function DashboardHeader({
                   
                   <div className="py-2">
                     <button className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-accent transition-colors">
-                      <User className="h-4 w-4" />
+                      <User className="h-4 w-4" strokeWidth={1.75} />
                       Perfil
                     </button>
                     <button className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-accent transition-colors">
-                      <Settings className="h-4 w-4" />
+                      <Settings className="h-4 w-4" strokeWidth={1.75} />
                       Configurações
                     </button>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-accent transition-colors"
                       onClick={() => router.push('/settings')}
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
                       Abrir Configurações
                     </button>
                   </div>
@@ -132,7 +132,7 @@ export function DashboardHeader({
                       onClick={onSignOut}
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-4 w-4" strokeWidth={1.75} />
                       Sair
                     </button>
                   </div>

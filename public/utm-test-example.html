@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Captura UTM - RotaFinal</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .utm-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .code-block {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .test-section {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .success {
+            color: #059669;
+            font-weight: bold;
+        }
+        .warning {
+            color: #d97706;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Teste de Captura UTM - RotaFinal</h1>
+    
+    <div class="utm-info">
+        <h2>📋 Como Testar:</h2>
+        <p>1. Acesse esta página com UTMs na URL:</p>
+        <div class="code-block">
+utm_source=FB&utm_campaign={{campaign.name}}|{{campaign.id}}&utm_medium={{adset.name}}|{{adset.id}}&utm_content={{ad.name}}|{{ad.id}}&utm_term={{placement}}&sck={{campaign.name}}|{{adset.name}}|{{ad.name}}|{{placement}}
+        </div>
+        
+        <p>2. <strong>Exemplo completo de URL:</strong></p>
+        <div class="code-block">
+?utm_source=FB&utm_campaign=Black_Friday_2024&utm_medium=carousel_ads&utm_content=cta_azul&utm_term=feed&sck=BF2024|carousel|cta_azul|feed&fbclid=test123
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔍 UTMs Capturados:</h3>
+        <div id="utm-display">
+            <p>Carregando...</p>
+        </div>
+        
+        <button onclick="refreshUTMs()">🔄 Atualizar</button>
+        <button onclick="clearUTMs()">🗑️ Limpar UTMs</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Teste de Tracking:</h3>
+        <button onclick="testPageView()">📄 Page View</button>
+        <button onclick="testConversion()">💰 Conversão</button>
+        <button onclick="testCustomEvent()">⚡ Evento Custom</button>
+        
+        <div id="tracking-log" style="margin-top: 15px;">
+            <h4>Log de Eventos:</h4>
+            <div id="log-content" class="code-block" style="max-height: 200px; overflow-y: auto;">
+                <!-- Logs aparecerão aqui -->
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Dados da Sessão:</h3>
+        <div id="session-data">
+            <p>Carregando dados da sessão...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/rotafinal-sdk.js"></script>
+    <script src="/rotafinal-utm-tracker.js"></script>
+    
+    <script>
+        // Inicializar RotaFinal SDK
+        const rf = new RotaFinal({
+            apiKey: 'demo-key',
+            debug: true
+        });
+
+        // Função para exibir UTMs capturados
+        function displayUTMs() {
+            const utms = rf.getUTMParams();
+            const display = document.getElementById('utm-display');
+            
+            if (Object.keys(utms).length === 0) {
+                display.innerHTML = '<p class="warning">❌ Nenhum UTM encontrado. Adicione UTMs na URL e recarregue a página.</p>';
+                return;
+            }
+            
+            let html = '<p class="success">✅ UTMs encontrados:</p><ul>';
+            Object.entries(utms).forEach(([key, value]) => {
+                html += `<li><strong>${key}:</strong> ${value}</li>`;
+            });
+            html += '</ul>';
+            
+            display.innerHTML = html;
+        }
+
+        // Função para atualizar display
+        function refreshUTMs() {
+            displayUTMs();
+            displaySessionData();
+            addLog('🔄 UTMs atualizados');
+        }
+
+        // Função para limpar UTMs
+        function clearUTMs() {
+            rf.clearUTMParams();
+            if (window.RotaFinalUTM) {
+                window.RotaFinalUTM.clear();
+            }
+            displayUTMs();
+            addLog('🗑️ UTMs limpos');
+        }
+
+        // Função para exibir dados da sessão
+        function displaySessionData() {
+            const sessionData = window.RotaFinalUTM ? window.RotaFinalUTM.getSessionData() : null;
+            const display = document.getElementById('session-data');
+            
+            if (!sessionData) {
+                display.innerHTML = '<p class="warning">Dados da sessão não disponíveis</p>';
+                return;
+            }
+            
+            const relevantData = {
+                visitor_id: sessionData.visitor_id,
+                session_id: sessionData.session_id,
+                device_type: sessionData.device_type,
+                browser_name: sessionData.browser_name,
+                utm_source: sessionData.utm_source,
+                utm_campaign: sessionData.utm_campaign,
+                utm_medium: sessionData.utm_medium
+            };
+            
+            let html = '<div class="code-block">';
+            html += JSON.stringify(relevantData, null, 2);
+            html += '</div>';
+            
+            display.innerHTML = html;
+        }
+
+        // Funções de teste
+        async function testPageView() {
+            const utms = rf.getUTMParams();
+            
+            try {
+                // Simular envio para API de tracking
+                const response = await fetch('/api/track', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        experiment_id: 'demo-experiment-123',
+                        visitor_id: rf.userId,
+                        event_type: 'page_view',
+                        properties: {
+                            url: window.location.href,
+                            title: document.title,
+                            ...utms
+                        },
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    addLog(`📄 ✅ Page View enviado com sucesso! UTMs: ${JSON.stringify(utms)}`);
+                } else {
+                    addLog(`📄 ❌ Erro ao enviar: ${response.status}`);
+                }
+            } catch (error) {
+                addLog(`📄 ❌ Erro de rede: ${error.message}`);
+            }
+        }
+
+        async function testConversion() {
+            const utms = rf.getUTMParams();
+            
+            try {
+                const response = await fetch('/api/track', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        experiment_id: 'demo-experiment-123',
+                        visitor_id: rf.userId,
+                        event_type: 'conversion',
+                        value: 99.90,
+                        properties: {
+                            product_id: 'test-123',
+                            category: 'electronics',
+                            ...utms
+                        },
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    addLog('💰 ✅ Conversão enviada (R$ 99,90) com UTMs automáticos para banco!');
+                } else {
+                    addLog(`💰 ❌ Erro ao enviar conversão: ${response.status}`);
+                }
+            } catch (error) {
+                addLog(`💰 ❌ Erro de rede na conversão: ${error.message}`);
+            }
+        }
+
+        async function testCustomEvent() {
+            const utms = rf.getUTMParams();
+            
+            try {
+                const response = await fetch('/api/track', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        experiment_id: 'demo-experiment-123',
+                        visitor_id: rf.userId,
+                        event_type: 'custom',
+                        properties: {
+                            event_name: 'video_watched',
+                            progress: '50%',
+                            ...utms
+                        },
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    addLog(`⚡ ✅ Evento custom enviado com UTMs: ${JSON.stringify(utms)}`);
+                } else {
+                    addLog(`⚡ ❌ Erro ao enviar evento: ${response.status}`);
+                }
+            } catch (error) {
+                addLog(`⚡ ❌ Erro de rede no evento: ${error.message}`);
+            }
+        }
+
+        // Função para adicionar log
+        function addLog(message) {
+            const logContent = document.getElementById('log-content');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        // Verificar parâmetros da URL atual
+        function checkCurrentURL() {
+            const params = new URLSearchParams(window.location.search);
+            const hasUTMs = params.has('utm_source') || params.has('utm_campaign') || params.has('fbclid');
+            
+            if (hasUTMs) {
+                addLog('✅ UTMs detectados na URL atual');
+            } else {
+                addLog('⚠️ Nenhum UTM na URL atual. Adicione UTMs para testar.');
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            displayUTMs();
+            displaySessionData();
+            checkCurrentURL();
+            addLog('🚀 Sistema de captura UTM inicializado');
+        });
+
+        // Evento para captura automática
+        window.addEventListener('rotafinalUTMTrackerReady', function(e) {
+            addLog('🎯 RotaFinal UTM Tracker ativo');
+            if (e.detail.capturedParams && Object.keys(e.detail.capturedParams).length > 0) {
+                addLog(`📝 Novos UTMs capturados: ${JSON.stringify(e.detail.capturedParams)}`);
+                displayUTMs();
+            }
+        });
+    </script>
+</body>
+</html>
