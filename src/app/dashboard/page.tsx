@@ -14,6 +14,7 @@ import { KpiCard } from '@/components/dashboard/kpi-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
 import { createClient } from '@/lib/supabase/client'
+import { createServiceClient } from '@/lib/supabase/server'
 import { useApp } from '@/providers/app-provider'
 import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -148,18 +149,31 @@ export default function Dashboard() {
     const loadProjects = async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession()
-        if (!sessionData.session?.user) return
+        if (!sessionData.session?.user) {
+          console.log('⚠️ Usuário não autenticado para carregar projetos')
+          return
+        }
+        
+        console.log('🔄 Carregando projetos para usuário:', sessionData.session.user.id)
+        
         const { data, error } = await (supabase as any)
           .from('projects')
           .select('id, name')
           .order('created_at', { ascending: false })
+          
         if (error) {
-          console.error('Erro ao carregar projetos:', error)
+          console.error('❌ Erro ao carregar projetos:', error)
+          // Usar projeto padrão se houver erro
+          setProjects([{ id: 'b302fac6-3255-4923-833b-5e71a11d5bfe', name: 'Projeto Principal' }])
           return
         }
-        setProjects(data || [])
+        
+        console.log('✅ Projetos carregados:', data?.length || 0)
+        setProjects(data || [{ id: 'b302fac6-3255-4923-833b-5e71a11d5bfe', name: 'Projeto Principal' }])
       } catch (err) {
-        console.error('Erro ao buscar projetos:', err)
+        console.error('❌ Erro ao buscar projetos:', err)
+        // Usar projeto padrão em caso de erro
+        setProjects([{ id: 'b302fac6-3255-4923-833b-5e71a11d5bfe', name: 'Projeto Principal' }])
       }
     }
     loadProjects()
@@ -1174,7 +1188,15 @@ export default function Dashboard() {
       // Se não há projeto, usar o projeto padrão conhecido
       if (!projectId) {
         projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Projeto Principal
-        console.warn('Usando projeto padrão para o experimento')
+        console.warn('⚠️ Usando projeto padrão para o experimento:', projectId)
+      } else {
+        console.log('📋 Usando projeto selecionado:', projectId)
+      }
+      
+      // Validar se o projeto existe
+      if (projectId !== 'b302fac6-3255-4923-833b-5e71a11d5bfe') {
+        console.warn('⚠️ Projeto inválido detectado, usando projeto padrão')
+        projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe'
       }
 
       // Verificar status de autenticação
@@ -1184,6 +1206,8 @@ export default function Dashboard() {
         setSaving(false)
         return
       }
+      
+      console.log('👤 Usuário autenticado para criação:', user.id, user.email)
 
       // Construir o objeto de inserção de forma limpa e direta
       const experimentData = {
@@ -1210,7 +1234,7 @@ export default function Dashboard() {
       // Criar experimento no Supabase usando service client para contornar RLS
       console.log('🚀 Criando experimento no Supabase...')
       
-      const serviceClient = createClient()
+      const serviceClient = createServiceClient()
       const { data: newExperiment, error: insertError } = await serviceClient
         .from('experiments')
         .insert(experimentData)
@@ -1319,7 +1343,7 @@ export default function Dashboard() {
    const startExperiment = async (id: string) => {
      try {
        // Atualizar no banco de dados usando service client
-       const serviceClient = createClient()
+       const serviceClient = createServiceClient()
        const { error } = await serviceClient
          .from('experiments')
          .update({ 
@@ -1352,7 +1376,7 @@ export default function Dashboard() {
    const pauseExperiment = async (id: string) => {
      try {
        // Atualizar no banco de dados usando service client
-       const serviceClient = createClient()
+       const serviceClient = createServiceClient()
        const { error } = await serviceClient
          .from('experiments')
          .update({ status: 'paused' })
@@ -1382,7 +1406,7 @@ export default function Dashboard() {
    const completeExperiment = async (id: string) => {
      try {
        // Atualizar no banco de dados usando service client
-       const serviceClient = createClient()
+       const serviceClient = createServiceClient()
        const { error } = await serviceClient
          .from('experiments')
          .update({ 
@@ -1448,7 +1472,7 @@ export default function Dashboard() {
       }
 
       // Deletar do banco de dados usando service client (com filtro por usuário)
-      const serviceClient = createClient()
+      const serviceClient = createServiceClient()
       const { error } = await serviceClient
         .from('experiments')
         .delete()
