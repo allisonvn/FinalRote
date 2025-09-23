@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { Plus, BarChart3, Users, Target, TrendingUp, Activity, Settings, LogOut, MoreHorizontal, ArrowUpDown, Zap, Database, ArrowRight, ArrowLeft, Check, X, Globe, Eye, Clock, ChevronDown, Calendar, AlertCircle, MousePointer, Play, Pause, Flag, Layout, Trash2, Copy, Shuffle, Code, Lightbulb, Star, Filter, Upload, Sun, Moon, Shield, Bell, KeyRound, Globe2, User2, RefreshCw, Download, Save, Search, Trash } from 'lucide-react'
+import { Plus, BarChart3, Users, Target, TrendingUp, Activity, Settings, LogOut, MoreHorizontal, ArrowUpDown, Zap, Database, ArrowRight, ArrowLeft, Check, X, Globe, Eye, Clock, ChevronDown, Calendar, AlertCircle, MousePointer, Play, Pause, Flag, Layout, Trash2, Copy, Shuffle, Code, Lightbulb, Star, Filter, Upload, Sun, Moon, Shield, Bell, KeyRound, Globe2, User2, RefreshCw, Download, Save, Search, Trash, MousePointerClick, Goal, DollarSign } from 'lucide-react'
 import { ResponsiveContainer, BarChart as RBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +16,8 @@ import { ChartsSection } from '@/components/dashboard/charts-section'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/providers/app-provider'
 import { toast } from 'sonner'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { EmptyState } from '@/components/empty-state'
 
 interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string; config?: any; weight?: number }
 interface Experiment {
@@ -1175,68 +1177,34 @@ export default function Dashboard() {
         console.warn('Usando projeto padrão para o experimento')
       }
 
-      // Inserir experimento no Supabase (campos compatíveis com o schema)
-      let traffic = Number(experimentForm.trafficAllocation || 100)
-      
-      // Garantir que o valor está dentro dos limites de NUMERIC(5,2): 0.00 a 100.00
-      traffic = Math.max(0.01, Math.min(100, Math.abs(traffic)))
-      traffic = Number(traffic.toFixed(2)) // Garantir exatamente 2 casas decimais
-      
-      // Validar se o valor final é seguro
-      if (traffic > 100 || traffic < 0.01 || !Number.isFinite(traffic)) {
-        toast.error('Valor de tráfego inválido')
+      // Verificar status de autenticação
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('Usuário não autenticado. Faça login para criar um experimento.')
+        setSaving(false)
         return
       }
-      
-       // Teste com apenas campos obrigatórios primeiro
-       const insertData: any = {
-         name: String(experimentForm.name || '').trim(),
-         project_id: String(projectId)
-         // Omitindo todos os campos opcionais para isolar o problema
-       }
-      
+
+      // Construir o objeto de inserção de forma limpa e direta
+      const experimentData = {
+        name: String(experimentForm.name || '').trim(),
+        project_id: String(projectId),
+        description: experimentForm.description || null,
+        type: 'redirect', // Tipo padrão
+        status: 'draft',
+        traffic_allocation: 100,
+        created_by: user.id
+      }
+
       // Validar dados antes de enviar
-      if (!insertData.name || insertData.name.length < 2) {
+      if (!experimentData.name || experimentData.name.length < 2) {
         toast.error('Nome do experimento é obrigatório e deve ter pelo menos 2 caracteres')
+        setSaving(false)
         return
       }
 
       console.log('=== DEBUG EXPERIMENT CREATION ===')
-      console.log('experimentForm completo:', experimentForm)
-      console.log('Traffic original:', experimentForm.trafficAllocation)
-      console.log('Traffic calculado:', traffic)
-      console.log('insertData final:', insertData)
-       console.log('Tipos dos campos:')
-       Object.keys(insertData).forEach(key => {
-         console.log(`  ${key}: ${typeof (insertData as any)[key]} = ${(insertData as any)[key]}`)
-       })
-      
-      // Verificar status de autenticação
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      console.log('Usuário autenticado:', user?.id || 'NENHUM')
-      console.log('Email do usuário:', user?.email || 'NENHUM')
-      console.log('Erro de auth:', authError)
-      
-      // Usar o usuário autenticado atual
-      insertData.created_by = user?.id
-      
-      if (!insertData.created_by) {
-        toast.error('Usuário não autenticado')
-        return
-      }
-      
-      console.log('Usando created_by do usuário autenticado:', insertData.created_by)
-      
-      // Garantir que temos apenas campos válidos (sem user_id por enquanto)
-      const validFields = ['name', 'project_id', 'description', 'created_by']
-      const cleanInsertData: any = {}
-      validFields.forEach(field => {
-        if (insertData[field] !== undefined) {
-          cleanInsertData[field] = insertData[field]
-        }
-      })
-      
-      console.log('Dados limpos para envio:', cleanInsertData)
+      console.log('Dados para envio:', experimentData)
       console.log('=== FIM DEBUG ===')
       
       // Criar experimento no Supabase usando service client para contornar RLS
@@ -1245,14 +1213,7 @@ export default function Dashboard() {
       const serviceClient = createClient()
       const { data: newExperiment, error: insertError } = await serviceClient
         .from('experiments')
-        .insert({
-          name: cleanInsertData.name,
-          project_id: cleanInsertData.project_id,
-          description: cleanInsertData.description,
-          status: 'draft',
-          algorithm: 'thompson_sampling',
-          traffic_allocation: 100
-        })
+        .insert(experimentData)
         .select()
         .single()
 
@@ -2134,23 +2095,18 @@ export default function Dashboard() {
     const loadEventsData = async () => {
       setLoading(true)
       try {
-        // Calcular período baseado no filtro
         const daysAgo = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
         const startDate = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString()
 
-        // Buscar eventos reais do Supabase
         const { data: eventsData, error } = await supabase
           .from('events')
-          .select('*')
+          .select('*, experiments(name)')
           .gte('created_at', startDate)
           .order('created_at', { ascending: false })
           .limit(500)
 
-        if (error) {
-          console.error('Erro ao buscar eventos:', error)
-        }
+        if (error) console.error('Erro ao buscar eventos:', error)
 
-        // Se não há dados reais, usar dados simulados para demonstração
         if (!eventsData || eventsData.length === 0) {
           const mockEvents = generateMockEvents(daysAgo)
           setEvents(mockEvents)
@@ -2159,10 +2115,8 @@ export default function Dashboard() {
           setEvents(eventsData)
           await calculateEventStats(startDate)
         }
-
       } catch (error) {
         console.error('Erro ao carregar eventos:', error)
-        // Fallback para dados simulados
         const mockEvents = generateMockEvents(7)
         setEvents(mockEvents)
         calculateMockEventStats(mockEvents)
@@ -2183,915 +2137,187 @@ export default function Dashboard() {
 
       for (let i = 0; i < 100; i++) {
         const experiment = experiments[Math.floor(Math.random() * experiments.length)]
-        const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)]
-        const visitor = visitors[Math.floor(Math.random() * visitors.length)]
+        const adjustedType = Math.random() < 0.6 ? 'pageview' : Math.random() < 0.3 ? 'click' : Math.random() < 0.1 ? 'conversion' : 'custom'
         
-        // Mais pageviews que outros tipos
-        const adjustedType = Math.random() < 0.6 ? 'pageview' : 
-                           Math.random() < 0.3 ? 'click' : 
-                           Math.random() < 0.1 ? 'conversion' : 'custom'
-        
-        const event = {
+        events.push({
           id: `mock-event-${i}`,
           type: adjustedType,
           name: getEventName(adjustedType),
-          visitor_id: visitor,
-          session_id: `session_${Math.random().toString(36).slice(2, 8)}`,
+          visitor_id: visitors[Math.floor(Math.random() * visitors.length)],
           value: adjustedType === 'conversion' ? Math.round(Math.random() * 200 + 25) : 0,
           properties: getEventProperties(adjustedType, experiment),
           created_at: new Date(Date.now() - Math.random() * daysAgo * 24 * 60 * 60 * 1000).toISOString(),
           page_url: getEventUrl(adjustedType),
           experiments: experiment,
-          variants: { id: 'variant-' + (Math.random() < 0.5 ? 'a' : 'b'), name: Math.random() < 0.5 ? 'Controle' : 'Variante A' }
-        }
-        
-        events.push(event)
+        })
       }
-      
       return events.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
-
     const getEventName = (type: string) => {
-      const names = {
-        pageview: ['landing_page_view', 'product_page_view', 'pricing_page_view', 'about_page_view'],
-        click: ['cta_button_click', 'menu_click', 'footer_link_click', 'social_media_click'],
-        conversion: ['signup_completed', 'purchase_completed', 'trial_started', 'contact_form_submitted'],
-        custom: ['video_watched', 'download_started', 'newsletter_signup', 'chat_opened']
-      }
-      const eventNames = names[type as keyof typeof names] || ['generic_event']
-      return eventNames[Math.floor(Math.random() * eventNames.length)]
+      const names = { pageview: ['landing_page_view'], click: ['cta_button_click'], conversion: ['purchase_completed'], custom: ['video_watched'] }
+      return names[type as keyof typeof names]?.[0] || 'generic_event'
     }
-
     const getEventProperties = (type: string, experiment: any) => {
       const utmSources = ['google', 'facebook', 'instagram', 'email', 'direct', 'youtube', 'linkedin']
       const utmMediums = ['cpc', 'social', 'email', 'organic', 'referral', 'display']
       const utmCampaigns = ['black_friday_2024', 'summer_sale', 'product_launch', 'remarketing', 'brand_awareness']
-      
-      const baseProps = {
-        variant: Math.random() < 0.5 ? 'Controle' : 'Variante A',
-        utm_source: utmSources[Math.floor(Math.random() * utmSources.length)],
-        utm_medium: utmMediums[Math.floor(Math.random() * utmMediums.length)],
-        utm_campaign: utmCampaigns[Math.floor(Math.random() * utmCampaigns.length)],
-        device: Math.random() < 0.7 ? 'desktop' : 'mobile'
-      }
-      
-      if (type === 'click') {
-        return { ...baseProps, button_text: 'Começar Agora', position: 'header' }
-      } else if (type === 'conversion') {
-        return { ...baseProps, source: 'landing_page', value: Math.round(Math.random() * 200 + 25) }
-      } else if (type === 'custom') {
-        return { ...baseProps, duration: Math.round(Math.random() * 300), engagement_score: Math.round(Math.random() * 100) }
-      }
-      
+      const baseProps = { variant: Math.random() < 0.5 ? 'Controle' : 'Variante A', utm_source: utmSources[Math.floor(Math.random() * utmSources.length)], utm_medium: utmMediums[Math.floor(Math.random() * utmMediums.length)], utm_campaign: utmCampaigns[Math.floor(Math.random() * utmCampaigns.length)], device: Math.random() < 0.7 ? 'desktop' : 'mobile' }
+      if (type === 'click') return { ...baseProps, button_text: 'Começar Agora' }
+      if (type === 'conversion') return { ...baseProps, value: Math.round(Math.random() * 200 + 25) }
       return baseProps
     }
-
-    const getEventUrl = (type: string) => {
-      const urls = {
-        pageview: ['https://exemplo.com/', 'https://exemplo.com/produtos', 'https://exemplo.com/precos'],
-        click: ['https://exemplo.com/', 'https://exemplo.com/contato'],
-        conversion: ['https://exemplo.com/signup', 'https://exemplo.com/checkout'],
-        custom: ['https://exemplo.com/demo', 'https://exemplo.com/blog']
-      }
-      const eventUrls = urls[type as keyof typeof urls] || ['https://exemplo.com/']
-      return eventUrls[Math.floor(Math.random() * eventUrls.length)]
-    }
-
+    const getEventUrl = (type: string) => `https://exemplo.com/${type}`
     const calculateMockEventStats = (events: any[]) => {
-      const stats = {
+      setEventStats({
         total: events.length,
         pageviews: events.filter(e => e.type === 'pageview').length,
         clicks: events.filter(e => e.type === 'click').length,
         conversions: events.filter(e => e.type === 'conversion').length,
         uniqueVisitors: new Set(events.map(e => e.visitor_id)).size,
         totalRevenue: events.filter(e => e.type === 'conversion').reduce((sum, e) => sum + (e.value || 0), 0)
-      }
-      setEventStats(stats)
+      })
     }
-
     const calculateEventStats = async (startDate: string) => {
-      try {
-        // Buscar total de eventos
-        const { count: totalEvents } = await supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startDate)
-
-        // Buscar eventos por tipo
-        const { count: pageviews } = await supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('type', 'pageview')
-          .gte('created_at', startDate)
-
-        const { count: clicks } = await supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('type', 'click')
-          .gte('created_at', startDate)
-
-        const { count: conversions } = await supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('type', 'conversion')
-          .gte('created_at', startDate)
-
-        // Buscar visitantes únicos e receita
-        const { data: uniqueData } = await supabase
-          .from('events')
-          .select('visitor_id, value')
-          .gte('created_at', startDate)
-
-        const uniqueVisitors = uniqueData ? new Set(uniqueData.map(e => e.visitor_id)).size : 0
-        const totalRevenue = uniqueData?.reduce((sum, e) => sum + (e.value || 0), 0) || 0
-
-        setEventStats({
-          total: totalEvents || 0,
-          pageviews: pageviews || 0,
-          clicks: clicks || 0,
-          conversions: conversions || 0,
-          uniqueVisitors,
-          totalRevenue
-        })
-
-      } catch (error) {
-        console.error('Erro ao calcular estatísticas de eventos:', error)
-      }
+      const { count: total } = await supabase.from('events').select('*', { count: 'exact', head: true }).gte('created_at', startDate)
+      const { count: pageviews } = await supabase.from('events').select('*', { count: 'exact', head: true }).eq('type', 'pageview').gte('created_at', startDate)
+      const { count: clicks } = await supabase.from('events').select('*', { count: 'exact', head: true }).eq('type', 'click').gte('created_at', startDate)
+      const { count: conversions } = await supabase.from('events').select('*', { count: 'exact', head: true }).eq('type', 'conversion').gte('created_at', startDate)
+      const { data: uniqueData } = await supabase.from('events').select('visitor_id, value').gte('created_at', startDate)
+      setEventStats({ total: total || 0, pageviews: pageviews || 0, clicks: clicks || 0, conversions: conversions || 0, uniqueVisitors: uniqueData ? new Set(uniqueData.map(e => e.visitor_id)).size : 0, totalRevenue: uniqueData?.reduce((sum, e) => sum + (e.value || 0), 0) || 0 })
     }
 
-    // Lista de tipos de evento disponíveis
-    const eventTypes = ['all', 'pageview', 'click', 'conversion', 'custom', 'experiment_view', 'experiment_conversion']
-    
-    // Lista de experimentos únicos dos eventos
-    const experimentsList = [...new Set(
-      events
-        .map(e => e.experiments?.name)
-        .filter(Boolean)
-    )]
+    const eventTypes = ['all', 'pageview', 'click', 'conversion', 'custom']
+    const experimentsList = [...new Set(events.map(e => e.experiments?.name).filter(Boolean))]
 
     const filteredEvents = events.filter(event => {
-      const matchesType = eventTypeFilter === 'all' || event.type === eventTypeFilter
-      const matchesExperiment = experimentFilter === 'all' || 
-        (event.experiments?.name === experimentFilter)
-      const matchesUtmSource = utmSourceFilter === 'all' || event.properties?.utm_source === utmSourceFilter
-      const matchesUtmMedium = utmMediumFilter === 'all' || event.properties?.utm_medium === utmMediumFilter
-      const matchesUtmCampaign = utmCampaignFilter === 'all' || event.properties?.utm_campaign === utmCampaignFilter
-      
-      return matchesType && matchesExperiment && matchesUtmSource && matchesUtmMedium && matchesUtmCampaign
+      return (eventTypeFilter === 'all' || event.type === eventTypeFilter) &&
+             (experimentFilter === 'all' || event.experiments?.name === experimentFilter) &&
+             (utmSourceFilter === 'all' || event.properties?.utm_source === utmSourceFilter) &&
+             (utmMediumFilter === 'all' || event.properties?.utm_medium === utmMediumFilter) &&
+             (utmCampaignFilter === 'all' || event.properties?.utm_campaign === utmCampaignFilter)
     })
 
-    const formatEventType = (type: string) => {
-      const typeMap: Record<string, string> = {
-        'pageview': 'Visualização',
-        'click': 'Clique',
-        'conversion': 'Conversão',
-        'custom': 'Personalizado',
-        'experiment_view': 'Experimento - View',
-        'experiment_conversion': 'Experimento - Conversão'
-      }
-      return typeMap[type] || type
-    }
-
-    const getEventTypeColor = (type: string) => {
-      const colorMap: Record<string, string> = {
-        'pageview': 'bg-blue-100 text-blue-800 border-blue-200',
-        'click': 'bg-green-100 text-green-800 border-green-200',
-        'conversion': 'bg-purple-100 text-purple-800 border-purple-200',
-        'custom': 'bg-orange-100 text-orange-800 border-orange-200',
-        'experiment_view': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-        'experiment_conversion': 'bg-pink-100 text-pink-800 border-pink-200'
-      }
-      return colorMap[type] || 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-
-    if (loading) {
+    const formatEventType = (type: string) => ({ pageview: 'Visualização', click: 'Clique', conversion: 'Conversão', custom: 'Custom' }[type] || type)
+    
+    if (loading && events.length === 0) {
       return (
         <div className="space-y-6">
-          {/* Loading Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="h-20 animate-pulse" />
-            ))}
-          </div>
-          {/* Loading Filters */}
-          <Card className="h-20 animate-pulse" />
-          {/* Loading Table */}
-          <Card className="h-96 animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">{[...Array(6)].map((_, i) => <Card key={i} className="card-glass p-4 h-28 animate-pulse bg-muted/50" />)}</div>
+          <Card className="card-glass p-4 h-24 animate-pulse bg-muted/50" />
+          <Card className="card-glass p-4 space-y-4">{[...Array(5)].map((_, i) => <div key={i} className="h-20 rounded-lg animate-pulse bg-muted/50" />)}</Card>
         </div>
       )
     }
 
+    if (!loading && filteredEvents.length === 0) {
+      return <EmptyState 
+        title="Nenhum evento encontrado" 
+        description="Ainda não há eventos para os filtros selecionados. Tente ajustar os filtros ou aguarde novos eventos."
+        icon={<Search className="w-12 h-12 text-gray-400" />}
+        actionLabel="Limpar Filtros"
+        onAction={() => { setEventTypeFilter('all'); setExperimentFilter('all'); setUtmSourceFilter('all'); setUtmMediumFilter('all'); setUtmCampaignFilter('all'); }}
+      />
+    }
+
+    const eventTypeIcons: Record<string, JSX.Element> = {
+      pageview: <Eye className="w-4 h-4 text-blue-500" />,
+      click: <MousePointerClick className="w-4 h-4 text-orange-500" />,
+      conversion: <Goal className="w-4 h-4 text-green-500" />,
+      custom: <Code className="w-4 h-4 text-purple-500" />,
+    }
+
     return (
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h2 className="text-2xl font-bold mb-2">Eventos de Tracking</h2>
-          <p className="text-muted-foreground">
-            Monitore todos os eventos capturados pelos seus experimentos
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <Card className="card-glass"><div className="p-4 flex flex-col"><div className="flex items-center justify-between"><span className="text-sm font-medium text-muted-foreground">Total de Eventos</span><Activity className="w-5 h-5 text-muted-foreground" /></div><span className="text-3xl font-bold mt-2">{formatNumber(eventStats.total)}</span></div></Card>
+          <Card className="card-glass"><div className="p-4 flex flex-col"><div className="flex items-center justify-between"><span className="text-sm font-medium text-muted-foreground">Visitantes Únicos</span><Users className="w-5 h-5 text-muted-foreground" /></div><span className="text-3xl font-bold mt-2">{formatNumber(eventStats.uniqueVisitors)}</span></div></Card>
+          <Card className="card-glass"><div className="p-4 flex flex-col"><div className="flex items-center justify-between"><span className="text-sm font-medium text-muted-foreground">Page Views</span><Eye className="w-5 h-5 text-muted-foreground" /></div><span className="text-3xl font-bold mt-2">{formatNumber(eventStats.pageviews)}</span></div></Card>
+          <Card className="card-glass"><div className="p-4 flex flex-col"><div className="flex items-center justify-between"><span className="text-sm font-medium text-muted-foreground">Cliques</span><MousePointerClick className="w-5 h-5 text-muted-foreground" /></div><span className="text-3xl font-bold mt-2">{formatNumber(eventStats.clicks)}</span></div></Card>
+          <Card className="card-glass"><div className="p-4 flex flex-col"><div className="flex items-center justify-between"><span className="text-sm font-medium text-muted-foreground">Conversões</span><Goal className="w-5 h-5 text-muted-foreground" /></div><span className="text-3xl font-bold mt-2">{formatNumber(eventStats.conversions)}</span></div></Card>
+          <Card className="card-glass"><div className="p-4 flex flex-col"><div className="flex items-center justify-between"><span className="text-sm font-medium text-muted-foreground">Receita Total</span><DollarSign className="w-5 h-5 text-muted-foreground" /></div><span className="text-3xl font-bold mt-2">{formatCurrency(eventStats.totalRevenue)}</span></div></Card>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-xl font-bold">{eventStats.total.toLocaleString()}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
-              <Eye className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Visualizações</p>
-                <p className="text-xl font-bold">{eventStats.pageviews.toLocaleString()}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
-              <MousePointer className="h-5 w-5 text-orange-600" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Cliques</p>
-                <p className="text-xl font-bold">{eventStats.clicks.toLocaleString()}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
-              <Target className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Conversões</p>
-                <p className="text-xl font-bold">{eventStats.conversions.toLocaleString()}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-indigo-600" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Visitantes</p>
-                <p className="text-xl font-bold">{eventStats.uniqueVisitors.toLocaleString()}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Receita</p>
-                <p className="text-xl font-bold">R$ {eventStats.totalRevenue.toFixed(0)}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Filters */}
         <Card className="card-glass">
-          <div className="p-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-              <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Tipo de evento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {eventTypes.map(type => (
-                    <SelectItem key={type} value={type}>
-                      {type === 'all' ? 'Todos os tipos' : formatEventType(type)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={experimentFilter} onValueChange={setExperimentFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Experimento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os experimentos</SelectItem>
-                  {experimentsList.map(name => (
-                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7d">7 dias</SelectItem>
-                  <SelectItem value="30d">30 dias</SelectItem>
-                  <SelectItem value="90d">90 dias</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {/* Filtros UTM */}
-              <Select value={utmSourceFilter} onValueChange={setUtmSourceFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Fonte UTM" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as fontes</SelectItem>
-                  <SelectItem value="google">Google</SelectItem>
-                  <SelectItem value="facebook">Facebook</SelectItem>
-                  <SelectItem value="instagram">Instagram</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="direct">Direto</SelectItem>
-                  <SelectItem value="youtube">YouTube</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={utmMediumFilter} onValueChange={setUtmMediumFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Meio UTM" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os meios</SelectItem>
-                  <SelectItem value="cpc">CPC</SelectItem>
-                  <SelectItem value="social">Social</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="organic">Orgânico</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
-                  <SelectItem value="display">Display</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={utmCampaignFilter} onValueChange={setUtmCampaignFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Campanha UTM" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as campanhas</SelectItem>
-                  <SelectItem value="black_friday_2024">Black Friday 2024</SelectItem>
-                  <SelectItem value="summer_sale">Summer Sale</SelectItem>
-                  <SelectItem value="product_launch">Product Launch</SelectItem>
-                  <SelectItem value="remarketing">Remarketing</SelectItem>
-                  <SelectItem value="brand_awareness">Brand Awareness</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={loadEventsData} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                const csvData = filteredEvents.map(event => ({
-                  timestamp: new Date(event.created_at).toLocaleString('pt-BR'),
-                  tipo: formatEventType(event.type),
-                  nome: event.name,
-                  experimento: event.experiments?.name || 'Nenhum',
-                  visitante: event.visitor_id,
-                  valor: event.value || 0,
-                  url: event.page_url || '',
-                  propriedades: JSON.stringify(event.properties || {})
-                }))
-                
-                const csv = [
-                  Object.keys(csvData[0] || {}),
-                  ...csvData.map(row => Object.values(row))
-                ].map(row => row.map(field => `"${field}"`).join(',')).join('\n')
-                
-                const blob = new Blob([csv], { type: 'text/csv' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `eventos-${new Date().toISOString().split('T')[0]}.csv`
-                a.click()
-                URL.revokeObjectURL(url)
-                toast.success('Eventos exportados com sucesso!')
-              }}>
-                <Download className="w-4 h-4 mr-2" />
-                Exportar CSV
-              </Button>
+          <div className="p-4">
+            <div className="flex items-center mb-2"><Filter className="w-4 h-4 mr-2 text-muted-foreground" /><h3 className="text-md font-semibold">Filtros</h3></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}><SelectTrigger><SelectValue placeholder="Tipo de evento" /></SelectTrigger><SelectContent><SelectItem value="all">Todos os tipos</SelectItem>{eventTypes.slice(1).map(type => <SelectItem key={type} value={type}>{formatEventType(type)}</SelectItem>)}</SelectContent></Select>
+              <Select value={experimentFilter} onValueChange={setExperimentFilter}><SelectTrigger><SelectValue placeholder="Experimento" /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{experimentsList.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select>
+              <Select value={dateRange} onValueChange={setDateRange}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="7d">7 dias</SelectItem><SelectItem value="30d">30 dias</SelectItem><SelectItem value="90d">90 dias</SelectItem></SelectContent></Select>
+              <Select value={utmSourceFilter} onValueChange={setUtmSourceFilter}><SelectTrigger><SelectValue placeholder="Fonte" /></SelectTrigger><SelectContent><SelectItem value="all">Fontes</SelectItem> {['google', 'facebook', 'instagram', 'email', 'direct', 'youtube', 'linkedin'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)} </SelectContent></Select>
+              <Select value={utmMediumFilter} onValueChange={setUtmMediumFilter}><SelectTrigger><SelectValue placeholder="Meio" /></SelectTrigger><SelectContent><SelectItem value="all">Meios</SelectItem> {['cpc', 'social', 'email', 'organic', 'referral', 'display'].map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)} </SelectContent></Select>
+              <Select value={utmCampaignFilter} onValueChange={setUtmCampaignFilter}><SelectTrigger><SelectValue placeholder="Campanha" /></SelectTrigger><SelectContent><SelectItem value="all">Campanhas</SelectItem> {['black_friday_2024', 'summer_sale', 'product_launch', 'remarketing', 'brand_awareness'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)} </SelectContent></Select>
             </div>
           </div>
         </Card>
 
-        {/* Events Table */}
-        <Card>
-          <div className="p-6">
+        <Card className="card-glass">
+          <div className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Eventos Recentes</h3>
-              <span className="text-sm text-muted-foreground">
-                {filteredEvents.length} de {events.length} eventos
-              </span>
-            </div>
-
-            {filteredEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h4 className="text-lg font-medium mb-2">Nenhum evento encontrado</h4>
-                <p className="text-muted-foreground">
-                  {events.length === 0 
-                    ? 'Ainda não há eventos capturados. Configure seus experimentos para começar a coletar dados.'
-                    : 'Tente ajustar os filtros para ver eventos diferentes.'
+              <div><h3 className="text-lg font-semibold">Feed de Eventos</h3><p className="text-sm text-muted-foreground">Mostrando {filteredEvents.length} de {events.length} eventos</p></div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={loadEventsData} disabled={loading}><RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Atualizar</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                   const csvData = filteredEvents.map(event => ({
+                    timestamp: new Date(event.created_at).toLocaleString('pt-BR'),
+                    tipo: formatEventType(event.type),
+                    nome: event.name,
+                    experimento: event.experiments?.name || 'Nenhum',
+                    visitante: event.visitor_id,
+                    valor: event.value || 0,
+                    url: event.page_url || '',
+                    propriedades: JSON.stringify(event.properties || {})
+                  }))
+                  
+                  if (csvData.length === 0) {
+                    toast.error('Nenhum evento para exportar')
+                    return
                   }
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-3 font-medium">Timestamp</th>
-                      <th className="text-left p-3 font-medium">Tipo</th>
-                      <th className="text-left p-3 font-medium">Nome</th>
-                      <th className="text-left p-3 font-medium">Experimento</th>
-                      <th className="text-left p-3 font-medium">Visitante</th>
-                      <th className="text-left p-3 font-medium">Valor</th>
-                      <th className="text-left p-3 font-medium">URL</th>
-                      <th className="text-left p-3 font-medium">Propriedades</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredEvents.slice(0, 100).map((event) => (
-                      <tr key={event.id} className="border-b hover:bg-muted/30">
-                        <td className="p-3 text-sm">
-                          {new Date(event.created_at).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="p-3">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getEventTypeColor(event.type)}`}>
-                            {formatEventType(event.type)}
-                          </span>
-                        </td>
-                        <td className="p-3 text-sm font-medium">{event.name}</td>
-                        <td className="p-3 text-sm">
-                          {event.experiments?.name || (
-                            <span className="text-muted-foreground">Nenhum</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-sm font-mono">
-                          {event.visitor_id?.slice(0, 8)}...
-                        </td>
-                        <td className="p-3 text-sm">
-                          {event.value ? (
-                            <span className="font-medium text-green-600">
-                              R$ {Number(event.value).toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-sm">
-                          {event.page_url ? (
-                            <a 
-                              href={event.page_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 hover:underline truncate max-w-32 inline-block"
-                            >
-                              {event.page_url}
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-sm">
-                          {event.properties && Object.keys(event.properties).length > 0 ? (
-                            <div className="space-y-1">
-                              {/* UTMs em destaque */}
-                              {event.properties.utm_source && (
-                                <div className="flex items-center gap-1 text-xs">
-                                  <span className="font-medium text-blue-600">Fonte:</span>
-                                  <Badge variant="outline" className="text-xs">{event.properties.utm_source}</Badge>
-                                </div>
-                              )}
-                              {event.properties.utm_campaign && (
-                                <div className="flex items-center gap-1 text-xs">
-                                  <span className="font-medium text-green-600">Campanha:</span>
-                                  <Badge variant="outline" className="text-xs">{event.properties.utm_campaign}</Badge>
-                                </div>
-                              )}
-                              {event.properties.utm_medium && (
-                                <div className="flex items-center gap-1 text-xs">
-                                  <span className="font-medium text-orange-600">Meio:</span>
-                                  <Badge variant="outline" className="text-xs">{event.properties.utm_medium}</Badge>
-                                </div>
-                              )}
-                              
-                              {/* Todas as propriedades em detalhes */}
-                              <details className="cursor-pointer">
-                                <summary className="text-blue-600 hover:text-blue-800 text-xs">
-                                  Ver todas ({Object.keys(event.properties).length}) →
-                                </summary>
-                                <div className="mt-1 p-2 bg-muted rounded max-w-xs">
-                                  <pre className="text-xs whitespace-pre-wrap">
-                                    {JSON.stringify(event.properties, null, 2)}
-                                  </pre>
-                                </div>
-                              </details>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  
+                  const csv = [
+                    Object.keys(csvData[0] || {}),
+                    ...csvData.map(row => Object.values(row))
+                  ].map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')).join('\n')
 
-                {filteredEvents.length > 100 && (
-                  <div className="p-4 text-center text-sm text-muted-foreground border-t">
-                    Mostrando os primeiros 100 eventos. Use filtros para refinar os resultados.
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `eventos-${new Date().toISOString().split('T')[0]}.csv`
+                  document.body.appendChild(a)
+                  a.click()
+                  document.body.removeChild(a)
+                  URL.revokeObjectURL(url)
+                  toast.success('Eventos exportados com sucesso!')
+                }}><Download className="w-4 h-4 mr-2" />Exportar</Button>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {filteredEvents.map(event => (
+                <div key={event.id} className="p-3 rounded-lg border border-border/50 bg-background/50 flex items-start gap-4">
+                  <div className="mt-1"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">{eventTypeIcons[event.type] || <Activity className="w-4 h-4" />}</span></div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between"><p className="font-semibold text-sm">{formatEventType(event.type)}: <span className="font-normal">{event.name}</span></p><span className="text-xs text-muted-foreground">{new Date(event.created_at).toLocaleString('pt-BR')}</span></div>
+                    <p className="text-xs text-muted-foreground mt-1">Visitante: <span className="font-mono text-foreground">{event.visitor_id.substring(0, 15)}...</span>{event.experiments?.name && ` | Experimento: ${event.experiments.name}`}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {event.properties?.utm_source && <Badge variant="outline">Fonte: {event.properties.utm_source}</Badge>}
+                      {event.properties?.utm_campaign && <Badge variant="outline">Campanha: {event.properties.utm_campaign}</Badge>}
+                      {event.properties?.utm_medium && <Badge variant="outline">Meio: {event.properties.utm_medium}</Badge>}
+                      {event.properties?.device && <Badge variant="secondary">Dispositivo: {event.properties.device}</Badge>}
+                      {event.value > 0 && <Badge variant="success">Valor: {formatCurrency(event.value)}</Badge>}
+                      <Popover><PopoverTrigger asChild><Button variant="ghost" size="sm" className="text-xs h-auto py-0.5 px-2">Mais ({Object.keys(event.properties || {}).length}) <ChevronDown className="w-3 h-3 ml-1" /></Button></PopoverTrigger><PopoverContent className="w-80"><pre className="text-xs whitespace-pre-wrap">{JSON.stringify(event.properties, null, 2)}</pre></PopoverContent></Popover>
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
-    )
-  }
-
-  // ===== Data Content =====
-  const renderDataContent = () => {
-    return <DataSection />
-  }
-
-  const DataSection = () => {
-    const [activeDataTab, setActiveDataTab] = useState('export')
-    const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv')
-    const [exportData, setExportData] = useState<string>('')
-    const [isExporting, setIsExporting] = useState(false)
-    const [retentionDays, setRetentionDays] = useState(365)
-
-    const handleExportData = async () => {
-      setIsExporting(true)
-      try {
-        // Fetch data for export
-        const { data: experimentsData, error: expError } = await supabase
-          .from('experiments')
-          .select(`
-            id, name, status, created_at, ended_at,
-            variants(id, name, is_control, weight),
-            events(id, event_type, visitor_id, created_at, value, properties)
-          `)
-
-        if (expError) throw expError
-
-        if (exportFormat === 'csv') {
-          // Convert to CSV
-          let csv = 'experiment_id,experiment_name,variant_name,event_type,visitor_id,timestamp,value,properties\n'
-          experimentsData?.forEach(exp => {
-            exp.events?.forEach((event: any) => {
-              const variant = exp.variants?.find((v: any) => event.properties?.variant === v.name)
-              csv += `"${exp.id}","${exp.name}","${variant?.name || 'unknown'}","${event.event_type}","${event.visitor_id}","${event.created_at}","${event.value || ''}","${JSON.stringify(event.properties || {})}"\n`
-            })
-          })
-          setExportData(csv)
-        } else {
-          // Convert to JSON
-          setExportData(JSON.stringify(experimentsData, null, 2))
-        }
-      } catch (error) {
-        console.error('Erro na exportação:', error)
-        toast.error('Erro ao exportar dados')
-      } finally {
-        setIsExporting(false)
-      }
-    }
-
-    const downloadExport = () => {
-      if (!exportData) return
-
-      const blob = new Blob([exportData], {
-        type: exportFormat === 'csv' ? 'text/csv' : 'application/json'
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rota-final-dados-${new Date().toISOString().split('T')[0]}.${exportFormat}`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      toast.success('Download iniciado')
-    }
-
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">Gestão de Dados</h2>
-            <p className="text-muted-foreground">Exporte, configure e gerencie seus dados de experimentos</p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <Card>
-          <div className="border-b">
-            <div className="flex space-x-8 px-6">
-              {[
-                { id: 'export', label: 'Exportação', icon: Download },
-                { id: 'api', label: 'API & Integrações', icon: Code },
-                { id: 'realtime', label: 'Dados em Tempo Real', icon: Activity },
-                { id: 'settings', label: 'Configurações', icon: Settings }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveDataTab(tab.id)}
-                  className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                    activeDataTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
+                </div>
               ))}
             </div>
           </div>
-
-          <div className="p-6">
-            {activeDataTab === 'export' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Exportar Dados</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Exporte todos os dados dos seus experimentos em formato CSV ou JSON
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="p-4">
-                    <h4 className="font-medium mb-3">Formato de Exportação</h4>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          checked={exportFormat === 'csv'}
-                          onChange={() => setExportFormat('csv')}
-                          className="form-radio"
-                        />
-                        <span>CSV (Planilha)</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          checked={exportFormat === 'json'}
-                          onChange={() => setExportFormat('json')}
-                          className="form-radio"
-                        />
-                        <span>JSON (Programação)</span>
-                      </label>
-                    </div>
-                  </Card>
-
-                  <Card className="p-4">
-                    <h4 className="font-medium mb-3">Dados Incluídos</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Informações dos experimentos</li>
-                      <li>• Configurações das variantes</li>
-                      <li>• Eventos e conversões</li>
-                      <li>• Atribuições de usuários</li>
-                      <li>• Métricas calculadas</li>
-                    </ul>
-                  </Card>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button
-                    onClick={handleExportData}
-                    disabled={isExporting}
-                    className="gap-2"
-                  >
-                    {isExporting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Exportando...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        Gerar Exportação
-                      </>
-                    )}
-                  </Button>
-
-                  {exportData && (
-                    <Button
-                      onClick={downloadExport}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Baixar Arquivo
-                    </Button>
-                  )}
-                </div>
-
-                {exportData && (
-                  <Card className="p-4">
-                    <h4 className="font-medium mb-2">Preview dos Dados</h4>
-                    <div className="bg-muted p-3 rounded max-h-40 overflow-y-auto">
-                      <pre className="text-xs whitespace-pre-wrap">
-                        {exportData.slice(0, 1000)}
-                        {exportData.length > 1000 && '...'}
-                      </pre>
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {activeDataTab === 'api' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">API & Integrações</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Documentação e exemplos para integrar a Rota Final com suas ferramentas
-                  </p>
-                </div>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">Tracking API</h4>
-                  <div className="bg-muted p-3 rounded">
-                    <pre className="text-xs">
-{`POST /api/track
-Content-Type: application/json
-
-{
-  "experiment_id": "seu-experimento-id",
-  "visitor_id": "visitor-uuid",
-  "event_type": "conversion",
-  "variant": "variante-a",
-  "value": 99.90,
-  "properties": {
-    "product_id": "123",
-    "category": "electronics"
-  }
-}`}
-                    </pre>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">JavaScript SDK</h4>
-                  <div className="bg-muted p-3 rounded">
-                    <pre className="text-xs">
-{`// Instalar via npm
-npm install @rota-final/sdk
-
-// Usar no seu código
-import { RotaFinal } from '@rota-final/sdk'
-
-const rf = new RotaFinal('sua-api-key')
-
-// Rastrear conversão
-rf.track('purchase', {
-  value: 99.90,
-  product_id: '123'
-})`}
-                    </pre>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">Integrações Populares</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-3 border rounded">
-                      <strong>Google Analytics</strong>
-                      <p className="text-sm text-muted-foreground">Envie eventos para GA4</p>
-                    </div>
-                    <div className="p-3 border rounded">
-                      <strong>Facebook Pixel</strong>
-                      <p className="text-sm text-muted-foreground">Rastreie conversões no Facebook</p>
-                    </div>
-                    <div className="p-3 border rounded">
-                      <strong>Webhooks</strong>
-                      <p className="text-sm text-muted-foreground">Notificações em tempo real</p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {activeDataTab === 'realtime' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Dados em Tempo Real</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Monitor eventos e conversões conforme acontecem
-                  </p>
-                </div>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">Stream de Eventos</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 bg-muted rounded">
-                      <span className="text-sm">page_view • experimento-1 • visitante-123</span>
-                      <span className="text-xs text-muted-foreground">{new Date().toLocaleTimeString()}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-2 bg-green-100 rounded">
-                      <span className="text-sm">conversion • experimento-1 • visitante-456 • R$ 99,90</span>
-                      <span className="text-xs text-muted-foreground">{new Date().toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">WebSocket Connection</h4>
-                  <div className="bg-muted p-3 rounded">
-                    <pre className="text-xs">
-{`// Conectar ao stream em tempo real
-const ws = new WebSocket('wss://api.rotafinal.com/ws')
-
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data)
-  console.log('Novo evento:', data)
-}`}
-                    </pre>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {activeDataTab === 'settings' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Configurações de Dados</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Gerencie retenção, privacidade e conformidade
-                  </p>
-                </div>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">Retenção de Dados</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        Manter dados por (dias)
-                      </label>
-                      <Input
-                        type="number"
-                        value={retentionDays}
-                        onChange={(e) => setRetentionDays(Number(e.target.value))}
-                        className="w-32"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Dados serão automaticamente removidos após este período
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Atualizar Configuração
-                    </Button>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">Conformidade GDPR</h4>
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-2">
-                      <input type="checkbox" defaultChecked className="form-checkbox" />
-                      <span className="text-sm">Permitir coleta de dados anônimos</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input type="checkbox" defaultChecked className="form-checkbox" />
-                      <span className="text-sm">Respeitar sinais "Do Not Track"</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input type="checkbox" className="form-checkbox" />
-                      <span className="text-sm">Exigir consentimento explícito</span>
-                    </label>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <h4 className="font-medium mb-3">Limpeza de Dados</h4>
-                  <div className="space-y-3">
-                    <Button variant="outline" className="gap-2 text-orange-600 border-orange-600 hover:bg-orange-50">
-                      <Trash className="w-4 h-4" />
-                      Limpar Dados Antigos
-                    </Button>
-                    <Button variant="outline" className="gap-2 text-red-600 border-red-600 hover:bg-red-50">
-                      <Trash className="w-4 h-4" />
-                      Apagar Todos os Dados
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-            )}
-          </div>
         </Card>
       </div>
     )
   }
 
-  // ===== Audiências (UTMs & Segmentos) =====
+  // ===== Audiences (UTMs & Segmentos) =====
   type UTMEvent = { ts: string; path: string; referrer: string | null; source?: string | null; medium?: string | null; campaign?: string | null; term?: string | null; content?: string | null }
   type SegmentCond = { field: 'utm_source'|'utm_medium'|'utm_campaign'|'utm_term'|'utm_content'; op: 'equals'|'contains'; value: string }
   type Audience = { id: string; name: string; conditions: SegmentCond[] }
@@ -3305,7 +2531,7 @@ ws.onmessage = (event) => {
                     )}
                     {searchTerm && (
                       <button className="chip" onClick={() => setSearchTerm('')}>
-                        Busca: “{searchTerm}”
+                        Busca: "{searchTerm}"
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}

@@ -1,15 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  BarChart3, 
-  Target, 
-  Users, 
-  Settings, 
+import {
+  BarChart3,
+  Target,
+  Users,
+  Settings,
   Activity,
   TrendingUp,
-  Zap,
-  Database
+  Zap
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -69,12 +68,6 @@ export function DashboardNav({
       label: 'Eventos',
       icon: <Activity className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Tracking e conversões'
-    },
-    {
-      key: 'data',
-      label: 'Dados',
-      icon: <Database className="h-4 w-4" strokeWidth={1.75} />,
-      description: 'Exportação e APIs'
     },
     {
       key: 'settings',
