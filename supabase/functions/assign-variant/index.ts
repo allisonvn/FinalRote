@@ -70,10 +70,10 @@ serve(async (req) => {
       }
     }
 
-    // Get experiment
+    // Get experiment (using key field)
     const { data: experiment, error: expError } = await supabase
       .from('experiments')
-      .select('id, status')
+      .select('id, status, name, key')
       .eq('project_id', project.id)
       .eq('key', experiment_key)
       .single()
@@ -86,7 +86,7 @@ serve(async (req) => {
       throw new Error('Experiment is not running')
     }
 
-    // Check existing assignment
+    // Check existing assignment (correct table name)
     const { data: existingAssignment } = await supabase
       .from('assignments')
       .select('variant_id')
@@ -98,7 +98,7 @@ serve(async (req) => {
       // Return existing assignment
       const { data: variant } = await supabase
         .from('variants')
-        .select('id, key, name, config')
+        .select('id, name, key, is_control, config')
         .eq('id', existingAssignment.variant_id)
         .single()
 
@@ -107,60 +107,82 @@ serve(async (req) => {
           variant_id: variant.id,
           variant_key: variant.key,
           variant_name: variant.name,
-          config: variant.config,
+          config: variant.config || {},
           is_new: false
         }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
+          status: 200
         }
       )
     }
 
-    // Assign new variant using MAB algorithm
-    const { data: assignResult, error: assignError } = await supabase
-      .rpc('assign_variant', {
-        exp_id: experiment.id,
-        visitor_id: visitor_id,
-        context_data: context
-      })
+    // Get all variants for this experiment (correct field names)
+    const { data: variants, error: variantsError } = await supabase
+      .from('variants')
+      .select('id, name, key, is_control, weight, config')
+      .eq('experiment_id', experiment.id)
+      .order('created_at')
 
-    if (assignError) {
-      throw assignError
+    if (variantsError || !variants || variants.length === 0) {
+      throw new Error('No active variants found for experiment')
     }
 
-    // Get assigned variant details
-    const { data: variant } = await supabase
-      .from('variants')
-      .select('id, key, name, config')
-      .eq('id', assignResult)
-      .single()
+    // Simple random assignment based on weight
+    const random = Math.random() * 100
+    let cumulative = 0
+    let selectedVariant = variants[0] // Fallback to first variant
 
-    // Log the assignment event
+    for (const variant of variants) {
+      cumulative += variant.weight
+      if (random <= cumulative) {
+        selectedVariant = variant
+        break
+      }
+    }
+
+    // Save assignment (correct table and fields)
+    const { error: assignmentError } = await supabase
+      .from('assignments')
+      .insert({
+        experiment_id: experiment.id,
+        variant_id: selectedVariant.id,
+        visitor_id: visitor_id,
+        context: context || {}
+      })
+
+    if (assignmentError) {
+      console.error('Error saving assignment:', assignmentError)
+      // Continue even if assignment save fails
+    }
+
+    // Log the assignment event (correct field names)
     await supabase.from('events').insert({
       project_id: project.id,
       experiment_id: experiment.id,
       visitor_id: visitor_id,
-      event_type: 'assignment',
+      event_type: 'experiment_assignment',
       event_name: 'variant_assigned',
       properties: {
-        variant_id: variant.id,
-        variant_key: variant.key,
-        context
+        variant_id: selectedVariant.id,
+        variant_key: selectedVariant.key,
+        variant_name: selectedVariant.name,
+        page_url: req.headers.get('referer') || '',
+        ...context
       }
     })
 
     return new Response(
       JSON.stringify({
-        variant_id: variant.id,
-        variant_key: variant.key,
-        variant_name: variant.name,
-        config: variant.config,
+        variant_id: selectedVariant.id,
+        variant_key: selectedVariant.key,
+        variant_name: selectedVariant.name,
+        config: selectedVariant.config || {},
         is_new: true
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        status: 200
       }
     )
   } catch (error) {

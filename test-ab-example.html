@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste A/B - RotaFinal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+        .variant-info {
+            background: #e7f3ff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .debug {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Teste A/B - Página de Exemplo</h1>
+        <p>Esta página demonstra como usar o RotaFinal SDK para testes A/B.</p>
+        
+        <div id="loading" class="loading">Carregando teste A/B...</div>
+        
+        <div id="content" style="display: none;">
+            <h2>Produto Incrível</h2>
+            <p>Experimente nosso produto revolucionário que vai mudar sua vida!</p>
+            
+            <!-- Este botão será testado -->
+            <button id="cta-button" class="cta-button" onclick="conversion()">
+                Comprar Agora
+            </button>
+            
+            <div id="variant-info" class="variant-info"></div>
+        </div>
+        
+        <div id="debug" class="debug"></div>
+    </div>
+
+    <!-- RotaFinal SDK -->
+    <script src="/rotafinal-sdk.js"></script>
+    
+    <script>
+        // Configurar SDK - substitua pelos seus valores reais
+        const rf = new RotaFinal({
+            apiKey: 'sua-api-key-aqui', // Substitua pela sua API key
+            baseUrl: window.location.origin,
+            debug: true
+        });
+
+        let currentVariant = null;
+
+        async function initializeABTest() {
+            try {
+                updateDebug('Iniciando teste A/B...');
+                
+                // Tentar obter variante do experimento
+                // Use o nome do experimento criado
+                currentVariant = await rf.getVariant('teste correto', {
+                    context: {
+                        page: 'landing',
+                        source: 'direct'
+                    }
+                });
+
+                updateDebug('Variante recebida: ' + JSON.stringify(currentVariant, null, 2));
+
+                if (currentVariant) {
+                    // Aplicar variante
+                    applyVariant(currentVariant);
+                    
+                    // Mostrar informações da variante
+                    document.getElementById('variant-info').innerHTML = `
+                        <strong>Variante Ativa:</strong> ${currentVariant.variant_name}<br>
+                        <strong>Tipo:</strong> ${currentVariant.variant_key}<br>
+                        <strong>Nova Atribuição:</strong> ${currentVariant.is_new ? 'Sim' : 'Não'}
+                    `;
+                } else {
+                    // Fallback para versão padrão
+                    updateDebug('Nenhuma variante recebida, usando versão padrão');
+                    document.getElementById('variant-info').innerHTML = `
+                        <strong>Status:</strong> Usando versão padrão (controle)
+                    `;
+                }
+
+                // Mostrar conteúdo
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+            } catch (error) {
+                updateDebug('Erro no teste A/B: ' + error.message);
+                console.error('Erro no teste A/B:', error);
+                
+                // Mostrar versão padrão mesmo com erro
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                document.getElementById('variant-info').innerHTML = `
+                    <strong>Status:</strong> Erro no teste A/B - usando versão padrão<br>
+                    <strong>Erro:</strong> ${error.message}
+                `;
+            }
+        }
+
+        function applyVariant(variant) {
+            const button = document.getElementById('cta-button');
+            
+            if (variant.variant_key === 'variant') {
+                // Aplicar mudanças da variante B
+                button.style.background = '#28a745';
+                button.textContent = 'Compre Já!';
+                button.style.transform = 'scale(1.1)';
+                updateDebug('Aplicada variante B: botão verde');
+            } else {
+                // Manter versão de controle
+                updateDebug('Aplicada variante de controle: botão azul padrão');
+            }
+
+            // Aplicar configurações da variante se houver
+            if (variant.config) {
+                if (variant.config.redirect_url) {
+                    updateDebug('Redirect URL configurado: ' + variant.config.redirect_url);
+                }
+                
+                if (variant.config.changes) {
+                    updateDebug('Mudanças configuradas: ' + JSON.stringify(variant.config.changes));
+                }
+            }
+        }
+
+        function conversion() {
+            updateDebug('Evento de conversão disparado');
+            
+            // Rastrear conversão
+            rf.conversion('compra', 99.99, {
+                product: 'produto-teste',
+                page: 'landing'
+            });
+
+            alert('Conversão registrada! Obrigado pela compra.');
+        }
+
+        function updateDebug(message) {
+            const debugDiv = document.getElementById('debug');
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        }
+
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', initializeABTest);
+    </script>
+</body>
+</html>

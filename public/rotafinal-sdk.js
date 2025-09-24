@@ -50,12 +50,11 @@ class RotaFinal {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          'x-api-key': this.apiKey,
         },
         body: JSON.stringify({
           experiment_key: experimentKey,
-          user_id: this.userId,
-          user_attributes: options.userAttributes || {},
+          visitor_id: this.userId,
           context: options.context || {}
         })
       });

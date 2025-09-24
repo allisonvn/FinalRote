@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
+import { ModernExperimentModal } from '@/components/dashboard/modern-experiment-modal'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
@@ -1307,6 +1308,128 @@ export default function Dashboard() {
   const handleCreateVariants = async (experimentId: string) => {
     console.log('Variantes serão implementadas em versão futura')
     return
+  }
+
+  const handleCreateModernExperiment = async (formData: any) => {
+    try {
+      setSaving(true)
+
+      // Get user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('Usuário não autenticado. Faça login para criar um experimento.')
+        return
+      }
+
+      // Get project ID
+      let projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
+      if (!projectId) {
+        projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Default project
+      }
+
+      // Utility to generate slug
+      const toKey = (text: string) =>
+        (text || '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+
+      // Prepare experiment data (aligned with schema)
+      const experimentData = {
+        name: String(formData.name || '').trim(),
+        key: toKey(formData.name) || 'experiment',
+        project_id: String(projectId),
+        description: formData.description || null,
+        status: 'draft' as const,
+        algorithm: formData.algorithm as any || 'thompson_sampling',
+        traffic_allocation: formData.trafficAllocation || 100
+      }
+
+      console.log('📋 Creating experiment with data:', experimentData)
+
+      // Create experiment
+      const { data: experiment, error: expError } = await supabase
+        .from('experiments')
+        .insert([experimentData])
+        .select()
+        .single()
+
+      if (expError) {
+        console.error('Experiment creation error:', expError)
+        throw expError
+      }
+
+      console.log('✅ Experiment created:', experiment.id)
+
+      // Create variants (aligned with schema)
+      const variantsData = formData.variants.map((variant: any, index: number) => ({
+        experiment_id: experiment.id,
+        name: variant.name,
+        key: toKey(variant.name) || `variant_${index}`,
+        weight: Math.floor(100 / formData.variants.length),
+        is_control: variant.isControl,
+        config: {
+          type: formData.testType,
+          url: variant.url || formData.targetUrl,
+          changes: [],
+          target_url: formData.targetUrl,
+          conversion_type: formData.conversionType,
+          conversion_url: formData.conversionUrl,
+          conversion_selector: formData.conversionSelector,
+          conversion_event: formData.conversionEvent
+        }
+      }))
+
+      const { error: variantsError } = await supabase
+        .from('variants')
+        .insert(variantsData)
+
+      if (variantsError) {
+        console.error('Variants creation error:', variantsError)
+        throw variantsError
+      }
+
+      console.log('✅ Variants created for experiment:', experiment.id)
+
+      // Create goal (aligned with schema)
+      if (formData.primaryGoal) {
+        const goalData = {
+          experiment_id: experiment.id,
+          name: formData.primaryGoal,
+          key: toKey(formData.primaryGoal) || 'primary_goal',
+          type: formData.conversionType === 'page_view' ? 'page_view' :
+                formData.conversionType === 'click' ? 'click' :
+                formData.conversionType === 'form_submit' ? 'conversion' : 'custom',
+          value_type: 'binary' as const,
+          description: `Objetivo: ${formData.primaryGoal}`
+        }
+
+        const { error: goalError } = await supabase
+          .from('goals')
+          .insert([goalData])
+
+        if (goalError) {
+          console.error('Goal creation error:', goalError)
+          // Don't throw - goal is optional
+        } else {
+          console.log('✅ Goal created for experiment:', experiment.id)
+        }
+      }
+
+      // Success
+      toast.success('Experimento criado com sucesso!')
+
+      // Refresh data and close modal
+      await loadDashboardData()
+      setShowNew(false)
+
+    } catch (error) {
+      console.error('Error creating experiment:', error)
+      toast.error('Erro ao criar experimento: ' + (error as any)?.message || 'Erro desconhecido')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -4271,7 +4394,12 @@ export default function Dashboard() {
           <>
             {getTabContent()}
             {renderExperimentDrawer()}
-            {showNew && renderNewExperimentModal()}
+            <ModernExperimentModal
+              isOpen={showNew}
+              onClose={() => setShowNew(false)}
+              onSave={handleCreateModernExperiment}
+              saving={saving}
+            />
           </>
         )}
       </main>

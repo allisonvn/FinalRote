@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Usar service client para contornar RLS
-    const serviceClient = createServiceClient()
+    // Usar client do usuário autenticado para respeitar RLS
+    const userClient = supabase
 
     // Construir dados do experimento
     const experimentData = {
@@ -60,13 +60,13 @@ export async function POST(request: NextRequest) {
     
     // Tentar forçar refresh do schema cache
     try {
-      await serviceClient.from('experiments').select('id').limit(1);
+      await userClient.from('experiments').select('id').limit(1);
     } catch (e) {
       console.log('Erro ao tentar refresh do cache:', e);
     }
     
     // Primeira tentativa: insert normal
-    const { data: firstResult, error: firstError } = await serviceClient
+    const { data: firstResult, error: firstError } = await (userClient as any)
       .from('experiments')
       .insert(insertData)
       .select('id,name,project_id,description,created_at')
@@ -80,10 +80,10 @@ export async function POST(request: NextRequest) {
         console.log('Erro de cache detectado, aguardando 2 segundos...');
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        const { data: secondResult, error: secondError } = await serviceClient
+        const { data: secondResult, error: secondError } = await (userClient as any)
           .from('experiments')
           .insert(insertData)
-  .select('id,name,project_id,description,created_at')
+          .select('id,name,project_id,description,created_at')
           .single();
         
         if (secondError) {
@@ -92,10 +92,10 @@ export async function POST(request: NextRequest) {
           // Terceira tentativa: usar dados mínimos
           const minimalData = insertData;
           
-          const { data: thirdResult, error: thirdError } = await serviceClient
+          const { data: thirdResult, error: thirdError } = await (userClient as any)
             .from('experiments')
             .insert(minimalData)
-    .select('id,name,project_id,description,created_at')
+            .select('id,name,project_id,description,created_at')
             .single();
           
           if (thirdError) {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
 
       // Preencher valores padrão esperados pelo frontend
       const safeExperiment = {
-        ...newExperiment,
+        ...(newExperiment || {}),
         type: (data.type || 'redirect') as 'redirect' | 'element' | 'split_url' | 'mab',
         status: (data.status || 'draft') as 'draft' | 'running' | 'paused' | 'completed' | 'archived',
         traffic_allocation: data.traffic_allocation ?? 100,
@@ -148,6 +148,63 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         updated_at: new Date().toISOString(),
       }
+
+    // Criar variantes padrão para o experimento
+    if (newExperiment && newExperiment.id) {
+      console.log('Criando variantes padrão para experimento:', newExperiment.id)
+      
+      const defaultVariants = [
+        {
+          experiment_id: newExperiment.id,
+          name: 'Controle',
+          description: 'Versão original',
+          is_control: true,
+          traffic_percentage: 50,
+          redirect_url: null,
+          changes: {},
+          css_changes: null,
+          js_changes: null,
+          created_by: user.id,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0.0000,
+          is_active: true
+        },
+        {
+          experiment_id: newExperiment.id,
+          name: 'Variante B',
+          description: 'Versão alternativa',
+          is_control: false,
+          traffic_percentage: 50,
+          redirect_url: null,
+          changes: {},
+          css_changes: null,
+          js_changes: null,
+          created_by: user.id,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0.0000,
+          is_active: true
+        }
+      ]
+
+      try {
+        const { data: variants, error: variantsError } = await (userClient as any)
+          .from('variants')
+          .insert(defaultVariants)
+          .select('id, name, is_control, traffic_percentage')
+
+        if (variantsError) {
+          console.error('Erro ao criar variantes:', variantsError.message)
+          // Não falhamos a criação do experimento por causa das variantes
+        } else {
+          console.log('✅ Variantes criadas:', variants)
+          safeExperiment.variants = variants
+        }
+      } catch (variantErr) {
+        console.error('Erro ao criar variantes:', variantErr)
+      }
+    }
 
     return NextResponse.json({
       success: true,

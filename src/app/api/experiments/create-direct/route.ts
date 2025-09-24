@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Usar service client para contornar RLS
-    const serviceClient = createServiceClient()
+    // Usar client do usuário autenticado para respeitar RLS
+    const userClient = supabase
 
     // Usar SQL direto para inserir o experimento, contornando completamente o cache do Supabase
     const experimentName = String(data.name).trim()
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Tentar insert simples apenas com campos básicos que sabemos que funcionam
-    const { data: experimentResult, error: experimentError } = await serviceClient
+    const { data: experimentResult, error: experimentError } = await (userClient as any)
       .from('experiments')
       .insert({
         name: experimentName,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     let updatedExperiment = experimentResult
     
     try {
-      const { data: updateResult, error: updateError } = await serviceClient
+      const { data: updateResult, error: updateError } = await (userClient as any)
         .from('experiments')
         .update({
           created_by: createdBy,
@@ -101,6 +101,63 @@ export async function POST(request: NextRequest) {
       created_by: updatedExperiment.created_by || createdBy,
       user_id: updatedExperiment.user_id || userId,
       updated_at: new Date().toISOString()
+    }
+
+    // Criar variantes padrão para o experimento
+    if (experimentResult && experimentResult.id) {
+      console.log('Criando variantes padrão para experimento:', experimentResult.id)
+      
+      const defaultVariants = [
+        {
+          experiment_id: experimentResult.id,
+          name: 'Controle',
+          description: 'Versão original',
+          is_control: true,
+          traffic_percentage: 50,
+          redirect_url: null,
+          changes: {},
+          css_changes: null,
+          js_changes: null,
+          created_by: createdBy,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0.0000,
+          is_active: true
+        },
+        {
+          experiment_id: experimentResult.id,
+          name: 'Variante B',
+          description: 'Versão alternativa',
+          is_control: false,
+          traffic_percentage: 50,
+          redirect_url: null,
+          changes: {},
+          css_changes: null,
+          js_changes: null,
+          created_by: createdBy,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0.0000,
+          is_active: true
+        }
+      ]
+
+      try {
+        const { data: variants, error: variantsError } = await (userClient as any)
+          .from('variants')
+          .insert(defaultVariants)
+          .select('id, name, is_control, traffic_percentage')
+
+        if (variantsError) {
+          console.error('Erro ao criar variantes:', variantsError.message)
+          // Não falhamos a criação do experimento por causa das variantes
+        } else {
+          console.log('✅ Variantes criadas:', variants)
+          experiment.variants = variants
+        }
+      } catch (variantErr) {
+        console.error('Erro ao criar variantes:', variantErr)
+      }
     }
 
     return NextResponse.json({
