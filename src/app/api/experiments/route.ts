@@ -37,14 +37,12 @@ export async function POST(request: NextRequest) {
       user_id: user.id
     }
 
-    // Dados mínimos para inserir evitando tocar na coluna "type" (problema de cache)
-    const insertData = {
-      name: experimentData.name,
-      project_id: experimentData.project_id,
-      description: experimentData.description,
-      created_by: experimentData.created_by,
-      user_id: experimentData.user_id,
-    }
+      // Dados mínimos para inserir evitando colunas com problema de cache
+      const insertData = {
+        name: experimentData.name,
+        project_id: experimentData.project_id,
+        description: experimentData.description,
+      }
 
     // Validar nome
     if (!experimentData.name || experimentData.name.length < 2) {
@@ -60,11 +58,18 @@ export async function POST(request: NextRequest) {
     let newExperiment;
     let insertError;
     
+    // Tentar forçar refresh do schema cache
+    try {
+      await serviceClient.from('experiments').select('id').limit(1);
+    } catch (e) {
+      console.log('Erro ao tentar refresh do cache:', e);
+    }
+    
     // Primeira tentativa: insert normal
     const { data: firstResult, error: firstError } = await serviceClient
       .from('experiments')
       .insert(insertData)
-      .select('id,name,project_id,description,created_at,created_by,user_id')
+      .select('id,name,project_id,description,created_at')
       .single();
     
     if (firstError) {
@@ -78,7 +83,7 @@ export async function POST(request: NextRequest) {
         const { data: secondResult, error: secondError } = await serviceClient
           .from('experiments')
           .insert(insertData)
-          .select('id,name,project_id,description,created_at,created_by,user_id')
+  .select('id,name,project_id,description,created_at')
           .single();
         
         if (secondError) {
@@ -90,7 +95,7 @@ export async function POST(request: NextRequest) {
           const { data: thirdResult, error: thirdError } = await serviceClient
             .from('experiments')
             .insert(minimalData)
-            .select('id,name,project_id,description,created_at,created_by,user_id')
+    .select('id,name,project_id,description,created_at')
             .single();
           
           if (thirdError) {
@@ -133,13 +138,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Preencher valores padrão esperados pelo frontend sem depender da coluna "type" no retorno
-    const safeExperiment = {
-      ...newExperiment,
-      type: (data.type || 'redirect') as 'redirect' | 'element' | 'split_url' | 'mab',
-      status: (data.status || 'draft') as 'draft' | 'running' | 'paused' | 'completed' | 'archived',
-      traffic_allocation: data.traffic_allocation ?? 100,
-    }
+      // Preencher valores padrão esperados pelo frontend
+      const safeExperiment = {
+        ...newExperiment,
+        type: (data.type || 'redirect') as 'redirect' | 'element' | 'split_url' | 'mab',
+        status: (data.status || 'draft') as 'draft' | 'running' | 'paused' | 'completed' | 'archived',
+        traffic_allocation: data.traffic_allocation ?? 100,
+        created_by: user.id,
+        user_id: user.id,
+        updated_at: new Date().toISOString(),
+      }
 
     return NextResponse.json({
       success: true,
