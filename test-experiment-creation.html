@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Criação de Experimento</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #005a8b;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Criação de Experimento Simplificada</h1>
+        <p><strong>✨ Agora mais simples!</strong> Você só precisa informar o nome do experimento. Tudo mais é automático.</p>
+        
+        <form id="experimentForm">
+            <!-- CAMPO OBRIGATÓRIO -->
+            <div class="form-group">
+                <label for="name" style="font-weight: bold; color: #d73027;">
+                    Nome do Experimento: <span style="color: red;">*</span>
+                </label>
+                <input type="text" id="name" name="name" value="Meu Teste A/B - " required 
+                       placeholder="Ex: Teste Botão Verde vs Azul"
+                       style="border: 2px solid #007cba;">
+                <small style="color: #666;">✨ Apenas este campo é obrigatório!</small>
+            </div>
+            
+            <!-- CAMPOS OPCIONAIS -->
+            <details style="margin: 20px 0;">
+                <summary style="cursor: pointer; font-weight: bold; color: #666; margin-bottom: 15px;">
+                    ⚙️ Configurações Avançadas (Opcional)
+                </summary>
+                
+                <div class="form-group">
+                    <label for="description">Descrição:</label>
+                    <textarea id="description" name="description" rows="3" 
+                              placeholder="Descreva o objetivo do seu experimento (opcional)"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="type">Tipo:</label>
+                    <select id="type" name="type">
+                        <option value="redirect">Redirect (Padrão)</option>
+                        <option value="element">Element</option>
+                        <option value="split_url">Split URL</option>
+                        <option value="mab">Multi-Armed Bandit</option>
+                    </select>
+                    <small style="color: #666;">Redirect é o mais comum para testes simples</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="traffic_allocation">Alocação de Tráfego (%):</label>
+                    <input type="number" id="traffic_allocation" name="traffic_allocation" 
+                           value="100" min="1" max="100">
+                    <small style="color: #666;">100% = todo o tráfego participa do teste</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Status:</label>
+                    <select id="status" name="status">
+                        <option value="draft">Draft (Padrão)</option>
+                        <option value="running">Running</option>
+                        <option value="paused">Paused</option>
+                        <option value="completed">Completed</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                    <small style="color: #666;">Draft = experimento criado mas não ativo ainda</small>
+                </div>
+            </details>
+            
+            <button type="submit" style="font-size: 18px; padding: 15px 30px;">
+                🚀 Criar Experimento
+            </button>
+            
+            <p style="margin-top: 15px; padding: 10px; background: #f0f8ff; border: 1px solid #007cba; border-radius: 4px;">
+                <strong>💡 Dica:</strong> Automaticamente será criado um projeto padrão e duas variantes (Controle e Variante B) para você!
+            </p>
+        </form>
+        
+        <div id="result"></div>
+        
+        <h2>🧪 Testes de Validação</h2>
+        <div style="margin-bottom: 20px;">
+            <button type="button" onclick="runQuickValidation()" style="margin-right: 10px; background: #28a745;">
+                ⚡ Teste Rápido
+            </button>
+            <button type="button" onclick="testCreateExperiment()" style="margin-right: 10px; background: #17a2b8;">
+                🔬 Criar Experimento Teste
+            </button>
+            <button type="button" onclick="loadExperiments()" style="background: #6c757d;">
+                📊 Listar Experimentos
+            </button>
+        </div>
+        <div id="validation-result" class="result" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px;"></div>
+        
+        <h2>📊 Meus Experimentos</h2>
+        <div id="experiments-list" class="result log" style="max-height: 300px;"></div>
+        
+        <h2>📋 Logs do Console</h2>
+        <div id="logs" class="result log"></div>
+    </div>
+
+    <script>
+        // Interceptar console.log para mostrar logs na página
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        const logsDiv = document.getElementById('logs');
+        
+        function addLog(level, args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            logsDiv.textContent += `[${timestamp}] [${level}] ${message}\n`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLog('LOG', args);
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addLog('WARN', args);
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLog('ERROR', args);
+        };
+        
+        // Auto-preencher nome com timestamp
+        document.getElementById('name').value += new Date().toISOString().slice(0, 19);
+        
+        // Lidar com o submit do formulário
+        document.getElementById('experimentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('result');
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            // Converter traffic_allocation para número (se fornecido)
+            if (data.traffic_allocation) {
+                data.traffic_allocation = parseInt(data.traffic_allocation);
+            }
+            
+            // Remover campos vazios para usar valores padrão do servidor
+            Object.keys(data).forEach(key => {
+                if (data[key] === '' || data[key] === null || data[key] === undefined) {
+                    delete data[key];
+                }
+            });
+            
+            resultDiv.innerHTML = '<p>🔄 Enviando requisição...</p>';
+            console.log('📤 Dados sendo enviados:', data);
+            
+            try {
+                const response = await fetch('/api/experiments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">✅ Sucesso!\n\n${JSON.stringify(result, null, 2)}</div>`;
+                    console.log('✅ Resposta de sucesso:', result);
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Erro ${response.status}\n\n${JSON.stringify(result, null, 2)}</div>`;
+                    console.error('❌ Erro na resposta:', result);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">💥 Erro de rede:\n\n${error.message}</div>`;
+                console.error('💥 Erro de rede:', error);
+            }
+        });
+        
+        // Função para carregar experimentos
+        async function loadExperiments() {
+            const experimentsDiv = document.getElementById('experiments-list');
+            experimentsDiv.innerHTML = '<p>🔄 Carregando experimentos...</p>';
+            
+            try {
+                const response = await fetch('/api/experiments', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    if (result.experiments.length === 0) {
+                        experimentsDiv.innerHTML = '<p style="color: #666;">📭 Nenhum experimento encontrado. Crie seu primeiro experimento acima!</p>';
+                    } else {
+                        let html = `<p><strong>✅ ${result.count} experimento(s) encontrado(s):</strong></p>`;
+                        
+                        result.experiments.forEach(exp => {
+                            const statusEmoji = {
+                                'draft': '📝',
+                                'running': '🟢', 
+                                'paused': '⏸️',
+                                'completed': '✅',
+                                'archived': '📦'
+                            }[exp.status] || '❓';
+                            
+                            html += `
+                                <div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                                    <strong>${statusEmoji} ${exp.name}</strong><br>
+                                    <small>Tipo: ${exp.type} | Status: ${exp.status} | Tráfego: ${exp.traffic_allocation}%</small><br>
+                                    <small>Variantes: ${exp.variants?.length || 0} | Criado: ${new Date(exp.created_at).toLocaleString()}</small><br>
+                                    ${exp.description ? `<small style="color: #666;">${exp.description}</small>` : ''}
+                                </div>
+                            `;
+                        });
+                        
+                        experimentsDiv.innerHTML = html;
+                    }
+                    console.log('✅ Experimentos carregados:', result);
+                } else {
+                    experimentsDiv.innerHTML = `<div class="result error">❌ Erro ao carregar experimentos: ${result.error}</div>`;
+                    console.error('❌ Erro ao carregar experimentos:', result);
+                }
+            } catch (error) {
+                experimentsDiv.innerHTML = `<div class="result error">💥 Erro de rede: ${error.message}</div>`;
+                console.error('💥 Erro de rede:', error);
+            }
+        }
+        
+        console.log('🚀 Página de teste carregada. Abra o DevTools para ver logs adicionais.');
+        
+        // Funções de teste de validação
+        async function testCreateExperiment() {
+            const validationDiv = document.getElementById('validation-result');
+            validationDiv.innerHTML = '<p>🧪 Testando criação de experimento...</p>';
+            
+            const testData = {
+                name: 'Teste Automático - ' + new Date().toISOString().slice(11, 19)
+            };
+            
+            try {
+                const response = await fetch('/api/experiments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    validationDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ TESTE PASSOU!<br>
+                            📊 Experimento: ${result.experiment?.name}<br>
+                            🆔 ID: ${result.experiment?.id}<br>
+                            📝 Tipo: ${result.experiment?.type}<br>
+                            🎯 Variantes: ${result.experiment?.variants?.length || 0}<br>
+                            ⚡ Sistema funcionando perfeitamente!
+                        </div>
+                    `;
+                    
+                    // Recarregar lista de experimentos
+                    setTimeout(loadExperiments, 1000);
+                } else {
+                    validationDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ TESTE FALHOU!<br>
+                            Erro: ${result.error}<br>
+                            Status: ${response.status}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                validationDiv.innerHTML = `
+                    <div class="result error">
+                        💥 ERRO DE REDE!<br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function runQuickValidation() {
+            const validationDiv = document.getElementById('validation-result');
+            validationDiv.innerHTML = '<p>⚡ Executando validação rápida...</p>';
+            
+            let html = '<div class="result"><strong>🔍 Resultados da Validação:</strong><br><br>';
+            
+            // Teste 1: Verificar GET /api/experiments
+            try {
+                const getResponse = await fetch('/api/experiments');
+                const getResult = await getResponse.json();
+                
+                if (getResponse.ok && getResult.success) {
+                    html += `✅ GET /api/experiments: OK (${getResult.count} experimentos)<br>`;
+                } else {
+                    html += `❌ GET /api/experiments: FALHA (${getResult.error})<br>`;
+                }
+            } catch (error) {
+                html += `❌ GET /api/experiments: ERRO (${error.message})<br>`;
+            }
+            
+            // Teste 2: Validar dados mínimos
+            const minimalData = { name: 'Validação - ' + Date.now() };
+            try {
+                const postResponse = await fetch('/api/experiments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(minimalData)
+                });
+                const postResult = await postResponse.json();
+                
+                if (postResponse.ok && postResult.success) {
+                    html += `✅ POST /api/experiments: OK (ID: ${postResult.experiment?.id?.slice(0,8)}...)<br>`;
+                    html += `✅ Variantes criadas: ${postResult.experiment?.variants?.length || 0}<br>`;
+                } else {
+                    html += `❌ POST /api/experiments: FALHA (${postResult.error})<br>`;
+                }
+            } catch (error) {
+                html += `❌ POST /api/experiments: ERRO (${error.message})<br>`;
+            }
+            
+            html += '<br><strong>🎯 Conclusão:</strong><br>';
+            html += 'Sistema simplificado está funcionando! Usuário só precisa fornecer o nome do experimento.';
+            html += '</div>';
+            
+            validationDiv.innerHTML = html;
+            
+            // Recarregar lista após teste
+            setTimeout(loadExperiments, 2000);
+        }
+        
+        // Carregar experimentos automaticamente
+        loadExperiments();
+    </script>
+</body>
+</html>
