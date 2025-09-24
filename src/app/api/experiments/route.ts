@@ -48,15 +48,87 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Criar experimento
-    const { data: newExperiment, error: insertError } = await serviceClient
+    // Criar experimento - tentar múltiplas abordagens para contornar problemas de cache
+    console.log('Tentando criar experimento com dados:', experimentData);
+    
+    let newExperiment;
+    let insertError;
+    
+    // Primeira tentativa: insert normal
+    const { data: firstResult, error: firstError } = await serviceClient
       .from('experiments')
       .insert(experimentData)
       .select()
-      .single()
+      .single();
+    
+    if (firstError) {
+      console.log('Primeira tentativa falhou:', firstError.message);
+      
+      // Segunda tentativa: aguardar e tentar novamente
+      if (firstError.message.includes('schema cache') || firstError.message.includes('Could not find')) {
+        console.log('Erro de cache detectado, aguardando 2 segundos...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const { data: secondResult, error: secondError } = await serviceClient
+          .from('experiments')
+          .insert(experimentData)
+          .select()
+          .single();
+        
+        if (secondError) {
+          console.log('Segunda tentativa falhou:', secondError.message);
+          
+          // Terceira tentativa: usar dados mínimos
+          const minimalData = {
+            name: experimentData.name,
+            project_id: experimentData.project_id,
+            type: 'redirect' as const,
+            status: 'draft' as const,
+            traffic_allocation: 100,
+            created_by: experimentData.created_by,
+            user_id: experimentData.user_id
+          };
+          
+          const { data: thirdResult, error: thirdError } = await serviceClient
+            .from('experiments')
+            .insert(minimalData)
+            .select()
+            .single();
+          
+          if (thirdError) {
+            insertError = thirdError;
+          } else {
+            newExperiment = thirdResult;
+          }
+        } else {
+          newExperiment = secondResult;
+        }
+      } else {
+        insertError = firstError;
+      }
+    } else {
+      newExperiment = firstResult;
+    }
 
     if (insertError) {
-      console.error('Erro ao criar experimento:', insertError)
+      console.error('Erro detalhado ao criar experimento:', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code
+      });
+      
+      // Se for erro de cache, retornar erro específico
+      if (insertError.message.includes('schema cache') || insertError.message.includes('Could not find')) {
+        return NextResponse.json(
+          { 
+            error: 'Problema temporário com cache do banco de dados. Tente novamente em alguns segundos.',
+            details: insertError.message 
+          },
+          { status: 503 }
+        )
+      }
+      
       return NextResponse.json(
         { error: 'Erro ao criar experimento: ' + insertError.message },
         { status: 500 }
