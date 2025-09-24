@@ -1327,6 +1327,14 @@ export default function Dashboard() {
         projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Default project
       }
 
+      console.log('🔍 Project validation:', {
+        projectFilter,
+        availableProjects: projects.map(p => ({ id: p.id, name: p.name })),
+        selectedProjectId: projectId,
+        projectIdType: typeof projectId,
+        projectIdLength: projectId.length
+      })
+
       // Utility to generate slug
       const toKey = (text: string) =>
         (text || '')
@@ -1343,10 +1351,20 @@ export default function Dashboard() {
         description: formData.description || null,
         status: 'draft' as const,
         algorithm: formData.algorithm as any || 'thompson_sampling',
-        traffic_allocation: formData.trafficAllocation || 100
+        traffic_allocation: Math.min(100, Math.max(1, Math.round(formData.trafficAllocation || 100)))
       }
 
       console.log('📋 Creating experiment with data:', experimentData)
+
+      // Validate data types
+      console.log('🔍 Data validation:', {
+        name_type: typeof experimentData.name,
+        name_length: experimentData.name.length,
+        traffic_allocation_type: typeof experimentData.traffic_allocation,
+        traffic_allocation_value: experimentData.traffic_allocation,
+        algorithm_type: typeof experimentData.algorithm,
+        algorithm_value: experimentData.algorithm
+      })
 
       // Create experiment
       const { data: experiment, error: expError } = await supabase
@@ -1356,18 +1374,28 @@ export default function Dashboard() {
         .single()
 
       if (expError) {
-        console.error('Experiment creation error:', expError)
-        throw expError
+        console.error('❌ Experiment creation error:', expError)
+        console.error('❌ Error details:', {
+          code: expError.code,
+          message: expError.message,
+          details: expError.details,
+          hint: expError.hint
+        })
+        throw new Error(`Erro ao criar experimento: ${expError.message}`)
       }
 
       console.log('✅ Experiment created:', experiment.id)
 
       // Create variants (aligned with schema)
+      const totalVariants = formData.variants.length
+      const baseWeight = Math.floor(100 / totalVariants)
+      const remainder = 100 - (baseWeight * totalVariants)
+
       const variantsData = formData.variants.map((variant: any, index: number) => ({
         experiment_id: experiment.id,
         name: variant.name,
         key: toKey(variant.name) || `variant_${index}`,
-        weight: Math.floor(100 / formData.variants.length),
+        weight: baseWeight + (index < remainder ? 1 : 0), // Distribute remainder
         is_control: variant.isControl,
         config: {
           type: formData.testType,
@@ -1381,13 +1409,28 @@ export default function Dashboard() {
         }
       }))
 
+      console.log('📋 Creating variants with data:', variantsData)
+      console.log('🔍 Variants validation:', {
+        totalVariants,
+        baseWeight,
+        remainder,
+        weights: variantsData.map(v => v.weight),
+        weightSum: variantsData.reduce((sum, v) => sum + v.weight, 0)
+      })
+
       const { error: variantsError } = await supabase
         .from('variants')
         .insert(variantsData)
 
       if (variantsError) {
-        console.error('Variants creation error:', variantsError)
-        throw variantsError
+        console.error('❌ Variants creation error:', variantsError)
+        console.error('❌ Error details:', {
+          code: variantsError.code,
+          message: variantsError.message,
+          details: variantsError.details,
+          hint: variantsError.hint
+        })
+        throw new Error(`Erro ao criar variantes: ${variantsError.message}`)
       }
 
       console.log('✅ Variants created for experiment:', experiment.id)
