@@ -33,11 +33,17 @@ export async function POST(request: NextRequest) {
       name: String(data.name).trim(),
       project_id: String(data.project_id),
       description: data.description || null,
-      type: data.type || 'redirect',
-      status: data.status || 'draft',
-      traffic_allocation: data.traffic_allocation || 100,
       created_by: user.id,
       user_id: user.id
+    }
+
+    // Dados mínimos para inserir evitando tocar na coluna "type" (problema de cache)
+    const insertData = {
+      name: experimentData.name,
+      project_id: experimentData.project_id,
+      description: experimentData.description,
+      created_by: experimentData.created_by,
+      user_id: experimentData.user_id,
     }
 
     // Validar nome
@@ -57,8 +63,8 @@ export async function POST(request: NextRequest) {
     // Primeira tentativa: insert normal
     const { data: firstResult, error: firstError } = await serviceClient
       .from('experiments')
-      .insert(experimentData)
-      .select()
+      .insert(insertData)
+      .select('id,name,project_id,description,created_at,created_by,user_id')
       .single();
     
     if (firstError) {
@@ -71,28 +77,20 @@ export async function POST(request: NextRequest) {
         
         const { data: secondResult, error: secondError } = await serviceClient
           .from('experiments')
-          .insert(experimentData)
-          .select()
+          .insert(insertData)
+          .select('id,name,project_id,description,created_at,created_by,user_id')
           .single();
         
         if (secondError) {
           console.log('Segunda tentativa falhou:', secondError.message);
           
           // Terceira tentativa: usar dados mínimos
-          const minimalData = {
-            name: experimentData.name,
-            project_id: experimentData.project_id,
-            type: 'redirect' as const,
-            status: 'draft' as const,
-            traffic_allocation: 100,
-            created_by: experimentData.created_by,
-            user_id: experimentData.user_id
-          };
+          const minimalData = insertData;
           
           const { data: thirdResult, error: thirdError } = await serviceClient
             .from('experiments')
             .insert(minimalData)
-            .select()
+            .select('id,name,project_id,description,created_at,created_by,user_id')
             .single();
           
           if (thirdError) {
@@ -135,9 +133,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Preencher valores padrão esperados pelo frontend sem depender da coluna "type" no retorno
+    const safeExperiment = {
+      ...newExperiment,
+      type: (data.type || 'redirect') as 'redirect' | 'element' | 'split_url' | 'mab',
+      status: (data.status || 'draft') as 'draft' | 'running' | 'paused' | 'completed' | 'archived',
+      traffic_allocation: data.traffic_allocation ?? 100,
+    }
+
     return NextResponse.json({
       success: true,
-      experiment: newExperiment
+      experiment: safeExperiment
     })
 
   } catch (error) {
