@@ -1,15 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  BarChart3, 
-  Target, 
-  Users, 
-  Settings, 
+import {
+  BarChart3,
+  Target,
+  Users,
+  Settings,
   Activity,
   TrendingUp,
-  Zap,
-  Database
+  Zap
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -29,6 +28,10 @@ interface DashboardNavProps {
     activeExperiments: number
     totalVisitors: number
   }
+  realtime?: {
+    isConnected: boolean
+    lastUpdate?: Date
+  }
   className?: string
 }
 
@@ -36,50 +39,45 @@ export function DashboardNav({
   activeTab = 'overview',
   onTabChange,
   stats,
+  realtime,
   className
 }: DashboardNavProps) {
   const navItems: NavItem[] = [
     {
       key: 'overview',
       label: 'Visão Geral',
-      icon: <BarChart3 className="h-4 w-4" />,
+      icon: <BarChart3 className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Dashboard principal'
     },
     {
       key: 'experiments',
       label: 'Experimentos',
-      icon: <Zap className="h-4 w-4" />,
+      icon: <Zap className="h-4 w-4" strokeWidth={1.75} />,
       badge: stats?.activeExperiments,
       description: 'Testes A/B ativos'
     },
     {
       key: 'analytics',
       label: 'Relatórios',
-      icon: <TrendingUp className="h-4 w-4" />,
-      description: 'Relatórios e insights'
+      icon: <TrendingUp className="h-4 w-4" strokeWidth={1.75} />,
+      description: realtime?.isConnected ? 'Relatórios em tempo real' : 'Relatórios e insights'
     },
     {
       key: 'audiences',
       label: 'Audiências',
-      icon: <Users className="h-4 w-4" />,
+      icon: <Users className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Segmentação de usuários'
     },
     {
       key: 'events',
       label: 'Eventos',
-      icon: <Activity className="h-4 w-4" />,
+      icon: <Activity className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Tracking e conversões'
-    },
-    {
-      key: 'data',
-      label: 'Dados',
-      icon: <Database className="h-4 w-4" />,
-      description: 'Exportação e APIs'
     },
     {
       key: 'settings',
       label: 'Configurações',
-      icon: <Settings className="h-4 w-4" />,
+      icon: <Settings className="h-4 w-4" strokeWidth={1.75} />,
       description: 'Conta e preferências'
     }
   ]
@@ -124,10 +122,17 @@ export function DashboardNav({
                   
                   {/* Label - Hide on small screens for non-active items */}
                   <span className={cn(
-                    'transition-opacity',
-                    !isActive && 'hidden sm:inline'
+                    'transition-opacity flex items-center gap-1.5',
+                    !isActive && 'hidden sm:inline-flex'
                   )}>
                     {item.label}
+                    {/* Real-time indicator for analytics tab */}
+                    {item.key === 'analytics' && realtime?.isConnected && (
+                      <div
+                        className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"
+                        title="Conectado - dados em tempo real"
+                      />
+                    )}
                   </span>
                   
                   {/* Badge */}

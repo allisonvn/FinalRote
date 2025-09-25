@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useApp } from '@/providers/app-provider'
 import { cn } from '@/lib/utils'
@@ -52,7 +53,9 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
   const sidebarCollapsed = preferences.sidebarCollapsed
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen bg-gradient-surface bg-grid-slate">
+      {/* Decorative spotlight for depth in light mode */}
+      <div className="pointer-events-none absolute -top-24 -left-16 spotlight" />
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div
@@ -64,7 +67,7 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex flex-col bg-card border-r transition-all duration-300',
+          'fixed inset-y-0 left-0 z-50 flex flex-col sidebar-tonal card-glass shadow-soft transition-all duration-300',
           sidebarCollapsed ? 'w-16' : 'w-64',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
@@ -73,8 +76,8 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
         <div className="flex h-16 items-center justify-between px-4">
           {!sidebarCollapsed && (
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Activity className="h-5 w-5" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground shadow-soft ring-1 ring-border/70">
+                <Activity className="h-5 w-5" strokeWidth={1.75} />
               </div>
               <span className="font-bold text-lg">Rota Final</span>
             </Link>
@@ -99,15 +102,19 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
                 key={item.name}
                 href={item.href as any}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                  'group relative flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all',
+                  'ring-1 ring-transparent',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-primary/10 text-primary ring-primary/20'
+                    : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground hover:ring-border/60',
                   sidebarCollapsed && 'justify-center'
                 )}
                 title={sidebarCollapsed ? item.name : undefined}
               >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {!sidebarCollapsed && isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1.5 rounded-full bg-gradient-to-b from-primary to-primary/60" />
+                )}
+                <item.icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.75} />
                 {!sidebarCollapsed && <span>{item.name}</span>}
               </Link>
             )
@@ -118,7 +125,7 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
         <div className="border-t p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-              <User className="h-4 w-4" />
+              <User className="h-4 w-4" strokeWidth={1.75} />
             </div>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
@@ -133,12 +140,12 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
       {/* Main content */}
       <div
         className={cn(
-          'flex flex-col transition-all duration-300',
+          'relative z-10 flex flex-col transition-all duration-300',
           sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
         )}
       >
         {/* Top header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/60 bg-white/70 dark:bg-background/60 backdrop-blur-xl px-4 lg:px-6 supports-[backdrop-filter]:bg-white/70">
           <Button
             variant="ghost"
             size="sm"
@@ -174,7 +181,7 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
           <div className="flex items-center gap-2 ml-auto">
             {/* Search */}
             <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.75} />
               <Input
                 placeholder="Buscar experimentos..."
                 className="w-64 pl-9"
@@ -183,9 +190,24 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
 
             {/* Notifications */}
             <Button variant="ghost" size="sm">
-              <Bell className="h-4 w-4" />
+              <Bell className="h-4 w-4" strokeWidth={1.75} />
               <span className="sr-only">Notificações</span>
             </Button>
+
+            {/* Global Time Range */}
+            <Select
+              value={preferences.defaultTimeRange}
+              onValueChange={(v) => updatePreference('defaultTimeRange', v as any)}
+            >
+              <SelectTrigger className="w-[128px]">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">7 dias</SelectItem>
+                <SelectItem value="30d">30 dias</SelectItem>
+                <SelectItem value="90d">90 dias</SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Theme toggle */}
             <ThemeToggle />

@@ -9,34 +9,28 @@
 -- ÍNDICES COMPOSTOS PARA QUERIES FREQUENTES
 -- ===================================================
 
--- Índices para queries de experimentos por organização
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_experiments_org_status
+-- Índice simplificado para experimentos por status e data
+CREATE INDEX IF NOT EXISTS idx_experiments_status_created
 ON experiments USING btree (
-    (SELECT organization_id FROM projects WHERE id = experiments.project_id),
     status,
     created_at DESC
 );
 
 -- Índice para busca de atribuições por experimento e data
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assignments_exp_date
+CREATE INDEX IF NOT EXISTS idx_assignments_exp_date
 ON assignments USING btree (experiment_id, created_at DESC);
 
 -- Índice para busca de eventos por projeto e tipo
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_project_type_date
+CREATE INDEX IF NOT EXISTS idx_events_project_type_date
 ON events USING btree (project_id, event_type, created_at DESC);
 
 -- Índice para eventos de conversão por experimento
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_conversion_exp
+CREATE INDEX IF NOT EXISTS idx_events_conversion_exp
 ON events USING btree (experiment_id, created_at DESC)
 WHERE event_type = 'conversion';
 
--- Índice para métricas válidas
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_metrics_valid
-ON metrics_snapshots USING btree (experiment_id, variant_id, metric_type)
-WHERE computed_at >= (now() - INTERVAL '1 day');
-
 -- Índice para sessões ativas
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_visitor_sessions_active
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_active
 ON visitor_sessions USING btree (project_id, started_at DESC)
 WHERE ended_at IS NULL;
 
@@ -45,27 +39,27 @@ WHERE ended_at IS NULL;
 -- ===================================================
 
 -- Índice para análise de funil por projeto
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_funnel_analysis
+CREATE INDEX IF NOT EXISTS idx_events_funnel_analysis
 ON events USING btree (project_id, visitor_id, event_type, created_at);
 
--- Índice para análise de cohort
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assignments_cohort
+-- Índice simplificado para análise de cohort (sem date_trunc)
+CREATE INDEX IF NOT EXISTS idx_assignments_cohort_simple
 ON assignments USING btree (
     experiment_id,
-    date_trunc('day', created_at),
-    variant_id
+    variant_id,
+    created_at
 );
 
--- Índice para análise de retenção
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_retention
+-- Índice simplificado para análise de retenção (sem date_trunc)
+CREATE INDEX IF NOT EXISTS idx_events_retention_simple
 ON events USING btree (
     project_id,
     visitor_id,
-    date_trunc('day', created_at)
+    created_at
 );
 
 -- Índice para segmentação por UTM
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_visitor_sessions_utm
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_utm
 ON visitor_sessions USING btree (
     project_id,
     utm_source,
@@ -74,7 +68,7 @@ ON visitor_sessions USING btree (
 ) WHERE utm_source IS NOT NULL;
 
 -- Índice para análise geográfica
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_visitor_sessions_geo
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_geo
 ON visitor_sessions USING btree (
     project_id,
     country_code,
@@ -87,15 +81,15 @@ ON visitor_sessions USING btree (
 -- ===================================================
 
 -- Índice para cálculo rápido de Thompson Sampling
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assignments_variant_stats
+CREATE INDEX IF NOT EXISTS idx_assignments_variant_stats
 ON assignments USING btree (experiment_id, variant_id, created_at);
 
 -- Índice para busca rápida de variantes por experimento
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_variants_experiment_order
+CREATE INDEX IF NOT EXISTS idx_variants_experiment_order
 ON variants USING btree (experiment_id, is_control DESC, weight DESC);
 
 -- Índice parcial para experimentos ativos
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_experiments_active
+CREATE INDEX IF NOT EXISTS idx_experiments_active
 ON experiments USING btree (id, algorithm, traffic_allocation)
 WHERE status = 'running';
 
@@ -104,6 +98,7 @@ WHERE status = 'running';
 -- ===================================================
 
 -- View materializada para estatísticas rápidas de experimentos
+DROP MATERIALIZED VIEW IF EXISTS experiment_stats;
 CREATE MATERIALIZED VIEW experiment_stats AS
 SELECT 
     e.id as experiment_id,
@@ -137,6 +132,7 @@ CREATE INDEX idx_experiment_stats_status ON experiment_stats(status);
 CREATE INDEX idx_experiment_stats_conversion ON experiment_stats(conversion_rate DESC);
 
 -- View materializada para estatísticas por variante
+DROP MATERIALIZED VIEW IF EXISTS variant_stats;
 CREATE MATERIALIZED VIEW variant_stats AS
 SELECT 
     v.id as variant_id,
@@ -189,23 +185,9 @@ $$ LANGUAGE plpgsql;
 -- CONFIGURAÇÕES DE PERFORMANCE
 -- ===================================================
 
--- Ajustes de configuração para melhor performance
--- Estas configurações devem ser aplicadas no nível do banco
-
--- Configurações para trabalho com partições
-ALTER SYSTEM SET enable_partition_pruning = on;
-ALTER SYSTEM SET enable_partitionwise_join = on;
-ALTER SYSTEM SET enable_partitionwise_aggregate = on;
-
--- Configurações para queries analíticas
-ALTER SYSTEM SET work_mem = '64MB';
-ALTER SYSTEM SET maintenance_work_mem = '256MB';
-ALTER SYSTEM SET effective_cache_size = '1GB';
-
--- Configurações para logging de queries lentas
-ALTER SYSTEM SET log_min_duration_statement = 1000; -- 1 segundo
-ALTER SYSTEM SET log_statement = 'none';
-ALTER SYSTEM SET log_duration = off;
+-- Nota: As configurações de performance do PostgreSQL não podem ser alteradas
+-- em serviços gerenciados como o Supabase. Essas configurações são controladas
+-- pelo provedor do serviço e não podem ser modificadas via ALTER SYSTEM.
 
 -- ===================================================
 -- TRIGGERS PARA ATUALIZAÇÃO AUTOMÁTICA
@@ -222,11 +204,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers para atualização automática das estatísticas
+DROP TRIGGER IF EXISTS tr_assignments_refresh_stats ON assignments;
 CREATE TRIGGER tr_assignments_refresh_stats
     AFTER INSERT OR UPDATE OR DELETE ON assignments
     FOR EACH STATEMENT
     EXECUTE FUNCTION invalidate_experiment_stats();
 
+DROP TRIGGER IF EXISTS tr_events_refresh_stats ON events;
 CREATE TRIGGER tr_events_refresh_stats
     AFTER INSERT OR UPDATE OR DELETE ON events
     FOR EACH STATEMENT

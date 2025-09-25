@@ -1,7 +1,8 @@
-'use client'
+"use client"
 
 import { TrendingUp, TrendingDown, Minus, Activity, Users, Target, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface StatCard {
   title: string
@@ -69,48 +70,62 @@ export function StatsCards({ stats }: StatsCardsProps) {
         const TrendIcon = stat.trend ? trendIcons[stat.trend.direction] : null
 
         return (
-          <div
+          <Card
             key={index}
-            className="rounded-xl border bg-card p-6 shadow-sm hover:shadow-md transition-shadow"
+            className="relative overflow-hidden group card-glass hover-lift"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
+            {/* Subtle pattern background */}
+            <div className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_hsl(var(--foreground))_1px,_transparent_0)] [background-size:16px_16px]" />
+            </div>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
                   {stat.title}
-                </p>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <h3 className="text-2xl font-bold">
-                    {typeof stat.value === 'number'
-                      ? stat.value.toLocaleString('pt-BR')
-                      : stat.value}
-                  </h3>
-                  {stat.trend && TrendIcon && (
-                    <div className={cn('flex items-center gap-1 text-sm', trendColors[stat.trend.direction])}>
-                      <TrendIcon className="h-4 w-4" />
-                      <span className="font-medium">
-                        {Math.abs(stat.trend.value)}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {stat.description && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stat.description}
-                  </p>
-                )}
-                {stat.trend?.label && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stat.trend.label}
-                  </p>
+                </CardTitle>
+                {Icon && (
+                  <div className={cn('h-10 w-10 rounded-xl grid place-items-center ring-1 ring-border', config.background)}>
+                    <Icon className={cn('h-5 w-5', config.icon)} strokeWidth={1.75} />
+                  </div>
                 )}
               </div>
-              {Icon && (
-                <div className={cn('rounded-lg p-3', config.background)}>
-                  <Icon className={cn('h-6 w-6', config.icon)} />
-                </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-3xl font-bold tracking-tight">
+                  {typeof stat.value === 'number' ? stat.value.toLocaleString('pt-BR') : stat.value}
+                </h3>
+                {stat.trend && TrendIcon && (
+                  <div className={cn('chip', trendColors[stat.trend.direction])}>
+                    <TrendIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    <span className="font-medium">
+                      {Math.abs(stat.trend.value)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+              {stat.description && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.description}
+                </p>
               )}
-            </div>
-          </div>
+              {stat.trend?.label && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.trend.label}
+                </p>
+              )}
+            </CardContent>
+            {/* Bottom accent */}
+            <div
+              className={cn(
+                'absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r opacity-60',
+                stat.color === 'success' ? 'from-success/40 to-success' :
+                stat.color === 'warning' ? 'from-warning/40 to-warning' :
+                stat.color === 'danger'  ? 'from-danger/40 to-danger'  :
+                'from-primary/40 to-primary'
+              )}
+            />
+          </Card>
         )
       })}
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +55,7 @@ import {
   ScatterChart
 } from 'recharts'
 import { cn } from '@/lib/utils'
+import { useApp } from '@/providers/app-provider'
 
 interface Experiment {
   id: string
@@ -84,10 +85,17 @@ interface ChartsSectionProps {
   className?: string
   experiments?: Experiment[]
   stats?: Stats
+  realtime?: {
+    isConnected: boolean
+    recentEvents?: Array<any>
+    recentAssignments?: Array<any>
+    lastUpdate?: Date
+  }
 }
 
-export function ChartsSection({ className, experiments = [], stats }: ChartsSectionProps) {
-  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d' | '1y'>('30d')
+export function ChartsSection({ className, experiments = [], stats, realtime }: ChartsSectionProps) {
+  const { preferences, updatePreference } = useApp()
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d' | '1y'>(preferences.defaultTimeRange || '30d')
   const [selectedExperiment, setSelectedExperiment] = useState<string>('all')
   const [metricType, setMetricType] = useState<'conversion' | 'revenue' | 'engagement'>('conversion')
   const [viewType, setViewType] = useState<'overview' | 'detailed' | 'comparison'>('overview')
@@ -99,51 +107,31 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
     ...experiments.map(exp => ({ id: exp.id, name: exp.name }))
   ]
 
-  // Enhanced mock data with more A/B testing specific metrics
-  const performanceData = [
-    { 
-      date: '2024-01-01', 
-      control_visitors: 1200, 
-      control_conversions: 72, 
-      control_rate: 6.0,
-      variant_a_visitors: 1180, 
-      variant_a_conversions: 89, 
-      variant_a_rate: 7.5,
-      variant_b_visitors: 1150, 
-      variant_b_conversions: 94, 
-      variant_b_rate: 8.2,
-      statistical_significance: 85,
-      confidence_interval: 95
-    },
-    { 
-      date: '2024-01-02', 
-      control_visitors: 1350, 
-      control_conversions: 81, 
-      control_rate: 6.0,
-      variant_a_visitors: 1320, 
-      variant_a_conversions: 106, 
-      variant_a_rate: 8.0,
-      variant_b_visitors: 1280, 
-      variant_b_conversions: 115, 
-      variant_b_rate: 9.0,
-      statistical_significance: 92,
-      confidence_interval: 95
-    },
-    { 
-      date: '2024-01-03', 
-      control_visitors: 1100, 
-      control_conversions: 66, 
-      control_rate: 6.0,
-      variant_a_visitors: 1080, 
-      variant_a_conversions: 86, 
-      variant_a_rate: 8.0,
-      variant_b_visitors: 1050, 
-      variant_b_conversions: 95, 
-      variant_b_rate: 9.0,
-      statistical_significance: 96,
-      confidence_interval: 95
+  // Dados de performance baseados apenas em dados reais
+  const [performanceData, setPerformanceData] = useState([])
+  const [experimentMetrics, setExperimentMetrics] = useState<any[]>([])
+  const [deviceData, setDeviceData] = useState<any[]>([])
+  const [funnelData, setFunnelData] = useState<any[]>([])
+
+  // Carregar dados de performance
+  useEffect(() => {
+    const loadPerformanceData = async () => {
+      try {
+        const { getVisitorTrends } = await import('@/lib/analytics')
+        const trends = await getVisitorTrends(timeRange, selectedExperiment !== 'all' ? selectedExperiment : undefined)
+        setPerformanceData(trends)
+      } catch (error) {
+        console.error('Erro ao carregar dados de performance:', error)
+        setPerformanceData([])
+      }
     }
-  ]
+    loadPerformanceData()
+  }, [timeRange, selectedExperiment])
+
+  useEffect(() => {
+    // Sincronizar quando preferências mudam (global)
+    setTimeRange(preferences.defaultTimeRange || '30d')
+  }, [preferences.defaultTimeRange])
 
   // Generate real-time data for experiments
   const experimentSummaryData = experiments.map((exp, index) => {
@@ -169,14 +157,52 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
     }
   })
 
-  const revenueData = [
-    { period: 'Sem 1', control: 12500, variants: 15800, lift: 26.4 },
-    { period: 'Sem 2', control: 13200, variants: 17100, lift: 29.5 },
-    { period: 'Sem 3', control: 11800, variants: 16200, lift: 37.3 },
-    { period: 'Sem 4', control: 14100, variants: 18900, lift: 34.0 }
-  ]
+  // Dados de receita - baseados apenas em métricas reais 
+  const [revenueData, setRevenueData] = useState([])
 
-  const significanceData = experimentSummaryData.slice(0, 4).map(exp => ({
+  // Carregar dados reais de receita
+  useEffect(() => {
+    const loadRevenueData = async () => {
+      try {
+        const { getRevenueData } = await import('@/lib/analytics')
+        const realRevenueData = await getRevenueData(
+          (timeRange as any),
+          selectedExperiment !== 'all' ? selectedExperiment : undefined
+        )
+        setRevenueData(realRevenueData)
+      } catch (error) {
+        console.error('Erro ao carregar dados de receita:', error)
+        setRevenueData([])
+      }
+    }
+    loadRevenueData()
+  }, [timeRange, selectedExperiment])
+
+  // Carregar métricas reais de experimentos e device breakdown
+  useEffect(() => {
+    const loadMore = async () => {
+      try {
+        const { getExperimentMetrics, getDeviceBreakdown, getFunnelData } = await import('@/lib/analytics')
+        const [metrics, devices, funnel] = await Promise.all([
+          getExperimentMetrics(timeRange),
+          getDeviceBreakdown(timeRange === '24h' ? '7d' : (timeRange as any), selectedExperiment !== 'all' ? selectedExperiment : undefined),
+          getFunnelData(timeRange === '24h' ? '7d' : (timeRange as any))
+        ])
+        setExperimentMetrics(metrics)
+        setDeviceData(devices)
+        setFunnelData(funnel)
+      } catch (e) {
+        console.error('Erro ao carregar métricas adicionais:', e)
+        setExperimentMetrics([])
+        setDeviceData([])
+        setFunnelData([])
+      }
+    }
+    loadMore()
+  }, [timeRange])
+
+  const filteredMetrics = selectedExperiment === 'all' ? experimentMetrics : experimentMetrics.filter((m:any) => m.id === selectedExperiment)
+  const significanceData = filteredMetrics.slice(0, 4).map((exp:any) => ({
     experiment: exp.name.length > 12 ? exp.name.substring(0, 12) + '...' : exp.name,
     significance: exp.significance,
     sample_size: exp.visitors
@@ -207,169 +233,252 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
 
   return (
     <div className={cn('space-y-8', className)}>
-      {/* Enhanced Header with Advanced Controls */}
-      <div className="space-y-6">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Relatórios Avançados
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Análise profunda de A/B testing com insights estatísticos
-            </p>
+      {/* Enhanced Header with Modern Design */}
+      <div className="space-y-8">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 dark:from-emerald-950/20 dark:via-blue-950/20 dark:to-purple-950/20 border border-gradient p-8">
+          {/* Background Effects */}
+          <div className="absolute inset-0 opacity-[0.08] pointer-events-none">
+            <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 blur-3xl" />
+            <div className="absolute -left-12 -bottom-12 h-48 w-48 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 blur-2xl" />
           </div>
-          
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Share2 className="h-4 w-4" />
-              Compartilhar
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Download className="h-4 w-4" />
-              Exportar
-            </Button>
-            <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-purple-600 gap-2">
-              <Settings className="h-4 w-4" />
-              Configurar
-            </Button>
+
+          <div className="relative flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center px-4 py-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics Avançado
+              </div>
+              <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
+                Relatórios Inteligentes
+              </h1>
+              <p className="text-muted-foreground text-lg max-w-2xl">
+                Análise profunda de experimentos A/B com insights estatísticos avançados e visualizações interativas
+                {realtime?.isConnected && (
+                  <span className="inline-flex items-center gap-1.5 ml-2 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    Dados em tempo real
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" className="gap-2 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-all duration-300">
+                <Share2 className="h-4 w-4" />
+                Compartilhar
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-300">
+                <Download className="h-4 w-4" />
+                Exportar
+              </Button>
+              <Button size="sm" className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 gap-2">
+                <Settings className="h-4 w-4" />
+                Configurar
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Advanced Filters & Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 rounded-2xl border border-indigo-200 dark:border-indigo-800">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-indigo-900 dark:text-indigo-100">Período</label>
-            <Select value={timeRange} onValueChange={(value) => setTimeRange(value as any)}>
-              <SelectTrigger className="bg-white dark:bg-gray-900">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="24h">Últimas 24h</SelectItem>
-                <SelectItem value="7d">7 dias</SelectItem>
-                <SelectItem value="30d">30 dias</SelectItem>
-                <SelectItem value="90d">90 dias</SelectItem>
-                <SelectItem value="1y">1 ano</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Advanced Filters with Glassmorphism + Device Breakdown */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 rounded-2xl blur-xl" />
+          <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-xl">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Período
+              </label>
+              <Select value={timeRange} onValueChange={(value) => {
+                setTimeRange(value as any)
+                if (value === '7d' || value === '30d' || value === '90d') {
+                  updatePreference('defaultTimeRange', value as any)
+                }
+              }}>
+                <SelectTrigger className="bg-white/70 dark:bg-gray-800/70 border-emerald-200 dark:border-emerald-700 hover:border-emerald-300 dark:hover:border-emerald-600 transition-all duration-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24h">Últimas 24h</SelectItem>
+                  <SelectItem value="7d">7 dias</SelectItem>
+                  <SelectItem value="30d">30 dias</SelectItem>
+                  <SelectItem value="90d">90 dias</SelectItem>
+                  <SelectItem value="1y">1 ano</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-indigo-900 dark:text-indigo-100">Experimento</label>
-            <Select value={selectedExperiment} onValueChange={setSelectedExperiment}>
-              <SelectTrigger className="bg-white dark:bg-gray-900">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {experimentsOptions.map(exp => (
-                  <SelectItem key={exp.id} value={exp.id}>{exp.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                Experimento
+              </label>
+              <Select value={selectedExperiment} onValueChange={setSelectedExperiment}>
+                <SelectTrigger className="bg-white/70 dark:bg-gray-800/70 border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {experimentsOptions.map(exp => (
+                    <SelectItem key={exp.id} value={exp.id}>{exp.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-indigo-900 dark:text-indigo-100">Métrica</label>
-            <Select value={metricType} onValueChange={(value) => setMetricType(value as any)}>
-              <SelectTrigger className="bg-white dark:bg-gray-900">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="conversion">Taxa de Conversão</SelectItem>
-                <SelectItem value="revenue">Receita</SelectItem>
-                <SelectItem value="engagement">Engajamento</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Métrica
+              </label>
+              <Select value={metricType} onValueChange={(value) => setMetricType(value as any)}>
+                <SelectTrigger className="bg-white/70 dark:bg-gray-800/70 border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="conversion">Taxa de Conversão</SelectItem>
+                  <SelectItem value="revenue">Receita</SelectItem>
+                  <SelectItem value="engagement">Engajamento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-indigo-900 dark:text-indigo-100">Visualização</label>
-            <Select value={viewType} onValueChange={(value) => setViewType(value as any)}>
-              <SelectTrigger className="bg-white dark:bg-gray-900">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="overview">Visão Geral</SelectItem>
-                <SelectItem value="detailed">Detalhada</SelectItem>
-                <SelectItem value="comparison">Comparação</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-pink-700 dark:text-pink-300 flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                Visualização
+              </label>
+              <Select value={viewType} onValueChange={(value) => setViewType(value as any)}>
+                <SelectTrigger className="bg-white/70 dark:bg-gray-800/70 border-pink-200 dark:border-pink-700 hover:border-pink-300 dark:hover:border-pink-600 transition-all duration-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="overview">Visão Geral</SelectItem>
+                  <SelectItem value="detailed">Detalhada</SelectItem>
+                  <SelectItem value="comparison">Comparação</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Device Breakdown (period) */}
+            <div className="lg:col-span-2">
+              <Card className="card-glass">
+                <div className="p-4 flex items-center justify-between">
+                  <div className="text-sm font-medium text-muted-foreground">Distribuição por Dispositivo</div>
+                  <div className="text-xs text-muted-foreground">{deviceData.reduce((s:any,d:any)=>s+(d.visitors||0),0).toLocaleString('pt-BR')} visitantes</div>
+                </div>
+                <div className="p-4 h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={deviceData} dataKey="visitors" nameKey="device" outerRadius={80} innerRadius={48} paddingAngle={3}>
+                        {deviceData.map((entry:any, index:number) => (
+                          <Cell key={`cell-${index}`} fill={['#10b981','#3b82f6','#f59e0b','#a855f7'][index % 4]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v:any)=>[v,'Visitantes']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Key Metrics Cards - Real Data */}
+      {/* Key Metrics Cards with Modern Glass Design */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
-          <CardContent className="p-6">
+        {/* Melhoria Média */}
+        <Card className="relative overflow-hidden group hover:scale-105 transition-all duration-300 hover:shadow-2xl border-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-emerald-400/10 to-green-500/20" />
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm" />
+          <CardContent className="relative p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600 dark:text-green-400">Melhoria Média</p>
-                <p className="text-3xl font-bold text-green-800 dark:text-green-200">
-                  +{experimentSummaryData.length > 0 ? 
-                    (experimentSummaryData.reduce((acc, exp) => acc + exp.improvement, 0) / experimentSummaryData.length).toFixed(1) 
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <ArrowUp className="w-4 h-4" />
+                  Melhoria Média
+                </p>
+                <p className="text-3xl font-bold text-emerald-800 dark:text-emerald-200">
+                  +{filteredMetrics.length > 0 ?
+                    (filteredMetrics.reduce((acc: number, exp: any) => acc + (exp.improvement || 0), 0) / filteredMetrics.length).toFixed(1)
                     : '0.0'}%
                 </p>
-                <p className="text-xs text-green-600 dark:text-green-500 mt-1">vs controle</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">vs controle</p>
               </div>
-              <div className="h-12 w-12 bg-green-500 rounded-xl flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-white" />
+              <div className="h-14 w-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-emerald-500/25 transition-all duration-300">
+                <TrendingUp className="h-7 w-7 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
-          <CardContent className="p-6">
+        {/* Significância */}
+        <Card className="relative overflow-hidden group hover:scale-105 transition-all duration-300 hover:shadow-2xl border-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-indigo-500/20" />
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm" />
+          <CardContent className="relative p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Significância</p>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Significância
+                </p>
                 <p className="text-3xl font-bold text-blue-800 dark:text-blue-200">
-                  {experimentSummaryData.length > 0 ? 
-                    (experimentSummaryData.reduce((acc, exp) => acc + exp.significance, 0) / experimentSummaryData.length).toFixed(1) 
+                  {filteredMetrics.length > 0 ?
+                    (filteredMetrics.reduce((acc: number, exp: any) => acc + (exp.significance || 0), 0) / filteredMetrics.length).toFixed(1)
                     : '0.0'}%
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">confiança</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">confiança</p>
               </div>
-              <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center">
-                <Target className="h-6 w-6 text-white" />
+              <div className="h-14 w-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
+                <Target className="h-7 w-7 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30 border-purple-200 dark:border-purple-800">
-          <CardContent className="p-6">
+        {/* Receita Extra */}
+        <Card className="relative overflow-hidden group hover:scale-105 transition-all duration-300 hover:shadow-2xl border-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-purple-400/10 to-pink-500/20" />
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm" />
+          <CardContent className="relative p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Receita Extra</p>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Receita Extra
+                </p>
                 <p className="text-3xl font-bold text-purple-800 dark:text-purple-200">
-                  R$ {experimentSummaryData.length > 0 ? 
-                    (experimentSummaryData.reduce((acc, exp) => acc + exp.revenue_impact, 0) / 1000).toFixed(0) 
+                  R$ {revenueData.length > 0 ?
+                    (revenueData.reduce((sum: number, r: any) => sum + ((r.control||0) + (r.variants||0)), 0) / 1000).toFixed(0)
                     : '0'}k
                 </p>
-                <p className="text-xs text-purple-600 dark:text-purple-500 mt-1">este mês</p>
+                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">este mês</p>
               </div>
-              <div className="h-12 w-12 bg-purple-500 rounded-xl flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-white" />
+              <div className="h-14 w-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-purple-500/25 transition-all duration-300">
+                <DollarSign className="h-7 w-7 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border-orange-200 dark:border-orange-800">
-          <CardContent className="p-6">
+        {/* Visitantes */}
+        <Card className="relative overflow-hidden group hover:scale-105 transition-all duration-300 hover:shadow-2xl border-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-orange-400/10 to-amber-500/20" />
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm" />
+          <CardContent className="relative p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Visitantes</p>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Visitantes
+                </p>
                 <p className="text-3xl font-bold text-orange-800 dark:text-orange-200">
-                  {stats?.totalVisitors ? 
-                    (stats.totalVisitors / 1000).toFixed(1) + 'k' 
+                  {stats?.totalVisitors ?
+                    (stats.totalVisitors / 1000).toFixed(1) + 'k'
                     : (experimentSummaryData.reduce((acc, exp) => acc + exp.visitors, 0) / 1000).toFixed(1) + 'k'}
                 </p>
-                <p className="text-xs text-orange-600 dark:text-orange-500 mt-1">testados</p>
+                <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">testados</p>
               </div>
-              <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center">
-                <Users className="h-6 w-6 text-white" />
+              <div className="h-14 w-14 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-orange-500/25 transition-all duration-300">
+                <Users className="h-7 w-7 text-white" />
               </div>
             </div>
           </CardContent>
@@ -378,40 +487,46 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
 
       {/* Main Analytics Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Performance Comparison Chart */}
-        <Card className="xl:col-span-2 bg-white dark:bg-gray-900 shadow-2xl border-0">
-          <CardHeader className="pb-4">
+        {/* Performance Comparison Chart with Modern Design */}
+        <Card className="xl:col-span-2 relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-blue-500/5 to-purple-500/5" />
+          <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm" />
+
+          <CardHeader className="relative pb-4">
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-bold flex items-center gap-3">
-                  <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                    <BarChart3 className="h-5 w-5 text-white" />
+              <div className="space-y-2">
+                <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                  <div className="h-12 w-12 bg-gradient-to-br from-emerald-500 via-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
+                    <BarChart3 className="h-6 w-6 text-white" />
                   </div>
-                  Taxa de Conversão por Variante
+                  <span className="bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Taxa de Conversão por Variante
+                  </span>
                 </CardTitle>
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-muted-foreground text-base">
                   Comparação em tempo real: Controle vs Variantes A e B
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                  <ArrowUp className="h-3 w-3 mr-1" />
+              <div className="flex items-center gap-3">
+                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700 px-3 py-1">
+                  <ArrowUp className="h-4 w-4 mr-1" />
                   +31.5% lift
                 </Badge>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="hover:bg-emerald-100 hover:text-emerald-700 transition-all duration-200">
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+
+          <CardContent className="relative">
             <div className="h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={performanceData}>
                   <defs>
                     <linearGradient id="controlGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6b7280" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#6b7280" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#64748b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#64748b" stopOpacity={0.1}/>
                     </linearGradient>
                     <linearGradient id="variantAGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -422,17 +537,17 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="hsl(var(--muted-foreground))" 
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" stroke="#e2e8f0" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#64748b"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                   />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))" 
+                  <YAxis
+                    stroke="#64748b"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
@@ -440,28 +555,28 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Area 
-                    type="monotone" 
-                    dataKey="control_rate" 
-                    stroke="#6b7280" 
+                  <Area
+                    type="monotone"
+                    dataKey="control_rate"
+                    stroke="#64748b"
                     fillOpacity={1}
                     fill="url(#controlGradient)"
                     strokeWidth={3}
                     name="Controle"
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="variant_a_rate" 
-                    stroke="#3b82f6" 
+                  <Area
+                    type="monotone"
+                    dataKey="variant_a_rate"
+                    stroke="#3b82f6"
                     fillOpacity={1}
                     fill="url(#variantAGradient)"
                     strokeWidth={3}
                     name="Variante A"
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="variant_b_rate" 
-                    stroke="#10b981" 
+                  <Area
+                    type="monotone"
+                    dataKey="variant_b_rate"
+                    stroke="#10b981"
                     fillOpacity={1}
                     fill="url(#variantBGradient)"
                     strokeWidth={3}
@@ -473,48 +588,74 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
           </CardContent>
         </Card>
 
-        {/* Statistical Significance */}
-        <Card className="bg-white dark:bg-gray-900 shadow-2xl border-0">
-          <CardHeader>
+        {/* Statistical Significance with Enhanced Design */}
+        <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/5 to-rose-500/5" />
+          <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm" />
+
+          <CardHeader className="relative">
             <CardTitle className="text-xl font-bold flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                <Target className="h-5 w-5 text-white" />
+              <div className="h-12 w-12 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <Target className="h-6 w-6 text-white" />
               </div>
-              Significância Estatística
+              <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent">
+                Significância Estatística
+              </span>
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Confiabilidade dos resultados
+            <p className="text-muted-foreground">
+              Confiabilidade dos resultados em tempo real
             </p>
           </CardHeader>
-          <CardContent>
+
+          <CardContent className="relative">
             <div className="space-y-6">
               {significanceData.map((item, index) => (
-                <div key={index} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{item.experiment}</span>
+                <div key={index} className="group/item hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-pink-50/50 dark:hover:from-purple-950/20 dark:hover:to-pink-950/20 p-3 rounded-xl transition-all duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {item.experiment}
+                    </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold">{item.significance}%</span>
+                      <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        {item.significance}%
+                      </span>
                       {item.significance >= 95 ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-5 w-5 text-emerald-500" />
                       ) : item.significance >= 85 ? (
-                        <Clock className="h-4 w-4 text-yellow-500" />
+                        <Clock className="h-5 w-5 text-amber-500" />
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
                       )}
                     </div>
                   </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-500 ${
-                        item.significance >= 95 ? 'bg-green-500' :
-                        item.significance >= 85 ? 'bg-yellow-500' : 'bg-red-500'
+
+                  <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                    <div
+                      className={`h-3 rounded-full transition-all duration-1000 ease-out relative overflow-hidden ${
+                        item.significance >= 95 ? 'bg-gradient-to-r from-emerald-500 to-green-500' :
+                        item.significance >= 85 ? 'bg-gradient-to-r from-amber-500 to-yellow-500' :
+                        'bg-gradient-to-r from-red-500 to-rose-500'
                       }`}
                       style={{ width: `${item.significance}%` }}
-                    />
+                    >
+                      <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {item.sample_size.toLocaleString()} amostras
-                  </p>
+
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {item.sample_size.toLocaleString('pt-BR')} amostras
+                    </p>
+                    <p className="text-xs font-semibold">
+                      {item.significance >= 95 ? (
+                        <span className="text-emerald-600">✓ Confiável</span>
+                      ) : item.significance >= 85 ? (
+                        <span className="text-amber-600">⌛ Aguardando</span>
+                      ) : (
+                        <span className="text-red-600">⚠ Insuficiente</span>
+                      )}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -522,27 +663,32 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
         </Card>
       </div>
 
-      {/* Experiment Summary Table */}
-      <Card className="bg-white dark:bg-gray-900 shadow-2xl border-0">
-        <CardHeader>
+      {/* Experiment Summary Table with Modern Design (real metrics) */}
+      <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-cyan-500/5" />
+        <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm" />
+
+        <CardHeader className="relative">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-bold flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                <Activity className="h-5 w-5 text-white" />
+            <CardTitle className="text-2xl font-bold flex items-center gap-3">
+              <div className="h-12 w-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <Activity className="h-6 w-6 text-white" />
               </div>
-              Resumo dos Experimentos
+              <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                Resumo dos Experimentos
+              </span>
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                <Input 
+                <Input
                   placeholder="Buscar experimentos..."
                   value={filterSearch}
                   onChange={(e) => setFilterSearch(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-10 w-64 bg-white/70 dark:bg-gray-800/70 border-emerald-200 dark:border-emerald-700 focus:border-emerald-400 dark:focus:border-emerald-500 transition-all duration-200"
                 />
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-all duration-200">
                 <Filter className="h-4 w-4 mr-2" />
                 Filtrar
               </Button>
@@ -556,16 +702,15 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="text-left py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Experimento</th>
                   <th className="text-left py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Status</th>
-                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Controle</th>
-                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Melhor Variante</th>
+                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Taxa Conv.</th>
                   <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Melhoria</th>
                   <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Significância</th>
                   <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Visitantes</th>
-                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Receita</th>
+                  <th className="text-right py-4 px-2 font-semibold text-gray-600 dark:text-gray-300">Conversões</th>
                 </tr>
               </thead>
               <tbody>
-                {experimentSummaryData.map((exp, index) => (
+                {experimentMetrics.map((exp: any, index: number) => (
                   <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="py-4 px-2">
                       <div className="flex items-center gap-3">
@@ -574,27 +719,22 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                       </div>
                     </td>
                     <td className="py-4 px-2">
-                      <Badge 
-                        variant={exp.status === 'running' ? 'default' : exp.status === 'completed' ? 'secondary' : 'outline'}
-                        className={
-                          exp.status === 'running' ? 'bg-green-100 text-green-800 border-green-200' :
-                          exp.status === 'completed' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                          'bg-yellow-100 text-yellow-800 border-yellow-200'
-                        }
-                      >
+                      <Badge className={
+                        exp.status === 'running' ? 'bg-success text-success-foreground' :
+                        exp.status === 'completed' ? 'bg-info text-info-foreground' : 'bg-warning text-warning-foreground'
+                      }>
                         {exp.status === 'running' ? 'Ativo' : exp.status === 'completed' ? 'Concluído' : 'Pausado'}
                       </Badge>
                     </td>
-                    <td className="py-4 px-2 text-right font-medium">{exp.control_rate}%</td>
-                    <td className="py-4 px-2 text-right font-medium">{exp.best_variant_rate}%</td>
+                    <td className="py-4 px-2 text-right font-medium">{(exp.conversionRate || 0).toFixed(2)}%</td>
                     <td className="py-4 px-2 text-right">
                       <span className={`font-bold ${exp.improvement > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {exp.improvement > 0 ? '+' : ''}{exp.improvement}%
+                        {exp.improvement > 0 ? '+' : ''}{exp.improvement?.toFixed(1)}%
                       </span>
                     </td>
                     <td className="py-4 px-2 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <span className="font-medium">{exp.significance}%</span>
+                        <span className="font-medium">{(exp.significance || 0).toFixed(1)}%</span>
                         {exp.significance >= 95 ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         ) : exp.significance >= 85 ? (
@@ -604,75 +744,177 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-2 text-right font-medium">{exp.visitors.toLocaleString()}</td>
-                    <td className="py-4 px-2 text-right">
-                      <span className="font-bold text-green-600">
-                        R$ {(exp.revenue_impact / 1000).toFixed(0)}k
-                      </span>
-                    </td>
+                    <td className="py-4 px-2 text-right font-medium">{(exp.visitors || 0).toLocaleString()}</td>
+                    <td className="py-4 px-2 text-right font-medium">{(exp.conversions || 0).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+                try {
+                  const rows = experimentMetrics.map((e:any) => ({ name: e.name, status: e.status, conversionRate: e.conversionRate, improvement: e.improvement, significance: e.significance, visitors: e.visitors, conversions: e.conversions }))
+                  const header = 'name,status,conversionRate,improvement,significance,visitors,conversions\n'
+                  const csv = header + rows.map((r:any) => [r.name, r.status, r.conversionRate, r.improvement, r.significance, r.visitors, r.conversions].join(',')).join('\n')
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = 'experiment_metrics.csv'
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch (e) { console.error('CSV export error', e) }
+              }}>
+                <Download className="h-4 w-4" /> Exportar CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Revenue Impact Chart */}
-      <Card className="bg-white dark:bg-gray-900 shadow-2xl border-0">
-        <CardHeader>
-          <CardTitle className="text-xl font-bold flex items-center gap-3">
-            <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-white" />
+      {/* Top Experimentos por Uplift + Funil de Eventos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Uplift */}
+        <Card className="relative overflow-hidden group card-glass">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChartIcon className="h-5 w-5" /> Top Experimentos por Uplift
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[...experimentMetrics].sort((a:any,b:any)=> (b.improvement||0)-(a.improvement||0)).slice(0,6)} layout="vertical" margin={{ left: 16, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" tickFormatter={(v)=>`${v}%`} />
+                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" width={140} tickFormatter={(v)=> String(v).slice(0,24) + (String(v).length>24?'…':'')} />
+                  <Tooltip formatter={(v)=>[`${Number(v).toFixed(1)}%`,'Uplift']} />
+                  <Bar dataKey="improvement" fill="hsl(var(--success))" radius={[0,6,6,0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            Impacto na Receita
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Receita adicional gerada pelos experimentos
-          </p>
+          </CardContent>
+        </Card>
+
+        {/* Funil de Eventos */}
+        <Card className="relative overflow-hidden group card-glass">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LineChartIcon className="h-5 w-5" /> Funil de Eventos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={funnelData.map((f:any)=>({
+                  stage: f.stage === 'page_view' ? 'Visualizações' : f.stage === 'click' ? 'Cliques' : 'Conversões',
+                  eventos: f.events,
+                  visitantes: f.visitors
+                }))}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="stage" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v)=> v >= 1000 ? `${(v/1000).toFixed(1)}k` : v} />
+                  <Tooltip />
+                  <Bar dataKey="eventos" name="Eventos" fill="hsl(var(--primary))" radius={[6,6,0,0]} />
+                  <Bar dataKey="visitantes" name="Visitantes" fill="hsl(var(--info))" radius={[6,6,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Revenue Impact Chart with Enhanced Design */}
+      <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-teal-500/5" />
+        <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm" />
+
+        <CardHeader className="relative">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                <div className="h-12 w-12 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
+                <span className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  Impacto na Receita
+                </span>
+              </CardTitle>
+              <p className="text-muted-foreground">
+                Receita adicional gerada pelos experimentos otimizados
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+              try {
+                const rows = revenueData.map((r:any) => ({ period: r.period, control: r.control, variants: r.variants, lift: r.lift }))
+                const header = 'period,control,variants,lift\n'
+                const csv = header + rows.map((r:any) => [r.period, r.control, r.variants, r.lift].join(',')).join('\n')
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'revenue_data.csv'
+                a.click()
+                URL.revokeObjectURL(url)
+              } catch (e) { console.error('CSV export error', e) }
+            }}>
+              <Download className="h-4 w-4" /> Exportar CSV
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="relative">
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                <XAxis 
-                  dataKey="period" 
-                  stroke="hsl(var(--muted-foreground))" 
+                <defs>
+                  <linearGradient id="controlBarGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.25}/>
+                  </linearGradient>
+                  <linearGradient id="variantsBarGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.45}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="opacity-40" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="period"
+                  stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                 />
-                <YAxis 
+                <YAxis
                   yAxisId="revenue"
-                  stroke="hsl(var(--muted-foreground))" 
+                  stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
                 />
-                <YAxis 
+                <YAxis
                   yAxisId="lift"
                   orientation="right"
-                  stroke="hsl(var(--muted-foreground))" 
+                  stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(value) => `${value}%`}
                 />
-                <Tooltip 
+                <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="rounded-xl border bg-white dark:bg-gray-900 p-4 shadow-2xl">
-                          <p className="font-semibold mb-2">{label}</p>
+                        <div className="rounded-xl border bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-4 shadow-2xl border-green-200 dark:border-green-800">
+                          <p className="font-semibold mb-3 text-green-800 dark:text-green-200">{label}</p>
                           {payload.map((item: any, index: number) => (
-                            <div key={index} className="flex items-center justify-between gap-4 text-sm">
-                              <span style={{ color: item.color }} className="flex items-center gap-2">
+                            <div key={index} className="flex items-center justify-between gap-4 text-sm mb-1">
+                              <span style={{ color: item.color }} className="flex items-center gap-2 font-medium">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                                 {item.name}
                               </span>
-                              <span className="font-medium">
+                              <span className="font-bold">
                                 {item.name === 'Lift' ? `${item.value}%` : `R$ ${(item.value / 1000).toFixed(1)}k`}
                               </span>
                             </div>
@@ -683,9 +925,9 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
                     return null
                   }}
                 />
-                <Bar yAxisId="revenue" dataKey="control" fill="#6b7280" name="Controle" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="revenue" dataKey="variants" fill="#10b981" name="Variantes" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="lift" type="monotone" dataKey="lift" stroke="#f59e0b" strokeWidth={3} name="Lift" dot={{ fill: '#f59e0b', r: 6 }} />
+                <Bar yAxisId="revenue" dataKey="control" fill="url(#controlBarGradient)" name="Controle" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="revenue" dataKey="variants" fill="url(#variantsBarGradient)" name="Variantes" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="lift" type="monotone" dataKey="lift" stroke="hsl(var(--warning))" strokeWidth={4} name="Lift" dot={{ fill: 'hsl(var(--warning))', r: 8, strokeWidth: 2, stroke: 'hsl(var(--card))' }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RotaFinal - Exemplo Super Simples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .experiment {
+            margin: 40px 0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .control { background: #e3f2fd; }
+        .variant-a { background: #e8f5e8; }
+        .variant-b { background: #ffeaa7; }
+        .hidden { display: none; }
+        .button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🚀 RotaFinal - Teste A/B Simples</h1>
+    <p>Agora sem necessidade de chave de API!</p>
+
+    <!-- Experimentos serão mostrados aqui -->
+    <div id="experiment-container">
+        <div class="experiment control hidden" data-variant="control">
+            <h2>📊 Versão Original</h2>
+            <p>Esta é a versão de controle do experimento.</p>
+            <button class="button" onclick="trackConversion('button_click')">Clique Aqui</button>
+        </div>
+
+        <div class="experiment variant-a hidden" data-variant="a">
+            <h2>🎯 Versão A</h2>
+            <p>Esta é a variante A com mensagem diferente!</p>
+            <button class="button" onclick="trackConversion('button_click')">Teste Agora!</button>
+        </div>
+
+        <div class="experiment variant-b hidden" data-variant="b">
+            <h2>⚡ Versão B</h2>
+            <p>Esta é a variante B com call-to-action urgente!</p>
+            <button class="button" onclick="trackConversion('button_click')">Compre Hoje!</button>
+        </div>
+    </div>
+
+    <div style="margin-top: 40px;">
+        <button class="button" onclick="getMetrics()" style="background: #28a745;">Ver Métricas</button>
+    </div>
+
+    <!-- RotaFinal SDK -->
+    <script src="/rotafinal-sdk.js"></script>
+    
+    <script>
+        // 1. Inicializar RotaFinal (ZERO configuração!)
+        const rf = new RotaFinal({
+            debug: true
+        });
+
+        // 2. Executar experimento
+        async function runExperiment() {
+            try {
+                console.log('🧪 Iniciando experimento...');
+                
+                // Obter variante do experimento
+                const variant = await rf.getVariant('teste correto');
+                
+                console.log('✅ Variante atribuída:', variant);
+                
+                // Mostrar a variante correspondente
+                const variantElement = document.querySelector(`[data-variant="${variant}"]`);
+                if (variantElement) {
+                    variantElement.classList.remove('hidden');
+                } else {
+                    // Fallback para controle
+                    document.querySelector('[data-variant="control"]').classList.remove('hidden');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro no experimento:', error);
+                // Mostrar versão de controle em caso de erro
+                document.querySelector('[data-variant="control"]').classList.remove('hidden');
+            }
+        }
+
+        // 3. Rastrear conversões
+        function trackConversion(eventName) {
+            rf.conversion(eventName, 1, {
+                page: 'exemplo-simples',
+                experiment: 'teste correto'
+            });
+            
+            alert('🎉 Conversão registrada: ' + eventName);
+        }
+
+        // 4. Ver métricas
+        async function getMetrics() {
+            console.log('📊 Buscando métricas...');
+            const metrics = await rf.getMetrics('teste correto');
+            
+            if (metrics) {
+                console.log('📈 Métricas:', metrics);
+                alert('📊 Métricas carregadas! Veja o console do navegador.');
+            } else {
+                alert('❌ Erro ao carregar métricas. Verifique o console.');
+            }
+        }
+
+        // 5. Executar quando a página carregar
+        document.addEventListener('DOMContentLoaded', runExperiment);
+    </script>
+</body>
+</html>

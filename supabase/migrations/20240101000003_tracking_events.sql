@@ -9,7 +9,7 @@
 -- TABELA: assignments
 -- ===================================================
 -- Armazena atribuições de visitantes para variantes
-CREATE TABLE assignments (
+CREATE TABLE IF NOT EXISTS assignments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     experiment_id UUID NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
     variant_id UUID NOT NULL REFERENCES variants(id) ON DELETE CASCADE,
@@ -22,17 +22,17 @@ CREATE TABLE assignments (
 );
 
 -- Índices para performance
-CREATE INDEX idx_assignments_experiment_id ON assignments(experiment_id);
-CREATE INDEX idx_assignments_variant_id ON assignments(variant_id);
-CREATE INDEX idx_assignments_visitor_id ON assignments(visitor_id);
-CREATE INDEX idx_assignments_created_at ON assignments(created_at);
-CREATE INDEX idx_assignments_context ON assignments USING gin(context);
+CREATE INDEX IF NOT EXISTS idx_assignments_experiment_id ON assignments(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_variant_id ON assignments(variant_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_visitor_id ON assignments(visitor_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_created_at ON assignments(created_at);
+CREATE INDEX IF NOT EXISTS idx_assignments_context ON assignments USING gin(context);
 
 -- ===================================================
 -- TABELA: events (PARTICIONADA POR DATA)
 -- ===================================================
 -- Armazena eventos de tracking com particionamento para performance
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id UUID DEFAULT uuid_generate_v4(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     experiment_id UUID REFERENCES experiments(id) ON DELETE SET NULL,
@@ -47,13 +47,13 @@ CREATE TABLE events (
 ) PARTITION BY RANGE (created_at);
 
 -- Índices para a tabela principal de eventos
-CREATE INDEX idx_events_project_id ON events(project_id, created_at);
-CREATE INDEX idx_events_experiment_id ON events(experiment_id, created_at) WHERE experiment_id IS NOT NULL;
-CREATE INDEX idx_events_visitor_id ON events(visitor_id, created_at);
-CREATE INDEX idx_events_event_type ON events(event_type, created_at);
-CREATE INDEX idx_events_event_name ON events(event_name, created_at);
-CREATE INDEX idx_events_properties ON events USING gin(properties);
-CREATE INDEX idx_events_value ON events(value, created_at) WHERE value IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_events_project_id ON events(project_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_experiment_id ON events(experiment_id, created_at) WHERE experiment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_events_visitor_id ON events(visitor_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_event_name ON events(event_name, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_properties ON events USING gin(properties);
+CREATE INDEX IF NOT EXISTS idx_events_value ON events(value, created_at) WHERE value IS NOT NULL;
 
 -- Função para criar partições mensais automaticamente
 CREATE OR REPLACE FUNCTION create_monthly_partition(table_name TEXT, start_date DATE)
@@ -61,7 +61,55 @@ RETURNS VOID AS $$
 DECLARE
     partition_name TEXT;
     end_date DATE;
+    is_partitioned BOOLEAN;
 BEGIN
+    -- Verificar se a tabela está particionada
+    SELECT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_inherits i ON c.oid = i.inhparent
+        WHERE c.relname = table_name
+    ) INTO is_partitioned;
+    
+    -- Se não estiver particionada, tentar alterar a estrutura
+    IF NOT is_partitioned THEN
+        -- Para a tabela events, precisamos convertê-la para particionada
+        IF table_name = 'events' THEN
+            -- Criar uma nova tabela particionada temporária
+            EXECUTE format(
+                'CREATE TABLE %I_temp (
+                    id UUID DEFAULT uuid_generate_v4(),
+                    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    experiment_id UUID REFERENCES experiments(id) ON DELETE SET NULL,
+                    visitor_id TEXT NOT NULL CHECK (length(trim(visitor_id)) > 0),
+                    event_type TEXT NOT NULL CHECK (length(trim(event_type)) > 0),
+                    event_name TEXT NOT NULL CHECK (length(trim(event_name)) > 0),
+                    properties JSONB NOT NULL DEFAULT ''{}'',
+                    value NUMERIC,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    PRIMARY KEY (id, created_at)
+                ) PARTITION BY RANGE (created_at)',
+                table_name
+            );
+            
+            -- Copiar dados da tabela original para a nova
+            EXECUTE format('INSERT INTO %I_temp SELECT * FROM %I', table_name, table_name);
+            
+            -- Remover a tabela original e renomear a nova
+            EXECUTE format('DROP TABLE %I', table_name);
+            EXECUTE format('ALTER TABLE %I_temp RENAME TO %I', table_name, table_name);
+            
+            -- Recriar os índices
+            EXECUTE format('CREATE INDEX IF NOT EXISTS idx_events_project_id ON %I(project_id, created_at)', table_name);
+            EXECUTE format('CREATE INDEX IF NOT EXISTS idx_events_experiment_id ON %I(experiment_id, created_at) WHERE experiment_id IS NOT NULL', table_name);
+            EXECUTE format('CREATE INDEX IF NOT EXISTS idx_events_visitor_id ON %I(visitor_id, created_at)', table_name);
+            EXECUTE format('CREATE INDEX IF NOT EXISTS idx_events_event_type ON %I(event_type, created_at)', table_name);
+            EXECUTE format('CREATE INDEX IF NOT EXISTS idx_events_event_name ON %I(event_name, created_at)', table_name);
+            EXECUTE format('CREATE INDEX IF NOT EXISTS idx_events_properties ON %I USING gin(properties)', table_name);
+            EXECUTE format('CREATE INDEX IF NOT EXISTS idx_events_value ON %I(value, created_at) WHERE value IS NOT NULL', table_name);
+        END IF;
+    END IF;
+    
+    -- Agora criar a partição
     partition_name := table_name || '_' || to_char(start_date, 'YYYY_MM');
     end_date := start_date + INTERVAL '1 month';
     
@@ -84,11 +132,11 @@ $$ LANGUAGE plpgsql;
 -- Criar partições para os próximos 12 meses
 DO $$
 DECLARE
-    start_date DATE := date_trunc('month', CURRENT_DATE);
+    start_date DATE := date_trunc('month', CURRENT_DATE)::DATE;
     i INTEGER;
 BEGIN
     FOR i IN 0..11 LOOP
-        PERFORM create_monthly_partition('events', start_date + (i || ' months')::INTERVAL);
+        PERFORM create_monthly_partition('events', (start_date + (i || ' months')::INTERVAL)::DATE);
     END LOOP;
 END $$;
 
@@ -96,7 +144,7 @@ END $$;
 -- TABELA: metrics_snapshots
 -- ===================================================
 -- Armazena snapshots de métricas para performance
-CREATE TABLE metrics_snapshots (
+CREATE TABLE IF NOT EXISTS metrics_snapshots (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     experiment_id UUID NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
     variant_id UUID REFERENCES variants(id) ON DELETE CASCADE,
@@ -112,17 +160,28 @@ CREATE TABLE metrics_snapshots (
 );
 
 -- Índices para performance
-CREATE INDEX idx_metrics_snapshots_experiment_id ON metrics_snapshots(experiment_id);
-CREATE INDEX idx_metrics_snapshots_variant_id ON metrics_snapshots(variant_id);
-CREATE INDEX idx_metrics_snapshots_metric_type ON metrics_snapshots(metric_type);
-CREATE INDEX idx_metrics_snapshots_computed_at ON metrics_snapshots(computed_at);
-CREATE INDEX idx_metrics_snapshots_valid_until ON metrics_snapshots(valid_until);
+CREATE INDEX IF NOT EXISTS idx_metrics_snapshots_experiment_id ON metrics_snapshots(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_snapshots_variant_id ON metrics_snapshots(variant_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_snapshots_metric_type ON metrics_snapshots(metric_type);
+CREATE INDEX IF NOT EXISTS idx_metrics_snapshots_computed_at ON metrics_snapshots(computed_at);
+
+-- Criar índice na coluna valid_until apenas se ela existir
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'metrics_snapshots' 
+        AND column_name = 'valid_until'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_metrics_snapshots_valid_until ON metrics_snapshots(valid_until);
+    END IF;
+END $$;
 
 -- ===================================================
 -- TABELA: visitor_sessions
 -- ===================================================
 -- Armazena sessões de visitantes para análise de comportamento
-CREATE TABLE visitor_sessions (
+CREATE TABLE IF NOT EXISTS visitor_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     visitor_id TEXT NOT NULL CHECK (length(trim(visitor_id)) > 0),
@@ -153,12 +212,12 @@ CREATE TABLE visitor_sessions (
 );
 
 -- Índices para performance
-CREATE INDEX idx_visitor_sessions_project_id ON visitor_sessions(project_id);
-CREATE INDEX idx_visitor_sessions_visitor_id ON visitor_sessions(visitor_id);
-CREATE INDEX idx_visitor_sessions_started_at ON visitor_sessions(started_at);
-CREATE INDEX idx_visitor_sessions_country_code ON visitor_sessions(country_code);
-CREATE INDEX idx_visitor_sessions_device_type ON visitor_sessions(device_type);
-CREATE INDEX idx_visitor_sessions_utm ON visitor_sessions(utm_source, utm_medium, utm_campaign);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_project_id ON visitor_sessions(project_id);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_visitor_id ON visitor_sessions(visitor_id);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_started_at ON visitor_sessions(started_at);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_country_code ON visitor_sessions(country_code);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_device_type ON visitor_sessions(device_type);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_utm ON visitor_sessions(utm_source, utm_medium, utm_campaign);
 
 -- ===================================================
 -- FUNÇÕES DE AGREGAÇÃO E ANÁLISE
@@ -305,24 +364,40 @@ $$ LANGUAGE plpgsql;
 -- Função para invalidar cache de métricas
 CREATE OR REPLACE FUNCTION invalidate_metrics_cache()
 RETURNS TRIGGER AS $$
+DECLARE
+    column_exists BOOLEAN;
 BEGIN
+    -- Verificar se a coluna valid_until existe
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'metrics_snapshots' 
+        AND column_name = 'valid_until'
+    ) INTO column_exists;
+    
     -- Remove snapshots antigos para forçar recálculo
-    DELETE FROM metrics_snapshots 
-    WHERE experiment_id = COALESCE(NEW.experiment_id, OLD.experiment_id)
-    AND computed_at < (now() - INTERVAL '5 minutes');
+    IF column_exists THEN
+        DELETE FROM metrics_snapshots 
+        WHERE experiment_id = COALESCE(NEW.experiment_id, OLD.experiment_id)
+        AND valid_until < now();
+    ELSE
+        DELETE FROM metrics_snapshots 
+        WHERE experiment_id = COALESCE(NEW.experiment_id, OLD.experiment_id)
+        AND computed_at < (now() - INTERVAL '5 minutes');
+    END IF;
     
     RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger para invalidar cache quando eventos são inseridos
+DROP TRIGGER IF EXISTS tr_events_invalidate_cache ON events;
 CREATE TRIGGER tr_events_invalidate_cache
     AFTER INSERT OR UPDATE OR DELETE ON events
     FOR EACH ROW
-    WHEN (NEW.experiment_id IS NOT NULL OR OLD.experiment_id IS NOT NULL)
     EXECUTE FUNCTION invalidate_metrics_cache();
 
 -- Trigger para invalidar cache quando atribuições mudam
+DROP TRIGGER IF EXISTS tr_assignments_invalidate_cache ON assignments;
 CREATE TRIGGER tr_assignments_invalidate_cache
     AFTER INSERT OR UPDATE OR DELETE ON assignments
     FOR EACH ROW
@@ -339,6 +414,7 @@ ALTER TABLE metrics_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE visitor_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para assignments
+DROP POLICY IF EXISTS "API pode ler/escrever atribuições" ON assignments;
 CREATE POLICY "API pode ler/escrever atribuições" ON assignments
     FOR ALL USING (
         EXISTS (
@@ -360,6 +436,7 @@ CREATE POLICY "API pode ler/escrever atribuições" ON assignments
     );
 
 -- Políticas para events
+DROP POLICY IF EXISTS "API pode ler/escrever eventos" ON events;
 CREATE POLICY "API pode ler/escrever eventos" ON events
     FOR ALL USING (
         EXISTS (
@@ -380,6 +457,7 @@ CREATE POLICY "API pode ler/escrever eventos" ON events
     );
 
 -- Políticas para metrics_snapshots (somente leitura para membros)
+DROP POLICY IF EXISTS "Membros podem ver métricas de suas organizações" ON metrics_snapshots;
 CREATE POLICY "Membros podem ver métricas de suas organizações" ON metrics_snapshots
     FOR SELECT USING (
         EXISTS (
@@ -392,13 +470,16 @@ CREATE POLICY "Membros podem ver métricas de suas organizações" ON metrics_sn
     );
 
 -- Sistema pode escrever métricas
+DROP POLICY IF EXISTS "Sistema pode escrever métricas" ON metrics_snapshots;
 CREATE POLICY "Sistema pode escrever métricas" ON metrics_snapshots
     FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Sistema pode atualizar métricas" ON metrics_snapshots;
 CREATE POLICY "Sistema pode atualizar métricas" ON metrics_snapshots
     FOR UPDATE USING (true);
 
 -- Políticas para visitor_sessions
+DROP POLICY IF EXISTS "API pode gerenciar sessões" ON visitor_sessions;
 CREATE POLICY "API pode gerenciar sessões" ON visitor_sessions
     FOR ALL USING (
         EXISTS (
@@ -427,4 +508,14 @@ COMMENT ON TABLE visitor_sessions IS 'Sessões de visitantes com dados demográf
 COMMENT ON COLUMN events.properties IS 'Propriedades customizadas do evento em JSON';
 COMMENT ON COLUMN events.value IS 'Valor numérico do evento (receita, tempo, etc)';
 COMMENT ON COLUMN assignments.context IS 'Contexto da atribuição (browser, localização, etc)';
-COMMENT ON COLUMN metrics_snapshots.confidence_interval IS 'Intervalo de confiança das métricas';
+-- Comentário sobre a coluna confidence_interval (apenas se ela existir)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'metrics_snapshots' 
+        AND column_name = 'confidence_interval'
+    ) THEN
+        COMMENT ON COLUMN metrics_snapshots.confidence_interval IS 'Intervalo de confiança das métricas';
+    END IF;
+END $$;

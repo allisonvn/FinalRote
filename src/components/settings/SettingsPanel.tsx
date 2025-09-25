@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { Sun, Moon, Shield, Bell, KeyRound, Globe2, User2, Copy, RefreshCw } from 'lucide-react'
+import { Sun, Moon, Shield, Bell, KeyRound, Globe2, User2 } from 'lucide-react'
 
 interface SettingsPanelProps { className?: string }
 
@@ -18,7 +18,6 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
   const [idioma, setIdioma] = useState<'pt-BR'>('pt-BR')
   const [notifEmail, setNotifEmail] = useState(true)
   const [notifSistema, setNotifSistema] = useState(true)
-  const [apiKey, setApiKey] = useState('rf_live_' + Math.random().toString(36).slice(2, 10))
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
@@ -51,8 +50,6 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
     } finally { setSalvando(false) }
   }
 
-  const copiarChave = async () => { try { await navigator.clipboard.writeText(apiKey); toast.success('Chave copiada') } catch { toast.error('Falha ao copiar') } }
-  const regenerarChave = () => { const nova = 'rf_live_' + Math.random().toString(36).slice(2, 12); setApiKey(nova); toast.success('Nova chave gerada') }
 
   return (
     <div className={className}>
@@ -152,18 +149,16 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
 
             <Card className="card-glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><KeyRound className="w-4 h-4" /> Integrações & API</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Bell className="w-4 h-4" /> Notificações</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium">Chave de API</label>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Input value={apiKey} readOnly className="font-mono" />
-                    <Button variant="outline" onClick={copiarChave}><Copy className="w-4 h-4 mr-1" /> Copiar</Button>
-                    <Button variant="outline" onClick={regenerarChave}><RefreshCw className="w-4 h-4 mr-1" /> Regenerar</Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Guarde sua chave com segurança. Ela permite acesso aos recursos da API.</p>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                  <KeyRound className="w-4 h-4" />
+                  <span className="font-medium">Integração Automática Ativa!</span>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  ✨ Nenhuma chave API necessária. O sistema cuida de tudo automaticamente para você.
+                </p>
                 <div className="pt-2 border-t">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Bell className="w-4 h-4" />

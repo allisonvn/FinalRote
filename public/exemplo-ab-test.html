@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo A/B Test - Rota Final</title>
+
+    <!-- CSS base -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #718096;
+        }
+
+        .hero-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 15px;
+            padding: 40px;
+            margin: 30px 0;
+            color: white;
+        }
+
+        .hero-section h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .hero-section p {
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+            opacity: 0.9;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: #fff;
+            color: #f5576c;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .conversion-section {
+            margin: 40px 0;
+            padding: 30px;
+            background: #f7fafc;
+            border-radius: 15px;
+        }
+
+        .conversion-button {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .conversion-button:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+        }
+
+        .variant-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #edf2f7;
+            border-radius: 10px;
+            border-left: 4px solid #4299e1;
+        }
+
+        .variant-info h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .variant-info p {
+            color: #4a5568;
+        }
+
+        .debug-panel {
+            margin-top: 40px;
+            padding: 20px;
+            background: #1a202c;
+            color: #e2e8f0;
+            border-radius: 10px;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .debug-panel h4 {
+            margin-bottom: 15px;
+            color: #63b3ed;
+        }
+
+        /* Anti-flicker para teste A/B */
+        .rf-loading {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .rf-ready .rf-loading {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="rf-loading">
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Teste A/B em Ação</h1>
+            <p>Esta página demonstra como o código da Rota Final funciona</p>
+        </div>
+
+        <!-- Esta seção será modificada pelo teste A/B -->
+        <div class="hero-section" id="hero-section">
+            <h2>Carregando experimento...</h2>
+            <p>Aguarde enquanto determinamos sua variante...</p>
+        </div>
+
+        <!-- Seção de conversão -->
+        <div class="conversion-section">
+            <h3>Teste as Conversões</h3>
+            <p>Clique nos botões abaixo para simular diferentes tipos de conversão:</p>
+            <button class="conversion-button" onclick="trackConversion('purchase', 99.90)">
+                💳 Comprar (R$ 99,90)
+            </button>
+            <button class="conversion-button" onclick="trackConversion('signup', 0)">
+                📝 Cadastrar-se
+            </button>
+            <button class="conversion-button" onclick="trackConversion('download', 0)">
+                📥 Download Grátis
+            </button>
+        </div>
+
+        <!-- Informações da variante -->
+        <div class="variant-info">
+            <h3>Informações do Teste</h3>
+            <p id="variant-display">Variante: <span id="current-variant">Carregando...</span></p>
+            <p id="user-display">ID do Usuário: <span id="current-user">Carregando...</span></p>
+            <p id="experiment-display">ID do Experimento: <span id="current-experiment">Carregando...</span></p>
+        </div>
+
+        <!-- Painel de debug -->
+        <div class="debug-panel">
+            <h4>🔍 Debug Console</h4>
+            <div id="debug-log">
+                <p>Aguardando eventos de tracking...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aqui é onde você colaria o código gerado pela Rota Final -->
+    <script>
+    (function(){
+        // Simulação do código gerado pela Rota Final
+        const CONFIG = {
+            experimentId: 'exp_demo_test',
+            algorithm: 'thompson_sampling',
+            method: 'visual',
+            goal: 'conversion',
+            goalType: 'click',
+            variants: [
+                {
+                    name: 'Controle',
+                    key: 'control',
+                    isControl: true,
+                    weight: 50,
+                    description: JSON.stringify({
+                        text: [{
+                            selector: '#hero-section h2',
+                            value: '🎯 Oferta Especial - Controle'
+                        }, {
+                            selector: '#hero-section p',
+                            value: 'Aproveite nossa promoção com 20% de desconto!'
+                        }],
+                        css: [{
+                            selector: '#hero-section',
+                            style: 'background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);'
+                        }]
+                    })
+                },
+                {
+                    name: 'Variante A',
+                    key: 'variant-a',
+                    isControl: false,
+                    weight: 50,
+                    description: JSON.stringify({
+                        text: [{
+                            selector: '#hero-section h2',
+                            value: '🔥 Oferta Limitada - Variante A'
+                        }, {
+                            selector: '#hero-section p',
+                            value: 'Últimas 24 horas! Desconto de 35% - Não perca!'
+                        }],
+                        css: [{
+                            selector: '#hero-section',
+                            style: 'background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);'
+                        }]
+                    })
+                }
+            ]
+        };
+
+        const userId = localStorage.getItem('rf_user_id') || 'user_' + Math.random().toString(36).slice(2) + Date.now();
+        localStorage.setItem('rf_user_id', userId);
+
+        function assign() {
+            const saved = localStorage.getItem('rf_variant_' + CONFIG.experimentId);
+            if (saved && CONFIG.variants.find(v => v.name === saved)) return saved;
+
+            // Algoritmo de atribuição simples baseado em hash
+            const hash = userId.split('').reduce((a, b) => {
+                a = ((a << 5) - a) + b.charCodeAt(0);
+                return a & a;
+            }, 0);
+            const idx = Math.abs(hash) % CONFIG.variants.length;
+            const variant = CONFIG.variants[idx]?.name || CONFIG.variants[0]?.name;
+            localStorage.setItem('rf_variant_' + CONFIG.experimentId, variant);
+            return variant;
+        }
+
+        function applyRules(variant) {
+            try {
+                const cfg = CONFIG.variants.find(v => v.name === variant);
+                let rules = {};
+                if (cfg?.description) {
+                    try {
+                        rules = JSON.parse(cfg.description);
+                    } catch (e) {
+                        console.warn('Erro ao parsear regras:', e);
+                    }
+                }
+
+                // Aplicar mudanças de texto
+                if (rules.text) {
+                    rules.text.forEach(rule => {
+                        try {
+                            document.querySelectorAll(rule.selector).forEach(el => {
+                                el.textContent = rule.value;
+                            });
+                        } catch (e) {
+                            console.warn('Erro ao aplicar texto:', e);
+                        }
+                    });
+                }
+
+                // Aplicar CSS
+                if (rules.css) {
+                    rules.css.forEach(rule => {
+                        try {
+                            document.querySelectorAll(rule.selector).forEach(el => {
+                                const currentStyle = el.getAttribute('style') || '';
+                                el.setAttribute('style', currentStyle + ';' + rule.style);
+                            });
+                        } catch (e) {
+                            console.warn('Erro ao aplicar CSS:', e);
+                        }
+                    });
+                }
+
+            } catch (err) {
+                console.warn('Erro geral ao aplicar regras:', err);
+            }
+        }
+
+        // API de tracking
+        window.rotaFinal = window.rotaFinal || {
+            track: (event, properties = {}) => {
+                const data = {
+                    experiment_id: CONFIG.experimentId,
+                    event_type: event,
+                    visitor_id: userId,
+                    variant: document.documentElement.getAttribute('data-rf-variant'),
+                    url: location.href,
+                    timestamp: new Date().toISOString(),
+                    properties: properties
+                };
+
+                // Log no console
+                console.log('📊 Rota Final Track:', data);
+
+                // Mostrar no debug panel
+                const debugLog = document.getElementById('debug-log');
+                if (debugLog) {
+                    const logEntry = document.createElement('p');
+                    logEntry.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${event}: ${JSON.stringify(properties)}`;
+                    debugLog.appendChild(logEntry);
+                    debugLog.scrollTop = debugLog.scrollHeight;
+                }
+
+                // Enviar para servidor (simulação)
+                fetch('/api/track', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                }).then(response => {
+                    if (response.ok) {
+                        console.log('✅ Evento enviado com sucesso');
+                    } else {
+                        console.warn('⚠️ Falha ao enviar evento:', response.status);
+                    }
+                }).catch(e => {
+                    console.warn('⚠️ Erro de rede:', e);
+                });
+            },
+            getVariant: () => document.documentElement.getAttribute('data-rf-variant'),
+            getUserId: () => userId,
+            getExperimentId: () => CONFIG.experimentId
+        };
+
+        const variant = assign();
+
+        function init() {
+            document.documentElement.setAttribute('data-rf-variant', variant);
+            document.documentElement.setAttribute('data-rf-experiment', CONFIG.experimentId);
+
+            // Aplicar regras da variante
+            applyRules(variant);
+
+            // Atualizar informações na tela
+            document.getElementById('current-variant').textContent = variant;
+            document.getElementById('current-user').textContent = userId;
+            document.getElementById('current-experiment').textContent = CONFIG.experimentId;
+
+            // Remover carregamento
+            document.body.classList.add('rf-ready');
+
+            // Track page view
+            window.rotaFinal.track('page_view', {variant: variant, experiment_start: true, value: 1});
+
+            console.log('🧪 Rota Final: Experimento iniciado', {experiment: CONFIG.experimentId, variant: variant});
+        }
+
+        // Funções globais para tracking
+        window.trackConversion = function(type, value) {
+            window.rotaFinal.track(type, {
+                variant: window.rotaFinal.getVariant(),
+                value: value,
+                conversion_type: type
+            });
+
+            // Feedback visual
+            const buttons = document.querySelectorAll('.conversion-button');
+            buttons.forEach(btn => {
+                if (btn.textContent.includes(type.charAt(0).toUpperCase() + type.slice(1))) {
+                    btn.style.background = '#38a169';
+                    btn.textContent += ' ✓';
+                    setTimeout(() => {
+                        btn.style.background = '#48bb78';
+                        btn.textContent = btn.textContent.replace(' ✓', '');
+                    }, 2000);
+                }
+            });
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>
