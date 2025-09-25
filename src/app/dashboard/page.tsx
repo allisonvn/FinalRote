@@ -561,10 +561,7 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRange])
 
-  // Função para recarregar dados
-  const refreshData = () => {
-    loadDashboardData()
-  }
+  // Função para recarregar dados (usando a do hook useRealtimeAnalytics)
 
   const checkUser = async () => {
     try {
@@ -605,19 +602,20 @@ export default function Dashboard() {
         return
       }
       
-      // Carregar experimentos (filtrar por organizações do usuário)
+      // Carregar experimentos (filtrar por projetos do usuário)
+      const projectIds = projects.map(p => p.id)
       const { data: experimentsData, error: experimentsError } = await supabase
         .from('experiments')
         .select(`
           *,
           variants:variants(*),
-          projects:projects!inner(
+          projects:projects(
             id,
             name,
-            organization_members!inner(user_id)
+            organization_id
           )
         `)
-        .eq('projects.organization_members.user_id', user.id)
+        .in('project_id', projectIds)
         .order('created_at', { ascending: false })
 
       if (experimentsError) {
@@ -1358,7 +1356,7 @@ export default function Dashboard() {
         description: formData.description || null,
         status: 'draft' as const,
         algorithm: formData.algorithm as any || 'thompson_sampling',
-        traffic_allocation: Math.min(100, Math.max(1, Math.round(formData.trafficAllocation || 100)))
+        traffic_allocation: Math.floor(Math.min(100, Math.max(1, formData.trafficAllocation || 100)))
       }
 
       console.log('📋 Creating experiment with data:', experimentData)
@@ -2004,7 +2002,7 @@ export default function Dashboard() {
         />
         <KpiCard 
           title="Taxa de Conversão" 
-          value={`${stats.conversionRate.toFixed(2)}%`}
+          value={`${realtimeStats?.conversionRate?.toFixed(2) || '0.00'}%`}
           change={8}
           trend="up"
           subtitle={`Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
@@ -3231,7 +3229,7 @@ export default function Dashboard() {
                   <label className="text-xs text-muted-foreground">Alocação de tráfego (%)</label>
                   <Input type="number" min={1} max={100} value={Math.round((exp.traffic_allocation||1))} onChange={(e) => {
                     const val = Math.max(1, Math.min(100, Number(e.target.value)))
-                    const trafficAllocation = parseFloat(val.toFixed(2)) // Garantir precisão (5,2)
+                    const trafficAllocation = Math.floor(val) // INTEGER no banco
                     setSelectedExperiment(se => se ? { ...se, traffic_allocation: trafficAllocation } : se)
                     setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, traffic_allocation: trafficAllocation } : e))
                   }} className="mt-1 h-9" />
@@ -4137,7 +4135,7 @@ export default function Dashboard() {
       goal_type: experimentForm.goalType as any,
       goal_value: experimentForm.goalValue || undefined,
       duration_days: experimentForm.duration,
-      traffic_allocation: parseFloat((experimentForm.trafficAllocation || 100).toFixed(2)),
+      traffic_allocation: Math.floor(experimentForm.trafficAllocation || 100),
       variants: experimentForm.variants.map((v, i) => ({ id: `v-${i}`, name: v.name, key: v.name.toLowerCase().replace(/\s+/g, '-'), is_control: v.isControl }))
     }
 
