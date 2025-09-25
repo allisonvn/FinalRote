@@ -56,17 +56,16 @@ Adicione este script no `<head>` da sua página **ANTES** de qualquer conteúdo 
 ### 3. Usar o SDK
 
 ```javascript
-// Inicializar SDK
+// NENHUMA CHAVE NECESSÁRIA! 🎉
 const rf = new RotaFinal({
-  apiKey: 'pk_live_sua_chave_aqui',
-  debug: true // Ativar logs de debug
+  debug: true // Opcional: ativar logs de debug
 });
 
 // Executar experimento
 async function runExperiment() {
   // Esconder elementos até carregar variante
   rfAntiFlicker.hide('[data-variant]');
-  
+
   // Obter variante
   const variant = await rf.getVariant('meu_experimento', {
     userAttributes: {
@@ -74,13 +73,13 @@ async function runExperiment() {
       device: 'mobile'
     }
   });
-  
+
   // Aplicar variante
   const variantElement = document.querySelector(`[data-variant="${variant}"]`);
   if (variantElement) {
     variantElement.style.display = 'block';
   }
-  
+
   // Marcar como pronto
   rfAntiFlicker.ready();
 }
@@ -130,11 +129,11 @@ Executa um experimento completo com callbacks.
 
 ## 🔧 Configuração de Produção
 
-1. **Substitua a chave da API:**
+1. **Configure o SDK (sem chaves!):**
    ```javascript
+   // NENHUMA CHAVE NECESSÁRIA! 🎉
    const rf = new RotaFinal({
-     apiKey: 'pk_live_sua_chave_real',
-     debug: false // Desativar em produção
+     debug: false // Desativar logs em produção
    });
    ```
 

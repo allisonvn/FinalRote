@@ -85,9 +85,15 @@ interface ChartsSectionProps {
   className?: string
   experiments?: Experiment[]
   stats?: Stats
+  realtime?: {
+    isConnected: boolean
+    recentEvents?: Array<any>
+    recentAssignments?: Array<any>
+    lastUpdate?: Date
+  }
 }
 
-export function ChartsSection({ className, experiments = [], stats }: ChartsSectionProps) {
+export function ChartsSection({ className, experiments = [], stats, realtime }: ChartsSectionProps) {
   const { preferences, updatePreference } = useApp()
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d' | '1y'>(preferences.defaultTimeRange || '30d')
   const [selectedExperiment, setSelectedExperiment] = useState<string>('all')
@@ -247,6 +253,12 @@ export function ChartsSection({ className, experiments = [], stats }: ChartsSect
               </h1>
               <p className="text-muted-foreground text-lg max-w-2xl">
                 Análise profunda de experimentos A/B com insights estatísticos avançados e visualizações interativas
+                {realtime?.isConnected && (
+                  <span className="inline-flex items-center gap-1.5 ml-2 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    Dados em tempo real
+                  </span>
+                )}
               </p>
             </div>
 

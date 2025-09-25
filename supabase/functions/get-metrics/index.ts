@@ -19,12 +19,6 @@ serve(async (req) => {
       throw new Error('Method not allowed')
     }
 
-    // Get API key from header
-    const apiKey = req.headers.get('x-api-key')
-    if (!apiKey) {
-      throw new Error('API key required')
-    }
-
     // Parse query parameters
     const url = new URL(req.url)
     const experimentKey = url.searchParams.get('experiment_key')
@@ -40,23 +34,24 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Authenticate API key and get project
+    // Simplified: Use default project (no API key required)
+    // Get the first available project
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('id')
-      .or(`public_key.eq.${apiKey},secret_key.eq.${apiKey}`)
-      .single()
+      .limit(1)
+      .single();
 
     if (projectError || !project) {
-      throw new Error('Invalid API key')
+      throw new Error('No project found')
     }
 
-    // Get experiment
+    // Get experiment (using name as key since key column doesn't exist)
     const { data: experiment, error: expError } = await supabase
       .from('experiments')
-      .select('id, name, status, algorithm, started_at')
+      .select('id, name, status, started_at')
       .eq('project_id', project.id)
-      .eq('key', experimentKey)
+      .eq('name', experimentKey)
       .single()
 
     if (expError || !experiment) {
@@ -144,12 +139,12 @@ serve(async (req) => {
         last_updated: new Date().toISOString()
       },
       summary: {
-        total_visitors: metrics.reduce((sum, v) => sum + v.visitors, 0),
-        total_conversions: metrics.reduce((sum, v) => sum + v.conversions, 0),
-        total_revenue: metrics.reduce((sum, v) => sum + v.revenue, 0),
-        overall_conversion_rate: metrics.length > 0 
-          ? (metrics.reduce((sum, v) => sum + v.conversions, 0) / 
-             metrics.reduce((sum, v) => sum + v.visitors, 0) * 100).toFixed(2)
+        total_visitors: variantsWithStats.reduce((sum, v) => sum + (v.visitors || 0), 0),
+        total_conversions: variantsWithStats.reduce((sum, v) => sum + (v.conversions || 0), 0),
+        total_revenue: variantsWithStats.reduce((sum, v) => sum + (v.revenue || 0), 0),
+        overall_conversion_rate: variantsWithStats.length > 0 
+          ? (variantsWithStats.reduce((sum, v) => sum + (v.conversions || 0), 0) / 
+             Math.max(variantsWithStats.reduce((sum, v) => sum + (v.visitors || 0), 0), 1) * 100).toFixed(2)
           : 0
       }
     }

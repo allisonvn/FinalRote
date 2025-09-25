@@ -11,7 +11,7 @@ yarn add @rotafinal/sdk
 
 ### CDN
 ```html
-<script src="https://cdn.rotafinal.com/sdk/v1/rotafinal.min.js"></script>
+<script src="https://rotafinal.com.br/rotafinal-sdk.js"></script>
 ```
 
 ## Inicialização
@@ -20,19 +20,20 @@ yarn add @rotafinal/sdk
 ```javascript
 import RotaFinal from '@rotafinal/sdk'
 
+// NENHUMA CHAVE NECESSÁRIA! 🎉
 const rf = new RotaFinal({
-  apiKey: 'pk_live_sua_chave_aqui',
-  debug: true, // Ativar logs no console
-  enableAutoPageView: true, // Rastrear page views automaticamente
-  enableAutoClickTracking: true // Rastrear cliques automaticamente
+  debug: true, // Ativar logs no console (opcional)
+  enableAutoPageView: true, // Rastrear page views automaticamente (opcional)
+  enableAutoClickTracking: true // Rastrear cliques automaticamente (opcional)
 })
 ```
 
 ### HTML (CDN)
 ```html
 <script>
+  // NENHUMA CHAVE NECESSÁRIA! 🎉
   window.rf = new RotaFinal({
-    apiKey: 'pk_live_sua_chave_aqui'
+    debug: true // Opcional: ativar logs para desenvolvimento
   })
 </script>
 ```
@@ -229,11 +230,7 @@ if (metrics) {
 
 ```javascript
 const rf = new RotaFinal({
-  // Obrigatório
-  apiKey: 'pk_live_sua_chave',
-  
-  // Opcional
-  apiUrl: 'https://api.custom.com/v1', // URL customizada
+  // NENHUMA CHAVE NECESSÁRIA! Tudo é opcional:
   debug: true, // Logs no console
   enableAutoPageView: true, // Auto-rastrear page views
   enableAutoClickTracking: true, // Auto-rastrear cliques
@@ -299,8 +296,7 @@ window.rfReady() // Mostrar elementos
 
 ```javascript
 const rf = new RotaFinal({
-  apiKey: 'pk_live_...',
-  debug: true
+  debug: true // Nenhuma chave necessária!
 })
 ```
 
@@ -323,6 +319,6 @@ rf.reset()
 
 ## Suporte
 
-- Documentação: https://docs.rotafinal.com
-- Email: suporte@rotafinal.com
-- GitHub: https://github.com/rotafinal/sdk-js
+- Dashboard: https://rotafinal.com.br/dashboard
+- Documentação: https://rotafinal.com.br/docs
+- Email: suporte@rotafinal.com.br

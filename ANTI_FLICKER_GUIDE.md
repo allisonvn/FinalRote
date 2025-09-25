@@ -103,8 +103,7 @@ import { AntiFlickerProvider } from '@/components/AntiFlickerProvider'
 
 export default function App({ Component, pageProps }) {
   return (
-    <AntiFlickerProvider 
-      apiKey="pk_live_sua_chave"
+    <AntiFlickerProvider
       timeout={3000}
       debug={process.env.NODE_ENV === 'development'}
     >

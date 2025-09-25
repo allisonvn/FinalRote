@@ -74,7 +74,7 @@ class RotaFinal {
     // Configuração padrão
     this.config = {
       apiKey: config.apiKey,
-      apiUrl: config.apiUrl || 'https://xtexltigzzayfrscvzaa.supabase.co/functions/v1',
+      apiUrl: config.apiUrl || 'https://rotafinal.com.br/api',
       debug: config.debug || false,
       enableAutoPageView: config.enableAutoPageView !== false,
       enableAutoClickTracking: config.enableAutoClickTracking !== false,

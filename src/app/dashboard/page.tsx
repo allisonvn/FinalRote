@@ -14,9 +14,11 @@ import { ModernExperimentModal } from '@/components/dashboard/modern-experiment-
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
+import { RealtimeActivity } from '@/components/dashboard/realtime-activity'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/providers/app-provider'
 import { toast } from 'sonner'
+import { useRealtimeAnalytics } from '@/hooks/useRealtimeAnalytics'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { EmptyState } from '@/components/empty-state'
 
@@ -57,7 +59,7 @@ export default function Dashboard() {
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [sort, setSort] = useState<{ key: 'name' | 'created' | 'status'; dir: 'asc' | 'desc' }>({ key: 'created', dir: 'desc' })
-  const [stats, setStats] = useState<Stats>({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0, totalProjects: 0 })
+  // Stats removido - agora usamos realtimeStats
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [showNew, setShowNew] = useState(false)
@@ -71,6 +73,17 @@ export default function Dashboard() {
   const [pinnedIds, setPinnedIds] = useState<string[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedExperiment, setSelectedExperiment] = useState<Experiment | null>(null)
+
+  // Hook de analytics em tempo real
+  const {
+    stats: realtimeStats,
+    metrics: realtimeMetrics,
+    recentEvents,
+    recentAssignments,
+    isConnected,
+    lastUpdate,
+    refreshData
+  } = useRealtimeAnalytics(timeRange)
   const [drawerTab, setDrawerTab] = useState<'details'|'code'|'timeline'>('details')
   // Filtro por múltiplas tags
   const [tagFilters, setTagFilters] = useState<string[]>([])
@@ -589,18 +602,22 @@ export default function Dashboard() {
       if (authError || !user) {
         console.log('⚠️ Usuário não autenticado, usando dados vazios')
         setExperiments([])
-        setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0, totalProjects: 0 })
         return
       }
       
-      // Carregar experimentos do usuário autenticado
+      // Carregar experimentos (filtrar por organizações do usuário)
       const { data: experimentsData, error: experimentsError } = await supabase
         .from('experiments')
         .select(`
           *,
-          variants:variants(*)
+          variants:variants(*),
+          projects:projects!inner(
+            id,
+            name,
+            organization_members!inner(user_id)
+          )
         `)
-        .eq('created_by', user.id)
+        .eq('projects.organization_members.user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (experimentsError) {
@@ -634,11 +651,8 @@ export default function Dashboard() {
 
       setExperiments(formattedExperiments)
       
-      // Buscar estatísticas reais
-      const { getDashboardStats } = await import('@/lib/analytics')
-      const realStats = await getDashboardStats(timeRange)
-      
-      setStats(realStats)
+      // ✅ Estatísticas agora vêm do hook em tempo real
+      console.log('📊 Estatísticas em tempo real:', realtimeStats)
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
@@ -646,15 +660,8 @@ export default function Dashboard() {
       console.log('❌ Erro ao carregar experimentos, mostrando lista vazia')
       setExperiments([])
       
-      // Buscar estatísticas mesmo em caso de erro
-      try {
-        const { getDashboardStats } = await import('@/lib/analytics')
-        const realStats = await getDashboardStats(timeRange)
-        setStats(realStats)
-      } catch (statsError) {
-        console.error('Erro ao carregar estatísticas:', statsError)
-        setStats({ activeExperiments: 0, totalVisitors: 0, conversionRate: 0, totalProjects: 0 })
-      }
+      // ✅ Estatísticas agora são gerenciadas pelo hook em tempo real
+      console.log('📈 Hook em tempo real carregará as estatísticas automaticamente')
     } finally {
       setLoading(false)
     }
@@ -1490,10 +1497,10 @@ export default function Dashboard() {
     setPinnedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [id, ...prev])
   }
 
-  // Experiment actions
+  // ✅ Stats são atualizadas automaticamente pelo hook em tempo real
   const updateStatsFromExperiments = (next: Experiment[]) => {
-    const activeCount = next.filter(e => e.status === 'running').length
-    setStats(s => ({ ...s, activeExperiments: activeCount }))
+    // Não precisa mais atualizar stats manualmente
+    console.log('📊 Stats atualizadas automaticamente pelo hook')
   }
 
    const startExperiment = async (id: string) => {
@@ -1849,15 +1856,24 @@ export default function Dashboard() {
           <div className="lg:w-80">
             <div className="grid grid-cols-2 gap-4">
               <div className="card-glass rounded-2xl p-4">
-                <div className="text-3xl font-bold text-primary mb-1">{stats.activeExperiments}</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="text-3xl font-bold text-primary">{realtimeStats?.activeExperiments || 0}</div>
+                  {isConnected && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Dados em tempo real" />}
+                </div>
                 <div className="text-sm text-muted-foreground">Testes Ativos</div>
               </div>
               <div className="card-glass rounded-2xl p-4">
-                <div className="text-3xl font-bold text-success mb-1">{stats.totalVisitors.toLocaleString('pt-BR', { notation: 'compact' })}</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="text-3xl font-bold text-success">{(realtimeStats?.totalVisitors || 0).toLocaleString('pt-BR', { notation: 'compact' })}</div>
+                  {isConnected && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Dados em tempo real" />}
+                </div>
                 <div className="text-sm text-muted-foreground">Visitantes</div>
               </div>
               <div className="card-glass rounded-2xl p-4">
-                <div className="text-3xl font-bold text-warning mb-1">{stats.conversionRate.toFixed(1)}%</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="text-3xl font-bold text-warning">{(realtimeStats?.conversionRate || 0).toFixed(1)}%</div>
+                  {isConnected && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Dados em tempo real" />}
+                </div>
                 <div className="text-sm text-muted-foreground">Conversão</div>
               </div>
               <div className="card-glass rounded-2xl p-4">
@@ -1963,25 +1979,27 @@ export default function Dashboard() {
         { /* eslint-disable-next-line */ }
         { null }
         { /* Using local timeRange for subtitles */ }
-        <KpiCard 
-          title="Experimentos Ativos" 
-          value={stats.activeExperiments}
-          change={stats.activeExperiments > 0 ? 15 : 0}
-          trend={stats.activeExperiments > 0 ? 'up' : 'neutral'}
-          subtitle={`Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
+        <KpiCard
+          title="Experimentos Ativos"
+          value={realtimeStats?.activeExperiments || 0}
+          change={(realtimeStats?.activeExperiments || 0) > 0 ? 15 : 0}
+          trend={(realtimeStats?.activeExperiments || 0) > 0 ? 'up' : 'neutral'}
+          subtitle={isConnected ? `Tempo real • Última atualização: ${lastUpdate?.toLocaleTimeString('pt-BR')}` : `Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
           icon={<Zap />}
-          highlight={stats.activeExperiments > 0}
+          highlight={(realtimeStats?.activeExperiments || 0) > 0}
           color="primary"
           sparklineData={[3, 5, 2, 7, 8, 6, 9, 12]}
+          realtime={isConnected}
         />
-        <KpiCard 
-          title="Visitantes Únicos" 
-          value={stats.totalVisitors.toLocaleString('pt-BR')}
-          change={23}
-          trend="up"
-          subtitle={`Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
+        <KpiCard
+          title="Visitantes Únicos"
+          value={(realtimeStats?.totalVisitors || 0).toLocaleString('pt-BR')}
+          change={recentAssignments?.length || 0}
+          trend={recentAssignments?.length ? 'up' : 'neutral'}
+          subtitle={isConnected ? `Tempo real • ${recentAssignments?.length || 0} novos visitantes` : `Período: ${timeRange === '7d' ? 'últimos 7 dias' : timeRange === '90d' ? 'últimos 90 dias' : 'últimos 30 dias'}`}
           icon={<Users />}
           color="success"
+          realtime={isConnected}
           sparklineData={[20, 25, 23, 29, 40, 38, 45, 52]}
         />
         <KpiCard 
@@ -2230,7 +2248,30 @@ export default function Dashboard() {
       case 'experiments':
         return renderExperimentsContent()
       case 'analytics':
-        return <ChartsSection {...({ experiments, stats } as any)} />
+        return (
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="xl:col-span-3">
+              <ChartsSection
+                experiments={experiments}
+                stats={realtimeStats}
+                realtime={{
+                  isConnected,
+                  recentEvents,
+                  recentAssignments,
+                  lastUpdate
+                }}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <RealtimeActivity
+                recentEvents={recentEvents}
+                recentAssignments={recentAssignments}
+                isConnected={isConnected}
+                className="sticky top-4"
+              />
+            </div>
+          </div>
+        )
       case 'audiences':
         return renderAudiencesContent()
       case 'events':
@@ -4424,9 +4465,10 @@ export default function Dashboard() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         stats={{
-          activeExperiments: stats.activeExperiments,
-          totalVisitors: stats.totalVisitors
+          activeExperiments: realtimeStats?.activeExperiments || 0,
+          totalVisitors: realtimeStats?.totalVisitors || 0
         }}
+        realtime={{ isConnected, lastUpdate }}
       />
 
       {/* Main Content */}

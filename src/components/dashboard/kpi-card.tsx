@@ -18,6 +18,7 @@ interface KpiCardProps {
   loading?: boolean
   sparklineData?: number[]
   color?: 'primary' | 'success' | 'warning' | 'danger'
+  realtime?: boolean
 }
 
 export function KpiCard({
@@ -32,7 +33,8 @@ export function KpiCard({
   highlight = false,
   loading = false,
   sparklineData = [],
-  color = 'primary'
+  color = 'primary',
+  realtime = false
 }: KpiCardProps) {
   const getTrendIcon = () => {
     if (!trend) return null
@@ -158,6 +160,12 @@ export function KpiCard({
             </div>
           )}
           {title}
+          {realtime && (
+            <div
+              className="w-2 h-2 bg-green-500 rounded-full animate-pulse"
+              title="Dados em tempo real"
+            />
+          )}
         </CardTitle>
         
         {change !== undefined && (

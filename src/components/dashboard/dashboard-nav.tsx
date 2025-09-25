@@ -28,6 +28,10 @@ interface DashboardNavProps {
     activeExperiments: number
     totalVisitors: number
   }
+  realtime?: {
+    isConnected: boolean
+    lastUpdate?: Date
+  }
   className?: string
 }
 
@@ -35,6 +39,7 @@ export function DashboardNav({
   activeTab = 'overview',
   onTabChange,
   stats,
+  realtime,
   className
 }: DashboardNavProps) {
   const navItems: NavItem[] = [
@@ -55,7 +60,7 @@ export function DashboardNav({
       key: 'analytics',
       label: 'Relatórios',
       icon: <TrendingUp className="h-4 w-4" strokeWidth={1.75} />,
-      description: 'Relatórios e insights'
+      description: realtime?.isConnected ? 'Relatórios em tempo real' : 'Relatórios e insights'
     },
     {
       key: 'audiences',
@@ -117,10 +122,17 @@ export function DashboardNav({
                   
                   {/* Label - Hide on small screens for non-active items */}
                   <span className={cn(
-                    'transition-opacity',
-                    !isActive && 'hidden sm:inline'
+                    'transition-opacity flex items-center gap-1.5',
+                    !isActive && 'hidden sm:inline-flex'
                   )}>
                     {item.label}
+                    {/* Real-time indicator for analytics tab */}
+                    {item.key === 'analytics' && realtime?.isConnected && (
+                      <div
+                        className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"
+                        title="Conectado - dados em tempo real"
+                      />
+                    )}
                   </span>
                   
                   {/* Badge */}

@@ -5,10 +5,9 @@
  * usando a plataforma Rota Final.
  */
 
-// CONFIGURAÇÃO BÁSICA
+// CONFIGURAÇÃO BÁSICA - NENHUMA CHAVE NECESSÁRIA!
 const rotaFinal = new RotaFinal({
-  apiKey: 'sua-api-key-aqui', // Substitua pela sua chave da API
-  debug: true // Remover em produção
+  debug: true // Opcional: ativar logs para desenvolvimento
 });
 
 // ==================================================

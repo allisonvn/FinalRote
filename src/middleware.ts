@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { AntiFlicker } from '@/lib/anti-flicker'
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
@@ -23,12 +22,6 @@ export async function middleware(request: NextRequest) {
     response.headers.set('X-RF-Ready', 'true')
     response.headers.set('X-RF-Route', pathname)
     
-    // Injetar script anti-flicker inline para máxima performance
-    const antiFlickerScript = AntiFlicker.getInlineScript({
-      timeout: 2000,
-      debug: process.env.NODE_ENV === 'development'
-    })
-
     // Adicionar CSP header permitindo inline script
     const csp = response.headers.get('Content-Security-Policy') || ''
     if (!csp.includes('unsafe-inline')) {

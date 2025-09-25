@@ -76,14 +76,12 @@
     </div>
 
     <!-- RotaFinal SDK -->
-    <script src="/rotafinal-sdk.js"></script>
+    <script src="https://rotafinal.com.br/rotafinal-sdk.js"></script>
     
     <script>
-        // Configurar SDK - substitua pelos seus valores reais
+        // NENHUMA CHAVE NECESSÁRIA! 🎉
         const rf = new RotaFinal({
-            apiKey: 'sua-api-key-aqui', // Substitua pela sua API key
-            baseUrl: window.location.origin,
-            debug: true
+            debug: true // Opcional: ativar logs para desenvolvimento
         });
 
         let currentVariant = null;
@@ -94,7 +92,7 @@
                 
                 // Tentar obter variante do experimento
                 // Use o nome do experimento criado
-                currentVariant = await rf.getVariant('teste correto', {
+                currentVariant = await rf.getVariant('teste_correto', {
                     context: {
                         page: 'landing',
                         source: 'direct'

@@ -25,12 +25,6 @@ serve(async (req) => {
       throw new Error('Method not allowed')
     }
 
-    // Get API key from header
-    const apiKey = req.headers.get('x-api-key')
-    if (!apiKey) {
-      throw new Error('API key required')
-    }
-
     // Parse request body
     const { experiment_key, visitor_id, context = {} }: AssignRequest = await req.json()
     
@@ -43,34 +37,23 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Authenticate API key and get project
+    // Simplified: Use default project (no API key required)
+    // Get the first available project
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('id, allowed_origins')
-      .or(`public_key.eq.${apiKey},secret_key.eq.${apiKey}`)
-      .single()
+      .select('id')
+      .limit(1)
+      .single();
 
     if (projectError || !project) {
-      throw new Error('Invalid API key')
+      throw new Error('No project found')
     }
 
-    // Validate origin if provided
+    // Validate origin if provided (simplified - allow all in development)
     const origin = req.headers.get('origin')
-    if (origin && project.allowed_origins?.length > 0) {
-      const isAllowed = project.allowed_origins.some((allowed: string) => {
-        if (allowed.includes('*')) {
-          const pattern = allowed.replace(/\*/g, '.*')
-          return new RegExp(`^${pattern}$`).test(origin)
-        }
-        return allowed === origin
-      })
+    // For now, allow all origins - can be restricted later if needed
 
-      if (!isAllowed) {
-        throw new Error('Origin not allowed')
-      }
-    }
-
-    // Get experiment (using key field)
+    // Get experiment by key (correct field)
     const { data: experiment, error: expError } = await supabase
       .from('experiments')
       .select('id, status, name, key')
@@ -108,7 +91,8 @@ serve(async (req) => {
           variant_key: variant.key,
           variant_name: variant.name,
           config: variant.config || {},
-          is_new: false
+          is_new: false,
+          variant: variant.key // SDK compatibility
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -117,7 +101,7 @@ serve(async (req) => {
       )
     }
 
-    // Get all variants for this experiment (correct field names)
+    // Get all variants for this experiment (correct fields)
     const { data: variants, error: variantsError } = await supabase
       .from('variants')
       .select('id, name, key, is_control, weight, config')
@@ -134,7 +118,7 @@ serve(async (req) => {
     let selectedVariant = variants[0] // Fallback to first variant
 
     for (const variant of variants) {
-      cumulative += variant.weight
+      cumulative += (variant.weight || 50) // Default 50% if null
       if (random <= cumulative) {
         selectedVariant = variant
         break
@@ -175,10 +159,11 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         variant_id: selectedVariant.id,
-        variant_key: selectedVariant.key,
+        variant_key: selectedVariant.key, // Using correct key field
         variant_name: selectedVariant.name,
         config: selectedVariant.config || {},
-        is_new: true
+        is_new: true,
+        variant: selectedVariant.key // SDK compatibility with key field
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

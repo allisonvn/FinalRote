@@ -85,13 +85,12 @@
     </div>
     
     <!-- SDK RotaFinal -->
-    <script src="/rotafinal-sdk.js"></script>
+    <script src="https://rotafinal.com.br/rotafinal-sdk.js"></script>
     
     <script>
-        // Configuração do SDK
+        // Configuração do SDK - Agora sem necessidade de chave de API!
         const rf = new RotaFinal({
-            apiKey: 'pk_live_sua_chave_aqui', // Substitua pela sua chave
-            debug: true
+            debug: true // Apenas debug é necessário
         });
         
         // Executar experimento
@@ -101,7 +100,7 @@
                 rfAntiFlicker.hide('[data-variant]');
                 
                 // Obter variante
-                const variant = await rf.getVariant('hero_banner_test', {
+                const variant = await rf.getVariant('teste_correto', {
                     userAttributes: {
                         source: 'example_page',
                         device: 'desktop'
@@ -133,7 +132,7 @@
         // Função para rastrear conversões
         function trackConversion(eventName, value) {
             rf.conversion(eventName, value, {
-                experiment: 'hero_banner_test',
+                experiment: 'teste_correto',
                 page: 'example'
             });
             alert(`Conversão rastreada: ${eventName} - R$ ${value}`);
@@ -144,7 +143,7 @@
         
         // Exemplo de como obter métricas
         async function getMetrics() {
-            const metrics = await rf.getMetrics('hero_banner_test');
+            const metrics = await rf.getMetrics('teste_correto');
             console.log('Métricas do experimento:', metrics);
         }
         

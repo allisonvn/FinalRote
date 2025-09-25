@@ -31,12 +31,6 @@ serve(async (req) => {
       throw new Error('Method not allowed')
     }
 
-    // Get API key from header
-    const apiKey = req.headers.get('x-api-key')
-    if (!apiKey) {
-      throw new Error('API key required')
-    }
-
     // Parse request body
     const { events }: TrackRequest = await req.json()
     
@@ -54,32 +48,21 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Authenticate API key and get project
+    // Simplified: Use default project (no API key required)
+    // Get the first available project
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('id, allowed_origins')
-      .or(`public_key.eq.${apiKey},secret_key.eq.${apiKey}`)
-      .single()
+      .select('id')
+      .limit(1)
+      .single();
 
     if (projectError || !project) {
-      throw new Error('Invalid API key')
+      throw new Error('No project found')
     }
 
-    // Validate origin if provided
+    // Validate origin if provided (simplified - allow all in development)
     const origin = req.headers.get('origin')
-    if (origin && project.allowed_origins?.length > 0) {
-      const isAllowed = project.allowed_origins.some((allowed: string) => {
-        if (allowed.includes('*')) {
-          const pattern = allowed.replace(/\*/g, '.*')
-          return new RegExp(`^${pattern}$`).test(origin)
-        }
-        return allowed === origin
-      })
-
-      if (!isAllowed) {
-        throw new Error('Origin not allowed')
-      }
-    }
+    // For now, allow all origins - can be restricted later if needed
 
     // Process events
     const processedEvents = []

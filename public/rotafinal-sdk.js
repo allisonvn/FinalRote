@@ -5,9 +5,9 @@
 
 class RotaFinal {
   constructor(options = {}) {
-    this.apiKey = options.apiKey;
+    this.apiKey = options.apiKey; // Opcional - mantido para compatibilidade
     this.debug = options.debug || false;
-    this.baseUrl = options.baseUrl || 'https://xtexltigzzayfrscvzaa.supabase.co';
+    this.baseUrl = options.baseUrl || 'https://rotafinal.com.br';
     this.cache = new Map();
     this.userId = this.getUserId();
     
@@ -15,7 +15,7 @@ class RotaFinal {
     this.initUTMCapture();
     
     if (this.debug) {
-      console.log('RotaFinal SDK initialized:', { apiKey: this.apiKey, userId: this.userId });
+      console.log('RotaFinal SDK initialized:', { userId: this.userId, debug: this.debug });
     }
   }
 
@@ -46,11 +46,10 @@ class RotaFinal {
         }
       }
 
-      const response = await fetch(`${this.baseUrl}/functions/v1/assign-variant`, {
+      const response = await fetch(`${this.baseUrl}/api/assign-variant`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           experiment_key: experimentKey,
@@ -65,15 +64,18 @@ class RotaFinal {
 
       const data = await response.json();
       
+      // Verificar se a resposta tem a estrutura esperada
+      const variant = data.variant || data.variant_name || data.variant_key || 'control';
+      
       // Cachear resultado
       this.cache.set(cacheKey, {
-        variant: data.variant,
+        variant: variant,
         timestamp: Date.now()
       });
 
       if (this.debug) console.log('RotaFinal: Assigned variant', data);
       
-      return data.variant;
+      return variant;
     } catch (error) {
       if (this.debug) console.error('RotaFinal: Error getting variant', error);
       return options.defaultVariant || 'control';
@@ -86,24 +88,26 @@ class RotaFinal {
   async conversion(eventName, value = null, properties = {}) {
     try {
       // Incluir dados UTM automaticamente
-      const utmData = this.getUTMData();
+      const utmData = this.getUTMData ? this.getUTMData() : {};
       const enrichedProperties = {
         ...properties,
         ...utmData
       };
 
-      const response = await fetch(`${this.baseUrl}/functions/v1/track-event`, {
+      const response = await fetch(`${this.baseUrl}/api/track-event`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          event_name: eventName,
-          user_id: this.userId,
-          value: value,
-          properties: enrichedProperties,
-          timestamp: new Date().toISOString()
+          events: [{
+            event_type: 'conversion',
+            event_name: eventName,
+            visitor_id: this.userId,
+            value: value,
+            properties: enrichedProperties,
+            timestamp: new Date().toISOString()
+          }]
         })
       });
 
@@ -116,6 +120,7 @@ class RotaFinal {
       return await response.json();
     } catch (error) {
       if (this.debug) console.error('RotaFinal: Error tracking event', error);
+      return null;
     }
   }
 
@@ -124,15 +129,15 @@ class RotaFinal {
    */
   async getMetrics(experimentKey) {
     try {
-      const response = await fetch(`${this.baseUrl}/functions/v1/get-metrics`, {
-        method: 'POST',
+      const params = new URLSearchParams({
+        experiment_key: experimentKey
+      });
+      
+      const response = await fetch(`${this.baseUrl}/api/get-metrics?${params}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          experiment_key: experimentKey
-        })
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
