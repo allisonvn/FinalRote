@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
+import { safeTrafficAllocation } from '@/lib/numeric-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const description = data.description || null
     const experimentType = data.type || 'redirect'
     const status = data.status || 'draft'
-    const trafficAllocation = data.traffic_allocation || 100
+    const trafficAllocation = safeTrafficAllocation(data.traffic_allocation, 100)
     const createdBy = user.id
     const userId = user.id
 
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
           name: 'Controle',
           description: 'Versão original',
           is_control: true,
-          traffic_percentage: 50,
+          traffic_percentage: 50.00,
           redirect_url: null,
           changes: {},
           css_changes: null,
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
           name: 'Variante B',
           description: 'Versão alternativa',
           is_control: false,
-          traffic_percentage: 50,
+          traffic_percentage: 50.00,
           redirect_url: null,
           changes: {},
           css_changes: null,

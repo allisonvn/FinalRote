@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
 import { createRequestLogger, logTypes } from '@/lib/enhanced-logger'
+import { safeTrafficAllocation } from '@/lib/numeric-utils'
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -68,21 +69,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Função para converter e validar números
-    const safeNumber = (value: any, defaultValue: number, min?: number, max?: number): number => {
-      const num = parseFloat(value) || defaultValue
-      if (min !== undefined && num < min) return min
-      if (max !== undefined && num > max) return max
-      return num
-    }
-
     // Construir dados do experimento com validação de tipos
     const experimentData = {
       name: String(rawData.name).trim(),
       project_id: projectId, // Usar projectId encontrado automaticamente
       description: rawData.description ? String(rawData.description) : null,
       type: rawData.type || 'redirect', // Padrão: redirect
-      traffic_allocation: safeNumber(rawData.traffic_allocation, 100, 1, 100), // Padrão: 100%
+      traffic_allocation: safeTrafficAllocation(rawData.traffic_allocation, 100), // Padrão: 100%
       status: rawData.status || 'draft', // Padrão: draft
       created_by: user.id,
       user_id: user.id
@@ -182,7 +175,7 @@ export async function POST(request: NextRequest) {
           created_by: user.id,
           visitors: 0,
           conversions: 0,
-          conversion_rate: 0.00,
+          conversion_rate: 0.0000,
           is_active: true
         },
         {
@@ -198,7 +191,7 @@ export async function POST(request: NextRequest) {
           created_by: user.id,
           visitors: 0,
           conversions: 0,
-          conversion_rate: 0.00,
+          conversion_rate: 0.0000,
           is_active: true
         }
       ]
