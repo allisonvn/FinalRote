@@ -89,7 +89,7 @@ supabase gen types      # Generate TypeScript types
 
 # Debugging
 DEBUG=next:* npm run dev    # Debug mode
-npm run dev -- --port 3001 # Different port
+npm run dev # Port 3001 by default
 ```
 
 ## 📋 **Próximos Passos**

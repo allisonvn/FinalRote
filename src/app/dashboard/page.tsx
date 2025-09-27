@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
-import { ModernExperimentModal } from '@/components/dashboard/modern-experiment-modal'
+import { PremiumExperimentModal } from '@/components/dashboard/premium-experiment-modal'
+import { PremiumExperimentsTab } from '@/components/dashboard/premium-experiments-tab'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
@@ -75,7 +76,7 @@ export default function Dashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedExperiment, setSelectedExperiment] = useState<Experiment | null>(null)
 
-  // Hook de analytics em tempo real
+  // Hook de analytics em tempo real (com carregamento otimizado)
   const {
     stats: realtimeStats,
     metrics: realtimeMetrics,
@@ -85,6 +86,9 @@ export default function Dashboard() {
     lastUpdate,
     refreshData
   } = useRealtimeAnalytics(timeRange)
+  
+  // Estado para controlar carregamento inicial
+  const [initialLoad, setInitialLoad] = useState(true)
   const [drawerTab, setDrawerTab] = useState<'details'|'code'|'timeline'>('details')
   // Filtro por múltiplas tags
   const [tagFilters, setTagFilters] = useState<string[]>([])
@@ -603,7 +607,7 @@ export default function Dashboard() {
         return
       }
       
-      // Carregar experimentos (filtrar por projetos do usuário)
+      // Carregar experimentos com consulta otimizada (sem variants inicialmente)
       const projectIds = projects.map(p => p.id)
       let query = supabase
         .from('experiments')
@@ -616,23 +620,10 @@ export default function Dashboard() {
           traffic_allocation,
           created_at,
           updated_at,
-          project_id,
-          variants:variants(
-            id, 
-            name, 
-            description,
-            is_control, 
-            traffic_percentage, 
-            redirect_url,
-            changes,
-            css_changes,
-            js_changes,
-            visitors,
-            conversions,
-            conversion_rate
-          )
+          project_id
         `)
         .order('created_at', { ascending: false })
+        .limit(50) // Limitar para melhor performance
       
       // Aplicar filtro por projetos apenas se houver projetos carregados
       if (projectIds.length > 0) {
@@ -648,7 +639,7 @@ export default function Dashboard() {
 
       console.log('✅ Experimentos carregados para o usuário:', experimentsData?.length || 0)
       
-      // Transformar dados para o formato esperado
+      // Transformar dados para o formato esperado (sem variants inicialmente para melhor performance)
       const formattedExperiments = (experimentsData || []).map(exp => ({
         id: exp.id,
         name: exp.name,
@@ -658,27 +649,13 @@ export default function Dashboard() {
         created_at: exp.created_at,
         updated_at: exp.updated_at,
         project_id: exp.project_id,
-        algorithm: exp.mab_config?.algorithm || 'thompson_sampling',
+        algorithm: 'thompson_sampling', // Valor padrão
         traffic_allocation: exp.traffic_allocation,
-        variants: (exp.variants || []).map((v: any) => ({
-          id: v.id,
-          name: v.name,
-          key: v.key || v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
-          is_control: v.is_control,
-          traffic_percentage: v.traffic_percentage || 50,
-          url: v.redirect_url || v.url || v.target_url || v.config?.url || v.config?.target_url || undefined,
-          description: v.description || (typeof v.config?.rules === 'string' ? v.config.rules : (v.config?.rules ? JSON.stringify(v.config.rules) : undefined)),
-          config: v.config || {},
-          changes: v.changes || {},
-          css_changes: v.css_changes,
-          js_changes: v.js_changes,
-          visitors: v.visitors || 0,
-          conversions: v.conversions || 0,
-          conversion_rate: v.conversion_rate || 0
-        }))
+        variants: [] // Carregar variants sob demanda para melhor performance
       }))
 
       setExperiments(formattedExperiments)
+      setInitialLoad(false) // Marcar carregamento inicial como completo
       
       // ✅ Estatísticas agora vêm do hook em tempo real
       console.log('📊 Estatísticas em tempo real:', realtimeStats)
@@ -693,6 +670,7 @@ export default function Dashboard() {
       console.log('📈 Hook em tempo real carregará as estatísticas automaticamente')
     } finally {
       setLoading(false)
+      setInitialLoad(false) // Garantir que o carregamento inicial seja marcado como completo
     }
   }
 
@@ -2045,224 +2023,11 @@ export default function Dashboard() {
   )
 
   const renderExperimentsContent = () => (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Experimentos</h1>
-          <p className="text-muted-foreground">Gerencie, filtre e acompanhe seus testes A/B</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleNewExperiment} className="bg-gradient-primary text-primary-foreground shadow-lg hover:shadow-xl">
-            <Plus className="w-4 h-4 mr-2" /> Novo Experimento
-          </Button>
-        </div>
-      </div>
-
-      {/* Filtros principais */}
-      <div className="flex flex-col gap-3">
-        {/* Tabs de status */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {filterTabs.map(t => (
-            <button
-              key={t.key}
-              className={"chip hover-lift " + (statusFilter===t.key? 'bg-primary/10 border-primary/30 text-primary' : '')}
-              onClick={() => setStatusFilter(t.key)}
-            >{t.label}</button>
-          ))}
-        </div>
-
-        {/* Linha de busca e controles */}
-        <div className="flex flex-col md:flex-row md:items-center gap-2">
-          <div className="flex-1">
-            <Input
-              placeholder="Buscar por nome..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-10"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Agrupar */}
-            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as any)}>
-              <SelectTrigger className="h-10 w-[150px]"><SelectValue placeholder="Agrupar por" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem grupo</SelectItem>
-                <SelectItem value="tag">Tag</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Layout */}
-            <div className="inline-flex items-center gap-1 rounded-xl border px-1 py-1">
-              <Button variant={layout==='grid'?'default':'ghost'} size="sm" onClick={() => setLayout('grid')} className="h-8">Grid</Button>
-              <Button variant={layout==='list'?'default':'ghost'} size="sm" onClick={() => setLayout('list')} className="h-8">Lista</Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Tags ativas */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {tagFilters.map(tag => (
-            <span key={tag} className="chip">
-              {tag}
-              <button className="ml-2 text-xs" onClick={() => setTagFilters(prev => prev.filter(t => t!==tag))}>remover</button>
-            </span>
-          ))}
-          <div className="flex items-center gap-2">
-            <Input value={newTagValue} onChange={(e) => setNewTagValue(e.target.value)} placeholder="Adicionar tag" className="h-8 w-[160px]" />
-            <Button size="sm" variant="outline" className="h-8" onClick={() => { if (newTagValue.trim() && !tagFilters.includes(newTagValue.trim())) { setTagFilters(prev => [...prev, newTagValue.trim()]); setNewTagValue('') } }}>Adicionar</Button>
-          </div>
-        </div>
-
-        {/* Views salvas */}
-        <div className="flex items-center gap-2">
-          <Select value={activeViewId} onValueChange={applyView}>
-            <SelectTrigger className="h-9 w-[220px]"><SelectValue placeholder="Aplicar visão salva" /></SelectTrigger>
-            <SelectContent>
-              {savedViews.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma visão salva</div>}
-              {savedViews.map(v => (
-                <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" variant="outline" onClick={saveCurrentView}>Salvar visão</Button>
-          {activeViewId && <Button size="sm" variant="ghost" onClick={deleteActiveView}>Excluir visão</Button>}
-        </div>
-      </div>
-
-      {/* Ações em massa */}
-      {selectedIds.length > 0 && (
-        <div className="card-glass p-3 rounded-xl flex items-center gap-2">
-          <span className="text-sm">Selecionados: {selectedIds.length}</span>
-          <div className="flex items-center gap-2 ml-auto">
-            <Button size="sm" variant="outline" onClick={startSelected}>Iniciar</Button>
-            <Button size="sm" variant="outline" onClick={pauseSelected}>Pausar</Button>
-            <Button size="sm" variant="outline" onClick={completeSelected}>Concluir</Button>
-            <Button size="sm" variant="ghost" onClick={deleteSelected}>Excluir</Button>
-            <Button size="sm" variant="outline" onClick={clearSelection}>Limpar</Button>
-          </div>
-        </div>
-      )}
-
-      {/* Lista / Grid */}
-      {loading ? (
-        <Skeleton />
-      ) : sorted.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-24 h-24 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center">
-            <BarChart3 className="w-12 h-12 text-primary" />
-          </div>
-          <h3 className="text-xl font-semibold mb-2">Nenhum experimento encontrado</h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">Ajuste os filtros ou crie um novo experimento.</p>
-          <div className="flex items-center justify-center gap-2">
-            <Button variant="outline" onClick={() => { setQuery(''); setStatusFilter('all'); setProjectFilter('all'); setTagFilters([]) }}>Limpar filtros</Button>
-            <Button onClick={handleNewExperiment}>Criar experimento</Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          {layout === 'list' ? (
-            <div className="overflow-x-auto rounded-xl border">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="text-left text-muted-foreground">
-                    <th className="py-2 pl-3">
-                      <input type="checkbox" aria-label="Selecionar todos" checked={selectedIds.length>0 && selectedIds.length===sorted.length} onChange={(e) => { if (e.target.checked) setSelectedIds(sorted.map(x=>x.id)); else clearSelection() }} />
-                    </th>
-                    <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleSort('name')}>Nome</th>
-          {/* coluna de projeto removida */}
-                    <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleSort('status')}>Status</th>
-                    <th className="py-2 pr-4 cursor-pointer" onClick={() => toggleSort('created')}>Criado</th>
-                    <th className="py-2 pr-4">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map(e => (
-                    <tr key={e.id} className="border-t hover:bg-accent/30">
-                      <td className="py-2 pl-3">
-                        <input type="checkbox" checked={isSelected(e.id)} onChange={() => toggleSelect(e.id)} aria-label="Selecionar" />
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => togglePin(e.id)} aria-label="Fixar" className={"text-xs " + (isPinned(e.id)?'text-yellow-500':'text-muted-foreground')}><Star className="w-4 h-4" /></button>
-                          <span className="font-medium">{e.name}</span>
-                          {(e.tags||[]).slice(0,3).map(t => (<span key={t} className="chip text-[11px]">{t}</span>))}
-                        </div>
-                      </td>
-                      {/* coluna de projeto removida */}
-                      <td className="py-2 pr-4">
-                        <Badge className={
-                          e.status==='running'? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                          e.status==='paused'? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                          e.status==='completed'? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                        }>
-                          {e.status === 'running' ? 'Ativo' : e.status === 'paused' ? 'Pausado' : e.status === 'completed' ? 'Concluído' : 'Rascunho'}
-                        </Badge>
-                      </td>
-                      <td className="py-2 pr-4">{new Date(e.created_at).toLocaleDateString('pt-BR')}</td>
-                      <td className="py-2 pr-4">
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openExperimentDrawer(e)}>Detalhes</Button>
-                          {e.status!=='running' && <Button size="sm" variant="outline" onClick={() => startExperiment(e.id)}>Iniciar</Button>}
-                          {e.status==='running' && <Button size="sm" variant="outline" onClick={() => pauseExperiment(e.id)}>Pausar</Button>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sorted.map(e => (
-                <Card key={e.id} className="hover:shadow-lg transition-shadow group">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <CardTitle className="group-hover:text-primary transition-colors">{e.name}</CardTitle>
-                        {/* descrição de projeto removida */}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" checked={isSelected(e.id)} onChange={() => toggleSelect(e.id)} aria-label="Selecionar" />
-                        <button onClick={() => togglePin(e.id)} aria-label="Fixar" className={"chip " + (isPinned(e.id)?'bg-yellow-100 border-yellow-300 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-200':'') }>
-                          <Star className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between mb-3">
-                      <Badge className={
-                        e.status==='running'? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                        e.status==='paused'? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                        e.status==='completed'? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                      }>
-                        {e.status === 'running' ? 'Ativo' : e.status === 'paused' ? 'Pausado' : e.status === 'completed' ? 'Concluído' : 'Rascunho'}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{new Date(e.created_at).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-3">{e.description || 'Sem descrição'}</div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {(e.tags||[]).slice(0,3).map(t => (<span key={t} className="chip text-[11px]">{t}</span>))}
-                        <span className="text-xs text-muted-foreground">{e.variants?.length||0} variantes</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => openExperimentDrawer(e)}>Detalhes</Button>
-                        {e.status!=='running' && <Button size="sm" variant="outline" onClick={() => startExperiment(e.id)}>Iniciar</Button>}
-                        {e.status==='running' && <Button size="sm" variant="outline" onClick={() => pauseExperiment(e.id)}>Pausar</Button>}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <PremiumExperimentsTab
+      experiments={sorted}
+      loading={loading}
+      onNewExperiment={handleNewExperiment}
+    />
   )
 
 
@@ -2645,7 +2410,7 @@ export default function Dashboard() {
       return new Intl.NumberFormat('pt-BR').format(value)
     }
 
-    if (loading) {
+    if (loading && initialLoad) {
       return (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -4504,7 +4269,7 @@ export default function Dashboard() {
           <>
             {getTabContent()}
             {renderExperimentDrawer()}
-            <ModernExperimentModal
+            <PremiumExperimentModal
               isOpen={showNew}
               onClose={() => setShowNew(false)}
               onSave={handleCreateModernExperiment}

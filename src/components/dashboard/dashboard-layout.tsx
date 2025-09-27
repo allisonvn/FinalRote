@@ -37,7 +37,6 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard' as const, icon: Home },
-  { name: 'Experimentos', href: '/dashboard/experiments' as const, icon: BarChart3 },
   { name: 'Projetos', href: '/dashboard/projects' as const, icon: Database },
   { name: 'Analytics', href: '/dashboard/analytics' as const, icon: TrendingUp },
   { name: 'Visitantes', href: '/dashboard/visitors' as const, icon: Users },
@@ -47,7 +46,7 @@ const navigation = [
 
 export function DashboardLayout({ children, title, description, actions }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { preferences, toggleSidebar } = useApp()
+  const { preferences, toggleSidebar, updatePreference } = useApp()
   const pathname = usePathname()
 
   const sidebarCollapsed = preferences.sidebarCollapsed

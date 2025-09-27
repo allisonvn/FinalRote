@@ -39,6 +39,7 @@ interface Experiment {
   project_id?: string
   algorithm?: string
   traffic_allocation?: number
+  tags?: string[]
   variants?: Array<{
     id: string
     name: string
@@ -117,6 +118,17 @@ export function ExperimentCard({
         'card-glass hover-lift shadow-soft hover:shadow-large transition-all',
         isPinned && 'ring-1 ring-primary/30 bg-primary/5'
       )}
+      role={onView ? 'button' : undefined}
+      tabIndex={onView ? 0 : -1}
+      onClick={() => onView?.(experiment.id)}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && onView) {
+          e.preventDefault()
+          onView(experiment.id)
+        }
+      }}
+      aria-label={`Abrir ${experiment.name}`}
+      style={{ cursor: onView ? 'pointer' as const : 'default' }}
     >
       {/* Subtle pattern background */}
       <div className="pointer-events-none absolute inset-0 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity">
@@ -147,6 +159,7 @@ export function ExperimentCard({
               variant="ghost"
               size="sm"
               className="opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
             >
               <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
             </Button>
@@ -234,6 +247,18 @@ export function ExperimentCard({
               >
                 {variant.key}: {variant.name}
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tags */}
+      {experiment.tags && experiment.tags.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-muted-foreground mb-2">Tags:</p>
+          <div className="flex gap-2 flex-wrap">
+            {experiment.tags.slice(0, 4).map(tag => (
+              <span key={tag} className="chip">{tag}</span>
             ))}
           </div>
         </div>
