@@ -532,7 +532,16 @@
         }
 
         function validateField(validation) {
-            const { field, value, type, required, maxLength, min, max, precision, scale, allowedValues } = validation;
+            const field = validation.field;
+            const value = validation.value;
+            const type = validation.type;
+            const required = validation.required;
+            const maxLength = validation.maxLength;
+            const min = validation.min;
+            const max = validation.max;
+            const precision = validation.precision;
+            const scale = validation.scale;
+            const allowedValues = validation.allowedValues;
 
             // Verificar se campo obrigatório está presente
             if (required && (value === null || value === undefined || value === '')) {
