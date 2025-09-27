@@ -212,8 +212,8 @@ export default function GoalsPage() {
           description="Crie metas para acompanhar seus objetivos de negócio."
           actionLabel="Criar Meta"
           onAction={() => {
-            // Direcionar para criação de meta real (experimentos)
-            window.location.href = '/dashboard/experiments'
+            // Direcionar para dashboard principal
+            window.location.href = '/dashboard'
           }}
         />
       ) : (

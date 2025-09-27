@@ -83,6 +83,47 @@ class RotaFinal {
   }
 
   /**
+   * Rastreia evento personalizado
+   */
+  async track(eventName, properties = {}) {
+    try {
+      // Incluir dados UTM automaticamente
+      const utmData = this.getUTMData ? this.getUTMData() : {};
+      const enrichedProperties = {
+        ...properties,
+        ...utmData
+      };
+
+      const response = await fetch(`${this.baseUrl}/api/track-event`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          events: [{
+            event_type: 'custom',
+            event_name: eventName,
+            visitor_id: this.userId,
+            properties: enrichedProperties,
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (this.debug) console.log('RotaFinal: Event tracked', { eventName, properties: enrichedProperties });
+      
+      return await response.json();
+    } catch (error) {
+      if (this.debug) console.error('RotaFinal: Error tracking event', error);
+      return null;
+    }
+  }
+
+  /**
    * Rastreia evento de conversão
    */
   async conversion(eventName, value = null, properties = {}) {

@@ -5,8 +5,20 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Preserve Next.js assets and API routes
 [[redirects]]
-  from = "/*"
+  from = "/_next/*"
+  to = "/_next/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+
+# Fallback SPA only for non-Next assets (if needed)
+[[redirects]]
+  from = "/(.*)"
   to = "/index.html"
   status = 200
 

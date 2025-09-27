@@ -60,9 +60,8 @@ serve(async (req) => {
       throw new Error('No project found')
     }
 
-    // Validate origin if provided (simplified - allow all in development)
-    const origin = req.headers.get('origin')
-    // For now, allow all origins - can be restricted later if needed
+    // Skip API key validation for development
+    // In production, this should be properly validated
 
     // Process events
     const processedEvents = []
@@ -75,14 +74,14 @@ serve(async (req) => {
           throw new Error('visitor_id, event_type, and event_name are required')
         }
 
-        // Get experiment if specified
+        // Get experiment if specified (using name instead of key)
         let experimentId = null
         if (event.experiment_key) {
           const { data: experiment } = await supabase
             .from('experiments')
             .select('id')
             .eq('project_id', project.id)
-            .eq('key', event.experiment_key)
+            .eq('name', event.experiment_key)
             .single()
 
           if (experiment) {

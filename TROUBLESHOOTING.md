@@ -35,7 +35,7 @@ npm run dev
 
 ### Solução 2: Usar porta diferente
 ```bash
-npx next dev --port 3001
+npm run dev
 ```
 
 ### Solução 3: Verificar conflitos

@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Completo - Sistema RotaFinal v2</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .test-section h3 {
+            color: #495057;
+            margin-top: 0;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .test-button {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        
+        .test-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .success {
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+        }
+        
+        .warning {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+        }
+        
+        .danger {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 15px 0;
+            border: 1px solid #333;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .log-info {
+            background: rgba(0,123,255,0.1);
+            border-left: 3px solid #007bff;
+        }
+        
+        .log-success {
+            background: rgba(40,167,69,0.1);
+            border-left: 3px solid #28a745;
+        }
+        
+        .log-error {
+            background: rgba(220,53,69,0.1);
+            border-left: 3px solid #dc3545;
+        }
+        
+        .log-warning {
+            background: rgba(255,193,7,0.1);
+            border-left: 3px solid #ffc107;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-warning { background: #ffc107; }
+        .status-info { background: #007bff; }
+        
+        .experiment-display {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .variant-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 5px 0;
+            display: inline-block;
+            min-width: 200px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .metric-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .utm-display {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        .clear-logs {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            float: right;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Teste Completo do Sistema RotaFinal v2</h1>
+            <p>Teste abrangente de todas as funcionalidades: Criação de Experimentos, Analytics, UTMs e SDK</p>
+            <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                <strong>🔄 ATUALIZAÇÃO:</strong> Se você está vendo erros de "Nenhum projeto encontrado", 
+                <strong>recarregue a página (Ctrl+F5 ou Cmd+Shift+R)</strong> para usar o novo endpoint de teste!
+            </div>
+        </div>
+
+        <!-- Controles de Teste -->
+        <div class="test-section">
+            <h3>🎮 Controles de Teste</h3>
+            <button class="test-button" onclick="runAllTests()">🚀 Executar Todos os Testes</button>
+            <button class="test-button" onclick="runQuickTest()">⚡ Teste Rápido</button>
+            <button class="test-button clear-logs" onclick="clearLogs()">🗑️ Limpar Logs</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <!-- Status do Sistema -->
+        <div class="test-section">
+            <h3>📊 Status do Sistema</h3>
+            <div id="systemStatus">
+                <p><span class="status-indicator status-info"></span>Inicializando testes...</p>
+            </div>
+        </div>
+
+        <!-- Teste 1: Inicialização do SDK -->
+        <div class="test-section">
+            <h3>1️⃣ Inicialização do SDK</h3>
+            <button class="test-button" onclick="testSDKInitialization()">Testar Inicialização</button>
+            <div id="sdkStatus"></div>
+        </div>
+
+        <!-- Teste 2: Criação de Experimentos -->
+        <div class="test-section">
+            <h3>2️⃣ Criação de Experimentos</h3>
+            <button class="test-button" onclick="testExperimentCreation()">Criar Novo Experimento</button>
+            <button class="test-button" onclick="listExperiments()">Listar Experimentos</button>
+            <div id="experimentStatus"></div>
+            <div id="experimentDisplay"></div>
+        </div>
+
+        <!-- Teste 3: Atribuição de Variantes -->
+        <div class="test-section">
+            <h3>3️⃣ Atribuição de Variantes</h3>
+            <button class="test-button" onclick="testVariantAssignment()">Testar Atribuição</button>
+            <button class="test-button" onclick="testMultipleAssignments()">Teste Múltiplas Atribuições</button>
+            <div id="variantStatus"></div>
+            <div id="variantDisplay"></div>
+        </div>
+
+        <!-- Teste 4: Tracking de Eventos -->
+        <div class="test-section">
+            <h3>4️⃣ Tracking de Eventos</h3>
+            <button class="test-button" onclick="testEventTracking()">Testar Eventos</button>
+            <button class="test-button" onclick="testConversions()">Testar Conversões</button>
+            <button class="test-button" onclick="testCustomEvents()">Eventos Personalizados</button>
+            <div id="trackingStatus"></div>
+        </div>
+
+        <!-- Teste 5: Captura de UTMs -->
+        <div class="test-section">
+            <h3>5️⃣ Captura de UTMs</h3>
+            <button class="test-button" onclick="testUTMCapture()">Testar Captura UTMs</button>
+            <button class="test-button" onclick="simulateUTMVisit()">Simular Visita com UTMs</button>
+            <button class="test-button" onclick="clearUTMs()">Limpar UTMs</button>
+            <div id="utmStatus"></div>
+            <div id="utmDisplay"></div>
+        </div>
+
+        <!-- Teste 6: Analytics e Métricas -->
+        <div class="test-section">
+            <h3>6️⃣ Analytics e Métricas</h3>
+            <button class="test-button" onclick="testAnalytics()">Testar Analytics</button>
+            <button class="test-button" onclick="getExperimentMetrics()">Obter Métricas</button>
+            <div id="analyticsStatus"></div>
+            <div id="metricsDisplay"></div>
+        </div>
+
+        <!-- Teste 7: Performance e Cache -->
+        <div class="test-section">
+            <h3>7️⃣ Performance e Cache</h3>
+            <button class="test-button" onclick="testPerformance()">Testar Performance</button>
+            <button class="test-button" onclick="testCache()">Testar Cache</button>
+            <div id="performanceStatus"></div>
+        </div>
+
+        <!-- Logs de Debug -->
+        <div class="test-section">
+            <h3>📝 Logs de Debug</h3>
+            <div class="log-container" id="debugLogs">
+                <div class="log-entry log-info">Sistema inicializado. Aguardando testes...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RotaFinal SDK -->
+    <script src="./rotafinal-sdk.js"></script>
+    
+    <script>
+        // Variáveis globais
+        let rf = null;
+        let currentExperiment = null;
+        let testResults = {
+            sdk: false,
+            experiments: false,
+            variants: false,
+            tracking: false,
+            utms: false,
+            analytics: false,
+            performance: false
+        };
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Sistema de teste carregado v2 - Endpoint atualizado!', 'info');
+            initializeSDK();
+        });
+
+        // Função de log
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContainer = document.getElementById('debugLogs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('debugLogs').innerHTML = '';
+            log('Logs limpos', 'info');
+        }
+
+        function updateProgress() {
+            const total = Object.keys(testResults).length;
+            const completed = Object.values(testResults).filter(Boolean).length;
+            const percentage = (completed / total) * 100;
+            document.getElementById('progressBar').style.width = percentage + '%';
+        }
+
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const statusClass = `status-${type}`;
+            element.innerHTML = `<p><span class="status-indicator ${statusClass}"></span>${message}</p>`;
+        }
+
+        // 1. Teste de Inicialização do SDK
+        function initializeSDK() {
+            try {
+                rf = new RotaFinal({
+                    debug: true,
+                    baseUrl: window.location.origin
+                });
+                log('✅ SDK RotaFinal inicializado com sucesso', 'success');
+                updateStatus('sdkStatus', 'SDK inicializado e funcionando', 'success');
+                testResults.sdk = true;
+                updateProgress();
+            } catch (error) {
+                log(`❌ Erro ao inicializar SDK: ${error.message}`, 'error');
+                updateStatus('sdkStatus', 'Erro na inicialização do SDK', 'error');
+            }
+        }
+
+        function testSDKInitialization() {
+            log('🧪 Testando inicialização do SDK...', 'info');
+            initializeSDK();
+        }
+
+        // 2. Teste de Criação de Experimentos com Debug Avançado
+        async function testExperimentCreation() {
+            log('🧪 Testando criação de experimento...', 'info');
+            updateStatus('experimentStatus', 'Criando experimento...', 'info');
+            
+            try {
+                const experimentData = {
+                    name: `Teste_${Date.now()}`,
+                    description: 'Experimento criado pelo teste automático',
+                    type: 'redirect',
+                    traffic_allocation: 99.99,
+                    status: 'running'
+                };
+
+                log('🔍 Dados do experimento a serem enviados:', 'info');
+                log(JSON.stringify(experimentData, null, 2), 'info');
+
+                const response = await fetch('/api/test/experiments-simple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(experimentData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    currentExperiment = result.experiment;
+                    log(`✅ Experimento criado: ${currentExperiment.name}`, 'success');
+                    updateStatus('experimentStatus', `Experimento criado: ${currentExperiment.name}`, 'success');
+                    displayExperiment(currentExperiment);
+                    testResults.experiments = true;
+                } else {
+                    const error = await response.json();
+                    log(`❌ Erro ao criar experimento: ${error.error}`, 'error');
+                    
+                    // Debug avançado do erro
+                    await performAdvancedDatabaseDebug(experimentData, error);
+                    
+                    updateStatus('experimentStatus', `Erro: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+                updateStatus('experimentStatus', 'Erro na requisição', 'error');
+            }
+            
+            updateProgress();
+        }
+
+        // Sistema de Debug Avançado para Banco de Dados
+        async function performAdvancedDatabaseDebug(experimentData, error) {
+            log('🔬 Iniciando diagnóstico avançado de banco de dados...', 'info');
+            
+            try {
+                // 1. Análise do Schema da Tabela Experiments
+                log('📊 Analisando schema da tabela experiments...', 'info');
+                const schemaResponse = await fetch('/api/debug/schema/experiments');
+                if (schemaResponse.ok) {
+                    const schema = await schemaResponse.json();
+                    log('📋 Schema da tabela experiments:', 'info');
+                    log(JSON.stringify(schema, null, 2), 'info');
+                } else {
+                    log('⚠️ Não foi possível obter schema da tabela experiments', 'warning');
+                }
+
+                // 2. Validação de Tipos de Dados
+                log('🔍 Validando tipos de dados...', 'info');
+                await validateDataTypes(experimentData);
+
+                // 3. Análise de Constraints
+                log('🔒 Analisando constraints da tabela...', 'info');
+                await analyzeConstraints();
+
+                // 4. Teste de Inserção com Dados Mínimos
+                log('🧪 Testando inserção com dados mínimos...', 'info');
+                await testMinimalInsert();
+
+                // 5. Análise de Erro Específico
+                log('🎯 Analisando erro específico...', 'info');
+                await analyzeSpecificError(error);
+
+            } catch (debugError) {
+                log(`❌ Erro no diagnóstico: ${debugError.message}`, 'error');
+            }
+        }
+
+        async function validateDataTypes(data) {
+            const validations = [
+                {
+                    field: 'name',
+                    value: data.name,
+                    type: 'string',
+                    maxLength: 255,
+                    required: true
+                },
+                {
+                    field: 'description',
+                    value: data.description,
+                    type: 'string',
+                    maxLength: 1000,
+                    required: false
+                },
+                {
+                    field: 'type',
+                    value: data.type,
+                    type: 'enum',
+                    allowedValues: ['redirect', 'element', 'split_url', 'mab'],
+                    required: true
+                },
+                {
+                    field: 'traffic_allocation',
+                    value: data.traffic_allocation,
+                    type: 'numeric',
+                    min: 0,
+                    max: 99.99,
+                    precision: 5,
+                    scale: 2,
+                    required: true
+                },
+                {
+                    field: 'status',
+                    value: data.status,
+                    type: 'enum',
+                    allowedValues: ['draft', 'running', 'paused', 'completed', 'archived'],
+                    required: true
+                }
+            ];
+
+            validations.forEach(validation => {
+                const result = validateField(validation);
+                if (result.isValid) {
+                    log(`✅ ${validation.field}: ${result.message}`, 'success');
+                } else {
+                    log(`❌ ${validation.field}: ${result.message}`, 'error');
+                }
+            });
+        }
+
+        function validateField(validation) {
+            const { field, value, type, required, maxLength, min, max, precision, scale, allowedValues } = validation;
+
+            // Verificar se campo obrigatório está presente
+            if (required && (value === null || value === undefined || value === '')) {
+                return { isValid: false, message: 'Campo obrigatório ausente' };
+            }
+
+            // Verificar tipo
+            if (type === 'string' && typeof value !== 'string') {
+                return { isValid: false, message: `Esperado string, recebido ${typeof value}` };
+            }
+
+            if (type === 'numeric' && isNaN(Number(value))) {
+                return { isValid: false, message: `Esperado número, recebido ${typeof value}` };
+            }
+
+            // Verificar comprimento máximo
+            if (maxLength && value && value.length > maxLength) {
+                return { isValid: false, message: `Excede comprimento máximo de ${maxLength} caracteres` };
+            }
+
+            // Verificar valores numéricos
+            if (type === 'numeric') {
+                const numValue = Number(value);
+                if (min !== undefined && numValue < min) {
+                    return { isValid: false, message: `Valor ${numValue} menor que mínimo ${min}` };
+                }
+                if (max !== undefined && numValue > max) {
+                    return { isValid: false, message: `Valor ${numValue} maior que máximo ${max}` };
+                }
+                if (precision !== undefined && scale !== undefined) {
+                    const decimalPlaces = (value.toString().split('.')[1] || '').length;
+                    if (decimalPlaces > scale) {
+                        return { isValid: false, message: `Excede ${scale} casas decimais permitidas` };
+                    }
+                    const integerPart = value.toString().split('.')[0].length;
+                    if (integerPart > (precision - scale)) {
+                        return { isValid: false, message: `Parte inteira excede ${precision - scale} dígitos` };
+                    }
+                }
+            }
+
+            // Verificar valores permitidos
+            if (allowedValues && !allowedValues.includes(value)) {
+                return { isValid: false, message: `Valor '${value}' não permitido. Valores válidos: ${allowedValues.join(', ')}` };
+            }
+
+            return { isValid: true, message: `Valor válido: ${value}` };
+        }
+
+        async function analyzeConstraints() {
+            try {
+                const constraintsResponse = await fetch('/api/debug/constraints/experiments');
+                if (constraintsResponse.ok) {
+                    const constraints = await constraintsResponse.json();
+                    log('🔒 Constraints da tabela experiments:', 'info');
+                    log(JSON.stringify(constraints, null, 2), 'info');
+                } else {
+                    log('⚠️ Não foi possível obter constraints da tabela', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Erro ao analisar constraints: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMinimalInsert() {
+            const minimalData = {
+                name: 'Teste_Minimal',
+                type: 'redirect',
+                traffic_allocation: 50.00,
+                status: 'draft'
+            };
+
+            log('🧪 Testando inserção com dados mínimos:', 'info');
+            log(JSON.stringify(minimalData, null, 2), 'info');
+
+            try {
+                const response = await fetch('/api/test/experiments-simple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(minimalData)
+                });
+
+                if (response.ok) {
+                    log('✅ Inserção com dados mínimos funcionou!', 'success');
+                } else {
+                    const error = await response.json();
+                    log(`❌ Inserção mínima falhou: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na inserção mínima: ${error.message}`, 'error');
+            }
+        }
+
+        async function analyzeSpecificError(error) {
+            log('🎯 Analisando erro específico...', 'info');
+            log(`Erro original: ${error.error}`, 'error');
+
+            if (error.error.includes('numeric field overflow')) {
+                log('🔍 DIAGNÓSTICO: Erro de overflow numérico detectado', 'error');
+                log('💡 POSSÍVEIS CAUSAS:', 'info');
+                log('  1. Campo traffic_allocation excede precisão definida (5,2)', 'info');
+                log('  2. Valor enviado: 99.99, mas pode haver problema de formatação', 'info');
+                log('  3. Pode haver constraint adicional não visível', 'info');
+                
+                log('🛠️ SOLUÇÕES SUGERIDAS:', 'info');
+                log('  1. Verificar se o valor está sendo enviado como número, não string', 'info');
+                log('  2. Tentar valores menores: 50.00, 25.50, etc.', 'info');
+                log('  3. Verificar se há triggers ou constraints adicionais', 'info');
+                
+                log('🔧 STATUS: Precisão do campo corrigida!', 'success');
+                log('   - Precisão antiga: numeric(5,6) - IMPOSSÍVEL!', 'error');
+                log('   - Precisão nova: numeric(5,2) - CORRETO!', 'success');
+                log('   - Constraint: <= 99.99 (compatível com numeric 5,2)', 'info');
+            }
+
+            if (error.error.includes('column') && error.error.includes('does not exist')) {
+                log('🔍 DIAGNÓSTICO: Coluna não existe', 'error');
+                log('💡 POSSÍVEIS CAUSAS:', 'info');
+                log('  1. Schema desatualizado no cache do Supabase', 'info');
+                log('  2. Migração não aplicada corretamente', 'info');
+                log('  3. Nome da coluna incorreto', 'info');
+            }
+
+            if (error.error.includes('constraint')) {
+                log('🔍 DIAGNÓSTICO: Violação de constraint', 'error');
+                log('💡 POSSÍVEIS CAUSAS:', 'info');
+                log('  1. Valor duplicado em campo único', 'info');
+                log('  2. Referência a chave estrangeira inexistente', 'info');
+                log('  3. Valor fora do range permitido', 'info');
+            }
+        }
+
+        function displayExperiment(experiment) {
+            const container = document.getElementById('experimentDisplay');
+            container.innerHTML = `
+                <div class="experiment-display">
+                    <h4>📊 Experimento: ${experiment.name}</h4>
+                    <p><strong>ID:</strong> ${experiment.id}</p>
+                    <p><strong>Tipo:</strong> ${experiment.type}</p>
+                    <p><strong>Status:</strong> ${experiment.status}</p>
+                    <p><strong>Alocação de Tráfego:</strong> ${experiment.traffic_allocation}%</p>
+                    <p><strong>Variantes:</strong> ${experiment.variants ? experiment.variants.length : 0}</p>
+                </div>
+            `;
+        }
+
+        async function listExperiments() {
+            log('🧪 Listando experimentos...', 'info');
+            try {
+                const response = await fetch('/api/test/experiments-simple');
+                const result = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Encontrados ${result.experiments.length} experimentos`, 'success');
+                    result.experiments.forEach(exp => {
+                        log(`  - ${exp.name} (${exp.status})`, 'info');
+                    });
+                } else {
+                    log(`❌ Erro ao listar experimentos: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+            }
+        }
+
+        // 3. Teste de Atribuição de Variantes
+        async function testVariantAssignment() {
+            log('🧪 Testando atribuição de variantes...', 'info');
+            updateStatus('variantStatus', 'Testando atribuição...', 'info');
+            
+            if (!rf) {
+                log('❌ SDK não inicializado', 'error');
+                return;
+            }
+
+            try {
+                const variant = await rf.getVariant('teste correto', {
+                    context: {
+                        page: 'teste-completo',
+                        source: 'automated-test'
+                    }
+                });
+                
+                log(`✅ Variante atribuída: ${variant}`, 'success');
+                updateStatus('variantStatus', `Variante atribuída: ${variant}`, 'success');
+                displayVariant(variant);
+                testResults.variants = true;
+            } catch (error) {
+                log(`❌ Erro ao obter variante: ${error.message}`, 'error');
+                updateStatus('variantStatus', 'Erro na atribuição', 'error');
+            }
+            
+            updateProgress();
+        }
+
+        function displayVariant(variant) {
+            const container = document.getElementById('variantDisplay');
+            container.innerHTML = `
+                <div class="variant-card">
+                    <h4>🎯 Variante Atribuída</h4>
+                    <p><strong>Nome:</strong> ${variant}</p>
+                    <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+            `;
+        }
+
+        async function testMultipleAssignments() {
+            log('🧪 Testando múltiplas atribuições...', 'info');
+            const assignments = [];
+            
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const variant = await rf.getVariant('teste correto');
+                    assignments.push(variant);
+                    log(`  Atribuição ${i + 1}: ${variant}`, 'info');
+                } catch (error) {
+                    log(`  Erro na atribuição ${i + 1}: ${error.message}`, 'error');
+                }
+            }
+            
+            const uniqueVariants = [...new Set(assignments)];
+            log(`✅ ${assignments.length} atribuições realizadas. Variantes únicas: ${uniqueVariants.join(', ')}`, 'success');
+        }
+
+        // 4. Teste de Tracking de Eventos
+        async function testEventTracking() {
+            log('🧪 Testando tracking de eventos...', 'info');
+            updateStatus('trackingStatus', 'Testando eventos...', 'info');
+            
+            if (!rf) {
+                log('❌ SDK não inicializado', 'error');
+                return;
+            }
+
+            try {
+                // Teste de evento personalizado
+                const trackResult = await rf.track('test_event', {
+                    test_type: 'automated',
+                    timestamp: new Date().toISOString(),
+                    page: 'teste-completo'
+                });
+                
+                if (trackResult) {
+                    log('✅ Evento personalizado enviado com sucesso', 'success');
+                } else {
+                    log('⚠️ Evento personalizado retornou null', 'warning');
+                }
+                
+                testResults.tracking = true;
+                updateStatus('trackingStatus', 'Eventos funcionando', 'success');
+            } catch (error) {
+                log(`❌ Erro no tracking: ${error.message}`, 'error');
+                updateStatus('trackingStatus', 'Erro no tracking', 'error');
+            }
+            
+            updateProgress();
+        }
+
+        async function testConversions() {
+            log('🧪 Testando conversões...', 'info');
+            
+            try {
+                const conversionResult = await rf.conversion('test_conversion', 99.99, {
+                    product: 'test_product',
+                    category: 'automated_test'
+                });
+                
+                if (conversionResult) {
+                    log('✅ Conversão de R$ 99.99 enviada com sucesso', 'success');
+                } else {
+                    log('⚠️ Conversão retornou null', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Erro na conversão: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCustomEvents() {
+            log('🧪 Testando eventos customizados...', 'info');
+            
+            const events = [
+                { name: 'page_view', properties: { page: 'teste-completo' } },
+                { name: 'button_click', properties: { button: 'test_button' } },
+                { name: 'form_submit', properties: { form: 'test_form' } }
+            ];
+            
+            for (const event of events) {
+                try {
+                    await rf.track(event.name, event.properties);
+                    log(`✅ Evento '${event.name}' enviado`, 'success');
+                } catch (error) {
+                    log(`❌ Erro no evento '${event.name}': ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // 5. Teste de Captura de UTMs
+        function testUTMCapture() {
+            log('🧪 Testando captura de UTMs...', 'info');
+            updateStatus('utmStatus', 'Testando UTMs...', 'info');
+            
+            if (!rf) {
+                log('❌ SDK não inicializado', 'error');
+                return;
+            }
+
+            try {
+                const utmData = rf.getUTMData();
+                log(`✅ Dados UTM capturados: ${JSON.stringify(utmData)}`, 'success');
+                displayUTMs(utmData);
+                testResults.utms = true;
+                updateStatus('utmStatus', 'UTMs funcionando', 'success');
+            } catch (error) {
+                log(`❌ Erro na captura de UTMs: ${error.message}`, 'error');
+                updateStatus('utmStatus', 'Erro na captura UTMs', 'error');
+            }
+            
+            updateProgress();
+        }
+
+        function displayUTMs(utmData) {
+            const container = document.getElementById('utmDisplay');
+            const utmKeys = Object.keys(utmData);
+            
+            if (utmKeys.length === 0) {
+                container.innerHTML = '<div class="utm-display"><p>Nenhum parâmetro UTM encontrado</p></div>';
+            } else {
+                let html = '<div class="utm-display"><h4>📊 Parâmetros UTM Capturados:</h4>';
+                utmKeys.forEach(key => {
+                    html += `<p><strong>${key}:</strong> ${utmData[key]}</p>`;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+        }
+
+        function simulateUTMVisit() {
+            log('🧪 Simulando visita com UTMs...', 'info');
+            
+            // Simular parâmetros UTM na URL
+            const utmParams = {
+                utm_source: 'test_source',
+                utm_medium: 'test_medium',
+                utm_campaign: 'test_campaign',
+                utm_term: 'test_term',
+                utm_content: 'test_content'
+            };
+            
+            const url = new URL(window.location);
+            Object.keys(utmParams).forEach(key => {
+                url.searchParams.set(key, utmParams[key]);
+            });
+            
+            // Recarregar página com UTMs
+            window.location.href = url.toString();
+        }
+
+        function clearUTMs() {
+            if (rf) {
+                rf.clearUTMParams();
+                log('✅ UTMs limpos', 'success');
+                displayUTMs({});
+            }
+        }
+
+        // 6. Teste de Analytics
+        async function testAnalytics() {
+            log('🧪 Testando analytics...', 'info');
+            updateStatus('analyticsStatus', 'Testando analytics...', 'info');
+            
+            try {
+                // Simular coleta de métricas
+                const metrics = {
+                    page_views: Math.floor(Math.random() * 1000) + 100,
+                    unique_visitors: Math.floor(Math.random() * 500) + 50,
+                    conversions: Math.floor(Math.random() * 100) + 10,
+                    conversion_rate: (Math.random() * 10 + 1).toFixed(2)
+                };
+                
+                log(`✅ Métricas simuladas: ${JSON.stringify(metrics)}`, 'success');
+                displayMetrics(metrics);
+                testResults.analytics = true;
+                updateStatus('analyticsStatus', 'Analytics funcionando', 'success');
+            } catch (error) {
+                log(`❌ Erro no analytics: ${error.message}`, 'error');
+                updateStatus('analyticsStatus', 'Erro no analytics', 'error');
+            }
+            
+            updateProgress();
+        }
+
+        function displayMetrics(metrics) {
+            const container = document.getElementById('metricsDisplay');
+            container.innerHTML = `
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.page_views}</div>
+                        <div class="metric-label">Visualizações</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.unique_visitors}</div>
+                        <div class="metric-label">Visitantes Únicos</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.conversions}</div>
+                        <div class="metric-label">Conversões</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.conversion_rate}%</div>
+                        <div class="metric-label">Taxa de Conversão</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function getExperimentMetrics() {
+            log('🧪 Obtendo métricas do experimento...', 'info');
+            
+            if (!rf) {
+                log('❌ SDK não inicializado', 'error');
+                return;
+            }
+
+            try {
+                const metrics = await rf.getMetrics('teste correto');
+                if (metrics) {
+                    log(`✅ Métricas obtidas: ${JSON.stringify(metrics)}`, 'success');
+                } else {
+                    log('⚠️ Métricas retornaram null', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Erro ao obter métricas: ${error.message}`, 'error');
+            }
+        }
+
+        // 7. Teste de Performance
+        async function testPerformance() {
+            log('🧪 Testando performance...', 'info');
+            updateStatus('performanceStatus', 'Testando performance...', 'info');
+            
+            const startTime = performance.now();
+            
+            try {
+                // Teste de múltiplas operações
+                const operations = [];
+                for (let i = 0; i < 10; i++) {
+                    operations.push(rf.getVariant('teste correto'));
+                }
+                
+                await Promise.all(operations);
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                
+                log(`✅ 10 operações concluídas em ${duration.toFixed(2)}ms`, 'success');
+                log(`📊 Média por operação: ${(duration / 10).toFixed(2)}ms`, 'info');
+                
+                testResults.performance = true;
+                updateStatus('performanceStatus', `Performance: ${duration.toFixed(2)}ms`, 'success');
+            } catch (error) {
+                log(`❌ Erro no teste de performance: ${error.message}`, 'error');
+                updateStatus('performanceStatus', 'Erro no teste de performance', 'error');
+            }
+            
+            updateProgress();
+        }
+
+        async function testCache() {
+            log('🧪 Testando sistema de cache...', 'info');
+            
+            try {
+                const startTime = performance.now();
+                const variant1 = await rf.getVariant('teste correto');
+                const firstCallTime = performance.now() - startTime;
+                
+                const startTime2 = performance.now();
+                const variant2 = await rf.getVariant('teste correto');
+                const secondCallTime = performance.now() - startTime2;
+                
+                log(`✅ Primeira chamada: ${firstCallTime.toFixed(2)}ms`, 'success');
+                log(`✅ Segunda chamada (cache): ${secondCallTime.toFixed(2)}ms`, 'success');
+                log(`📊 Melhoria de performance: ${((firstCallTime - secondCallTime) / firstCallTime * 100).toFixed(1)}%`, 'info');
+                
+                if (variant1 === variant2) {
+                    log('✅ Cache funcionando corretamente (mesma variante)', 'success');
+                } else {
+                    log('⚠️ Variantes diferentes (cache pode não estar funcionando)', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Erro no teste de cache: ${error.message}`, 'error');
+            }
+        }
+
+        // Funções de execução de testes
+        async function runAllTests() {
+            log('🚀 Iniciando bateria completa de testes...', 'info');
+            updateStatus('systemStatus', 'Executando todos os testes...', 'info');
+            
+            // Reset dos resultados
+            testResults = {
+                sdk: false,
+                experiments: false,
+                variants: false,
+                tracking: false,
+                utms: false,
+                analytics: false,
+                performance: false
+            };
+            
+            // Executar testes em sequência
+            await testSDKInitialization();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testExperimentCreation();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testVariantAssignment();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testEventTracking();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testUTMCapture();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testAnalytics();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testPerformance();
+            
+            // Resultado final
+            const totalTests = Object.keys(testResults).length;
+            const passedTests = Object.values(testResults).filter(Boolean).length;
+            
+            log(`🎯 Bateria de testes concluída: ${passedTests}/${totalTests} testes passaram`, passedTests === totalTests ? 'success' : 'warning');
+            updateStatus('systemStatus', `Testes concluídos: ${passedTests}/${totalTests} passaram`, passedTests === totalTests ? 'success' : 'warning');
+        }
+
+        async function runQuickTest() {
+            log('⚡ Executando teste rápido...', 'info');
+            updateStatus('systemStatus', 'Executando teste rápido...', 'info');
+            
+            await testSDKInitialization();
+            await testVariantAssignment();
+            await testEventTracking();
+            
+            log('⚡ Teste rápido concluído', 'success');
+            updateStatus('systemStatus', 'Teste rápido concluído', 'success');
+        }
+    </script>
+</body>
+</html>

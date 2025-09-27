@@ -3,14 +3,24 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+import type { Tables } from '@/types/supabase'
+
+type Organization = Tables<'organizations'>
+type OrganizationMember = Tables<'organization_members'>
 
 interface AuthUser extends User {
-  organizations?: Array<{
+  profile?: {
     id: string
-    name: string
-    slug: string
-    role: string
+    email: string
+    full_name: string | null
+    avatar_url: string | null
+    default_org_id: string | null
+  }
+  organizations?: Array<{
+    organization: Organization
+    membership: OrganizationMember
   }>
+  currentOrg?: Organization | null
 }
 
 interface AuthContext {
@@ -18,6 +28,8 @@ interface AuthContext {
   loading: boolean
   signIn: (email: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
+  switchOrganization: (orgId: string) => Promise<void>
+  createOrganization: (name: string, slug: string) => Promise<string>
 }
 
 const AuthContext = createContext<AuthContext | undefined>(undefined)
@@ -27,6 +39,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   
   const supabase = createClient()
+
+  // Carregar perfil e organizações do usuário
+  const loadUserProfile = async (authUser: User): Promise<AuthUser> => {
+    try {
+      // Buscar perfil do usuário
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
+
+      // Buscar organizações do usuário
+      const { data: memberships } = await supabase
+        .from('organization_members')
+        .select(`
+          *,
+          organizations (*)
+        `)
+        .eq('user_id', authUser.id)
+
+      const organizations = memberships?.map(m => ({
+        organization: m.organizations,
+        membership: m
+      })) || []
+
+      // Determinar organização atual
+      const currentOrg = organizations.find(
+        org => org.organization.id === profile?.default_org_id
+      )?.organization || organizations[0]?.organization || null
+
+      return {
+        ...authUser,
+        profile,
+        organizations,
+        currentOrg
+      }
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error)
+      return authUser as AuthUser
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -45,7 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (session?.user && mounted) {
-          setUser(session.user as AuthUser)
+          const userWithProfile = await loadUserProfile(session.user)
+          setUser(userWithProfile)
         }
         
         if (mounted) {
@@ -70,7 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       try {
         if (session?.user) {
-          setUser(session.user as AuthUser)
+          const userWithProfile = await loadUserProfile(session.user)
+          setUser(userWithProfile)
         } else {
           setUser(null)
         }
@@ -116,11 +171,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }
 
+  const switchOrganization = async (orgId: string) => {
+    if (!user) return
+
+    try {
+      const { error } = await supabase.rpc('switch_organization', {
+        new_org_id: orgId
+      })
+
+      if (error) throw error
+
+      // Atualizar estado local
+      const newOrg = user.organizations?.find(
+        org => org.organization.id === orgId
+      )?.organization
+
+      if (newOrg) {
+        setUser({
+          ...user,
+          currentOrg: newOrg,
+          profile: {
+            ...user.profile!,
+            default_org_id: orgId
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Erro ao trocar organização:', error)
+      throw error
+    }
+  }
+
+  const createOrganization = async (name: string, slug: string): Promise<string> => {
+    if (!user) throw new Error('Usuário não autenticado')
+
+    try {
+      const { data, error } = await supabase.rpc('create_organization', {
+        name: name.trim(),
+        slug: slug.trim()
+      })
+
+      if (error) throw error
+
+      // Recarregar perfil do usuário para incluir nova organização
+      const updatedUser = await loadUserProfile(user)
+      setUser(updatedUser)
+
+      return data
+    } catch (error) {
+      console.error('Erro ao criar organização:', error)
+      throw error
+    }
+  }
+
   const value: AuthContext = {
     user,
     loading,
     signIn,
     signOut,
+    switchOrganization,
+    createOrganization,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

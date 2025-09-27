@@ -30,22 +30,27 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
 
   const supabase = createClient()
 
-  // Função para recarregar dados
+  // Função para recarregar dados (otimizada)
   const refreshData = async () => {
     try {
-      const [newStats, newMetrics] = await Promise.all([
-        getDashboardStats(timeRange),
-        getExperimentMetrics(timeRange)
-      ])
-
+      // Carregar apenas stats inicialmente para melhor performance
+      const newStats = await getDashboardStats(timeRange)
       setStats(newStats)
-      setMetrics(newMetrics)
       setLastUpdate(new Date())
 
-      console.log('📊 Analytics data refreshed:', {
-        stats: newStats,
-        metricsCount: newMetrics.length
-      })
+      console.log('📊 Analytics stats refreshed:', newStats)
+      
+      // Carregar metrics em background (não bloqueante)
+      setTimeout(async () => {
+        try {
+          const newMetrics = await getExperimentMetrics(timeRange)
+          setMetrics(newMetrics)
+          console.log('📈 Analytics metrics loaded:', newMetrics.length)
+        } catch (error) {
+          console.error('Erro ao carregar metrics:', error)
+        }
+      }, 100)
+      
     } catch (error) {
       console.error('Erro ao recarregar dados analytics:', error)
     }
