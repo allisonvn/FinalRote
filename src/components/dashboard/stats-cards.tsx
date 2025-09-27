@@ -63,7 +63,7 @@ const trendColors = {
 
 export function StatsCards({ stats }: StatsCardsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-animation">
       {stats.map((stat, index) => {
         const config = colorConfig[stat.color || 'primary']
         const Icon = stat.icon
@@ -72,57 +72,68 @@ export function StatsCards({ stats }: StatsCardsProps) {
         return (
           <Card
             key={index}
-            className="relative overflow-hidden group card-glass hover-lift"
+            className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-border/60 bg-gradient-to-br from-white via-slate-50/50 to-blue-50/30 backdrop-blur-sm"
           >
-            {/* Subtle pattern background */}
-            <div className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_hsl(var(--foreground))_1px,_transparent_0)] [background-size:16px_16px]" />
+            {/* Enhanced background pattern */}
+            <div className="absolute inset-0 opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-300">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,_hsl(var(--foreground))_1px,_transparent_0)] [background-size:20px_20px]" />
             </div>
-            <CardHeader className="pb-3">
+            
+            <CardHeader className="pb-4">
               <div className="flex items-start justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   {stat.title}
                 </CardTitle>
                 {Icon && (
-                  <div className={cn('h-10 w-10 rounded-xl grid place-items-center ring-1 ring-border', config.background)}>
-                    <Icon className={cn('h-5 w-5', config.icon)} strokeWidth={1.75} />
+                  <div className={cn(
+                    'h-12 w-12 rounded-2xl grid place-items-center ring-1 ring-border/60 group-hover:scale-110 transition-all duration-300 shadow-sm group-hover:shadow-md',
+                    config.background
+                  )}>
+                    <Icon className={cn('h-6 w-6', config.icon)} strokeWidth={1.75} />
                   </div>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-bold tracking-tight">
+            
+            <CardContent className="pt-0 space-y-3">
+              <div className="flex items-baseline gap-3">
+                <h3 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
                   {typeof stat.value === 'number' ? stat.value.toLocaleString('pt-BR') : stat.value}
                 </h3>
                 {stat.trend && TrendIcon && (
-                  <div className={cn('chip', trendColors[stat.trend.direction])}>
-                    <TrendIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    <span className="font-medium">
-                      {Math.abs(stat.trend.value)}%
-                    </span>
+                  <div className={cn(
+                    'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105',
+                    stat.trend.direction === 'up' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                    stat.trend.direction === 'down' ? 'bg-red-100 text-red-700 border border-red-200' :
+                    'bg-slate-100 text-slate-700 border border-slate-200'
+                  )}>
+                    <TrendIcon className="h-3 w-3" strokeWidth={2} />
+                    <span>{Math.abs(stat.trend.value)}%</span>
                   </div>
                 )}
               </div>
+              
               {stat.description && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-sm text-muted-foreground">
                   {stat.description}
                 </p>
               )}
+              
               {stat.trend?.label && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground">
                   {stat.trend.label}
                 </p>
               )}
             </CardContent>
-            {/* Bottom accent */}
+            
+            {/* Enhanced bottom accent */}
             <div
               className={cn(
-                'absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r opacity-60',
-                stat.color === 'success' ? 'from-success/40 to-success' :
-                stat.color === 'warning' ? 'from-warning/40 to-warning' :
-                stat.color === 'danger'  ? 'from-danger/40 to-danger'  :
-                'from-primary/40 to-primary'
+                'absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r opacity-70 group-hover:opacity-100 transition-opacity duration-300',
+                stat.color === 'success' ? 'from-emerald-400 via-green-500 to-emerald-600' :
+                stat.color === 'warning' ? 'from-amber-400 via-orange-500 to-amber-600' :
+                stat.color === 'danger'  ? 'from-red-400 via-red-500 to-red-600' :
+                'from-blue-400 via-primary to-blue-600'
               )}
             />
           </Card>

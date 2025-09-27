@@ -62,22 +62,22 @@ interface ExperimentCardProps {
 const statusConfig = {
   draft: {
     label: 'Rascunho',
-    color: 'bg-muted text-muted-foreground',
+    color: 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 border border-slate-300',
     icon: Edit
   },
   running: {
-    label: 'Ativo',
-    color: 'bg-success text-success-foreground',
+    label: 'Executando',
+    color: 'bg-gradient-to-r from-emerald-500 to-green-600 text-white border border-emerald-600 shadow-lg',
     icon: Play
   },
   paused: {
     label: 'Pausado',
-    color: 'bg-warning text-warning-foreground',
+    color: 'bg-gradient-to-r from-amber-400 to-orange-500 text-white border border-amber-500 shadow-lg',
     icon: Pause
   },
   completed: {
     label: 'Concluído',
-    color: 'bg-info text-info-foreground',
+    color: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border border-blue-600 shadow-lg',
     icon: Square
   }
 }
@@ -217,14 +217,14 @@ export function ExperimentCard({
         </DropdownMenu>
       </div>
 
-      {/* Status badge */}
+      {/* Enhanced Status badge */}
       <div className="flex items-center gap-2 mb-4">
-        <Badge className={cn('gap-1', status.color)}>
+        <Badge className={cn('gap-2 px-3 py-1.5 rounded-full font-medium transition-all duration-200 hover:scale-105', status.color)}>
           <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
           {status.label}
         </Badge>
         {experiment.algorithm && (
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs px-2 py-1 bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 transition-all duration-200">
             {experiment.algorithm === 'thompson_sampling' ? 'Thompson' : experiment.algorithm}
           </Badge>
         )}

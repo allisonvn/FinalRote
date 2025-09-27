@@ -134,62 +134,70 @@ export function Filters({
   ].reduce((sum, count) => sum + count, 0)
 
   return (
-    <div className="space-y-4">
-      {/* Search and main filters */}
+    <div className="space-y-6">
+      {/* Enhanced Search and main filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {/* Enhanced Search */}
+        <div className="relative flex-1 group">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors duration-200" />
           <Input
             placeholder="Buscar experimentos..."
             value={filters.query || ''}
             onChange={(e) => updateFilter('query', e.target.value)}
-            className="pl-9"
+            className="pl-10 pr-4 py-3 bg-white/90 dark:bg-background/90 border-border/60 hover:border-border focus:border-primary focus:bg-white dark:focus:bg-background transition-all duration-200 rounded-xl shadow-sm hover:shadow-md focus:shadow-lg backdrop-blur-sm"
           />
         </div>
 
-        {/* Status filter */}
+        {/* Enhanced Status filter */}
         <Select
           value={filters.status || 'all'}
           onValueChange={(value) => updateFilter('status', value as any)}
         >
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-full sm:w-52 h-12 bg-white/90 dark:bg-background/90 border-border/60 hover:border-border focus:border-primary transition-all duration-200 rounded-xl shadow-sm hover:shadow-md backdrop-blur-sm">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl border-border/60 shadow-xl">
             {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
+              <SelectItem key={option.value} value={option.value} className="rounded-lg">
                 {option.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {/* Advanced filters */}
+        {/* Enhanced Advanced filters */}
         <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="relative">
-              <Filter className="mr-2 h-4 w-4" />
+            <Button 
+              variant="outline" 
+              className="relative h-12 px-4 bg-white/90 dark:bg-background/90 border-border/60 hover:border-border hover:bg-white dark:hover:bg-background transition-all duration-200 rounded-xl shadow-sm hover:shadow-md backdrop-blur-sm group"
+            >
+              <Filter className="mr-2 h-4 w-4 group-hover:text-primary transition-colors duration-200" />
               Filtros
               {activeFilterCount > 0 && (
-                <Badge className="ml-2 h-5 w-5 p-0 text-xs" variant="secondary">
+                <Badge className="ml-2 h-5 w-5 p-0 text-xs bg-primary text-primary-foreground animate-pulse" variant="secondary">
                   {activeFilterCount}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
-            <div className="space-y-4">
+          <PopoverContent className="w-80 rounded-xl border-border/60 shadow-xl bg-white/95 dark:bg-background/95 backdrop-blur-xl" align="end">
+            <div className="space-y-5">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium">Filtros Avançados</h4>
+                <h4 className="font-semibold text-lg">Filtros Avançados</h4>
                 {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={clearFilters}
+                    className="text-primary hover:bg-primary/10 rounded-lg"
+                  >
                     Limpar
                   </Button>
                 )}
               </div>
 
-              <Separator />
+              <Separator className="bg-border/60" />
 
               {/* Project filter */}
               {availableProjects.length > 0 && (
@@ -260,14 +268,18 @@ export function Filters({
           </PopoverContent>
         </Popover>
 
-        {/* View toggle */}
+        {/* Enhanced View toggle */}
         {showViewToggle && (
-          <div className="flex rounded-lg border">
+          <div className="flex rounded-xl border border-border/60 bg-white/90 dark:bg-background/90 backdrop-blur-sm shadow-sm overflow-hidden">
             <Button
               variant={filters.view === 'grid' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => updateFilter('view', 'grid')}
-              className="rounded-r-none"
+              className={`h-12 px-4 rounded-none transition-all duration-200 ${
+                filters.view === 'grid' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'hover:bg-primary/10'
+              }`}
             >
               <Grid className="h-4 w-4" />
             </Button>
@@ -275,25 +287,29 @@ export function Filters({
               variant={filters.view === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => updateFilter('view', 'list')}
-              className="rounded-l-none"
+              className={`h-12 px-4 rounded-none transition-all duration-200 ${
+                filters.view === 'list' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'hover:bg-primary/10'
+              }`}
             >
               <List className="h-4 w-4" />
             </Button>
           </div>
         )}
 
-        {/* Sort */}
-        <div className="flex gap-1">
+        {/* Enhanced Sort */}
+        <div className="flex gap-2">
           <Select
             value={filters.sortBy || 'created_at'}
             onValueChange={(value) => updateFilter('sortBy', value)}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-44 h-12 bg-white/90 dark:bg-background/90 border-border/60 hover:border-border focus:border-primary transition-all duration-200 rounded-xl shadow-sm hover:shadow-md backdrop-blur-sm">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl border-border/60 shadow-xl">
               {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+                <SelectItem key={option.value} value={option.value} className="rounded-lg">
                   {option.label}
                 </SelectItem>
               ))}
@@ -304,27 +320,32 @@ export function Filters({
             variant="outline"
             size="sm"
             onClick={() => updateFilter('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="h-12 w-12 bg-white/90 dark:bg-background/90 border-border/60 hover:border-border hover:bg-primary/10 transition-all duration-200 rounded-xl shadow-sm hover:shadow-md backdrop-blur-sm group"
           >
             {filters.sortOrder === 'asc' ? (
-              <SortAsc className="h-4 w-4" />
+              <SortAsc className="h-4 w-4 group-hover:text-primary transition-colors duration-200" />
             ) : (
-              <SortDesc className="h-4 w-4" />
+              <SortDesc className="h-4 w-4 group-hover:text-primary transition-colors duration-200" />
             )}
           </Button>
         </div>
       </div>
 
-      {/* Active filters display */}
+      {/* Enhanced Active filters display */}
       {(filters.tags && filters.tags.length > 0) && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {filters.tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="gap-1">
+            <Badge 
+              key={tag} 
+              variant="secondary" 
+              className="gap-2 px-3 py-2 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all duration-200 rounded-full"
+            >
               <Tag className="h-3 w-3" />
               {tag}
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-4 w-4 p-0 hover:bg-transparent"
+                className="h-4 w-4 p-0 hover:bg-primary/20 rounded-full"
                 onClick={() => removeTag(tag)}
               >
                 <X className="h-3 w-3" />
