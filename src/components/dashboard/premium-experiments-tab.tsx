@@ -18,7 +18,7 @@ import {
   ChevronDown, SlidersHorizontal, Layers, FlaskConical,
   MousePointer, Award, Shield, LineChart, PieChart,
   RefreshCw, Settings, Share2, Edit3, ArrowUpRight, ArrowDownRight,
-  Percent, DollarSign, TrendingDown, ExternalLink, Info
+  Percent, DollarSign, TrendingDown, ExternalLink, Info, Trash2
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -97,6 +97,42 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
   // Estado para métricas reais
   const [experimentsMetrics, setExperimentsMetrics] = useState<Record<string, ExperimentMetrics>>({})
   const [metricsLoading, setMetricsLoading] = useState(false)
+  
+  // Estado para deletar experimentos
+  const [deletingExperiment, setDeletingExperiment] = useState<string | null>(null)
+
+  // Função para deletar experimento
+  const handleDeleteExperiment = async (experimentId: string, experimentName: string) => {
+    if (!window.confirm(`Tem certeza que deseja deletar o experimento "${experimentName}"?\n\nEsta ação não pode ser desfeita e removerá todos os dados relacionados.`)) {
+      return
+    }
+
+    setDeletingExperiment(experimentId)
+    try {
+      const response = await fetch(`/api/experiments/${experimentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Erro ao deletar experimento')
+      }
+
+      // Remover experimento da lista local
+      setExperiments(prev => prev.filter(exp => exp.id !== experimentId))
+      
+      // Mostrar sucesso
+      alert('Experimento deletado com sucesso!')
+    } catch (error) {
+      console.error('Erro ao deletar experimento:', error)
+      alert(`Erro ao deletar experimento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+    } finally {
+      setDeletingExperiment(null)
+    }
+  }
 
   // Carregar métricas reais dos experimentos
   useEffect(() => {
@@ -548,7 +584,9 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
                 experiment={experiment}
                 layout={layout}
                 onViewDetails={handleViewDetails}
+                onDelete={handleDeleteExperiment}
                 metricsLoading={metricsLoading}
+                isDeleting={deletingExperiment === experiment.id}
               />
             ))}
           </div>
@@ -575,12 +613,16 @@ function PremiumExperimentCard({
   experiment,
   layout,
   onViewDetails,
-  metricsLoading
+  onDelete,
+  metricsLoading,
+  isDeleting
 }: {
   experiment: any
   layout: 'grid' | 'list'
   onViewDetails: (experiment: any) => void
+  onDelete: (experimentId: string, experimentName: string) => void
   metricsLoading: boolean
+  isDeleting: boolean
 }) {
   const statusInfo = statusConfig[experiment.status as keyof typeof statusConfig]
   const StatusIcon = statusInfo.icon
@@ -656,6 +698,24 @@ function PremiumExperimentCard({
             >
               <Eye className="w-5 h-5 mr-2" />
               Ver Detalhes
+            </Button>
+            <Button
+              onClick={() => onDelete(experiment.id, experiment.name)}
+              disabled={isDeleting}
+              variant="outline"
+              className="rounded-2xl border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 h-14 px-8 font-bold"
+            >
+              {isDeleting ? (
+                <>
+                  <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                  Deletando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-5 h-5 mr-2" />
+                  Deletar
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -766,14 +826,32 @@ function PremiumExperimentCard({
           </div>
         )}
 
-        {/* Enhanced Botão de ação */}
-        <div className="pt-4 border-t border-slate-200/50">
+        {/* Enhanced Botões de ação */}
+        <div className="pt-4 border-t border-slate-200/50 space-y-3">
           <Button
             onClick={() => onViewDetails(experiment)}
             className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 rounded-xl transition-all duration-300 h-12 font-semibold text-sm shadow-lg hover:shadow-xl ripple-effect"
           >
             <Eye className="w-4 h-4 mr-2" />
             Ver Detalhes
+          </Button>
+          <Button
+            onClick={() => onDelete(experiment.id, experiment.name)}
+            disabled={isDeleting}
+            variant="outline"
+            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl transition-all duration-300 h-10 font-semibold text-sm"
+          >
+            {isDeleting ? (
+              <>
+                <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                Deletando...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Deletar Experimento
+              </>
+            )}
           </Button>
         </div>
       </div>
