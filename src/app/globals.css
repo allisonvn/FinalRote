@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import micro-interactions */
+@import '../styles/micro-interactions.css';
+
 /* Enhanced Design System (Rota Final Pro) */
 :root {
   /* Brand Colors - Modern Blue/Purple Gradient */

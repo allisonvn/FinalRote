@@ -1,20 +1,22 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ExperimentDetailsModal } from '@/components/dashboard/experiment-details-modal'
 import { EmptyState } from '@/components/empty-state'
+import { useDashboardStats } from '@/hooks/use-dashboard-stats'
 import { cn } from '@/lib/utils'
+import { calculateExperimentMetrics, calculateMultipleExperimentMetrics, formatMetricValue, ExperimentMetrics } from '@/lib/experiment-metrics'
 import {
   Plus, Grid, List, Filter, Search, Tag, X, ArrowUpDown,
   Zap, TrendingUp, Users, Target, Clock, Brain, BarChart3,
   Sparkles, Rocket, Star, Globe, Eye, Play, Pause, CheckCircle2,
   XCircle, AlertCircle, Calendar, Activity, Crown, Trophy,
   ChevronDown, SlidersHorizontal, Layers, FlaskConical,
-  MousePointer, Award, Shield, LineChart, PieChart, Download,
+  MousePointer, Award, Shield, LineChart, PieChart,
   RefreshCw, Settings, Share2, Edit3, ArrowUpRight, ArrowDownRight,
   Percent, DollarSign, TrendingDown, ExternalLink, Info
 } from 'lucide-react'
@@ -29,7 +31,7 @@ interface PremiumExperimentsTabProps {
 const statusConfig = {
   draft: {
     label: 'Rascunho',
-    color: 'bg-slate-500',
+    color: 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 border border-slate-300',
     icon: Eye,
     bgColor: 'bg-slate-50',
     textColor: 'text-slate-700',
@@ -37,7 +39,7 @@ const statusConfig = {
   },
   running: {
     label: 'Executando',
-    color: 'bg-green-500',
+    color: 'bg-gradient-to-r from-emerald-500 to-green-600 text-white border border-emerald-600 shadow-lg',
     icon: Play,
     bgColor: 'bg-green-50',
     textColor: 'text-green-700',
@@ -45,7 +47,7 @@ const statusConfig = {
   },
   paused: {
     label: 'Pausado',
-    color: 'bg-yellow-500',
+    color: 'bg-gradient-to-r from-amber-400 to-orange-500 text-white border border-amber-500 shadow-lg',
     icon: Pause,
     bgColor: 'bg-yellow-50',
     textColor: 'text-yellow-700',
@@ -53,7 +55,7 @@ const statusConfig = {
   },
   completed: {
     label: 'Concluído',
-    color: 'bg-blue-500',
+    color: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border border-blue-600 shadow-lg',
     icon: CheckCircle2,
     bgColor: 'bg-blue-50',
     textColor: 'text-blue-700',
@@ -68,15 +70,16 @@ const algorithmConfig = {
   uniform: { label: 'Uniforme', icon: BarChart3, premium: false, color: 'text-slate-600' }
 }
 
-// Mock data generator para demonstração
-const generateMockPerformance = () => ({
-  conversions: Math.floor(Math.random() * 500) + 100,
-  visitors: Math.floor(Math.random() * 10000) + 2000,
-  conversionRate: Math.random() * 8 + 2,
-  confidence: Math.random() * 40 + 60,
-  revenue: Math.floor(Math.random() * 50000) + 10000,
-  improvement: (Math.random() - 0.5) * 50
-})
+// Interface para experimento com métricas reais
+interface ExperimentWithMetrics {
+  id: string
+  name: string
+  description?: string
+  status: string
+  algorithm?: string
+  variants?: any[]
+  performance?: ExperimentMetrics
+}
 
 export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }: PremiumExperimentsTabProps) {
   const [query, setQuery] = useState('')
@@ -86,31 +89,73 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'status' | 'performance'>('recent')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedExperiment, setSelectedExperiment] = useState<any>(null)
+  
+  // Usar estatísticas reais do Supabase
+  const { stats: realStats, loading: statsLoading } = useDashboardStats()
   const [showDetailsModal, setShowDetailsModal] = useState(false)
+  
+  // Estado para métricas reais
+  const [experimentsMetrics, setExperimentsMetrics] = useState<Record<string, ExperimentMetrics>>({})
+  const [metricsLoading, setMetricsLoading] = useState(false)
 
-  // Processar experimentos com performance mock
+  // Carregar métricas reais dos experimentos
+  useEffect(() => {
+    const loadMetrics = async () => {
+      if (experiments.length === 0) return
+      
+      setMetricsLoading(true)
+      try {
+        const experimentIds = experiments.map(exp => exp.id)
+        const metrics = await calculateMultipleExperimentMetrics(experimentIds)
+        setExperimentsMetrics(metrics)
+      } catch (error) {
+        console.error('Erro ao carregar métricas dos experimentos:', error)
+      } finally {
+        setMetricsLoading(false)
+      }
+    }
+
+    loadMetrics()
+  }, [experiments])
+
+  // Processar experimentos com métricas reais
   const processedExperiments = useMemo(() => {
     return experiments.map(exp => ({
       ...exp,
-      performance: generateMockPerformance()
+      performance: experimentsMetrics[exp.id] || {
+        visitors: 0,
+        conversions: 0,
+        conversionRate: 0,
+        confidence: 0,
+        revenue: 0,
+        improvement: 0
+      }
     }))
-  }, [experiments])
+  }, [experiments, experimentsMetrics])
 
   // Stats calculadas
+  // Usar estatísticas reais do Supabase em vez de dados mock
   const stats = useMemo(() => {
-    const total = processedExperiments.length
-    const running = processedExperiments.filter(e => e.status === 'running').length
-    const completed = processedExperiments.filter(e => e.status === 'completed').length
-    const avgConversionRate = processedExperiments.length > 0
-      ? processedExperiments.reduce((acc, exp) => acc + (exp.performance?.conversionRate || 0), 0) / processedExperiments.length
-      : 0
-    const totalRevenue = processedExperiments.reduce((acc, exp) => acc + (exp.performance?.revenue || 0), 0)
-    const avgImprovement = processedExperiments.length > 0
-      ? processedExperiments.reduce((acc, exp) => acc + Math.abs(exp.performance?.improvement || 0), 0) / processedExperiments.length
-      : 0
+    if (statsLoading) {
+      return {
+        total: 0,
+        running: 0,
+        completed: 0,
+        avgConversionRate: 0,
+        totalRevenue: 0,
+        avgImprovement: 0
+      }
+    }
 
-    return { total, running, completed, avgConversionRate, totalRevenue, avgImprovement }
-  }, [processedExperiments])
+    return {
+      total: realStats.totalExperiments,
+      running: realStats.activeExperiments,
+      completed: realStats.completedExperiments,
+      avgConversionRate: realStats.avgConversionRate,
+      totalRevenue: realStats.totalRevenue,
+      avgImprovement: realStats.avgImprovement
+    }
+  }, [realStats, statsLoading])
 
   // Filtrar experimentos
   const filteredExperiments = useMemo(() => {
@@ -173,13 +218,6 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
 
             <div className="flex gap-4">
               <Button
-                variant="outline"
-                className="h-14 px-8 rounded-2xl border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 font-semibold"
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Exportar Dados
-              </Button>
-              <Button
                 onClick={onNewExperiment}
                 className="h-14 px-10 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl font-bold text-lg"
               >
@@ -191,7 +229,14 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
 
           {/* Stats Cards Premium */}
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-6">
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 border-2 border-blue-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group">
+            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 border-2 border-blue-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
+              {/* Indicador de carregamento */}
+              {statsLoading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              
               <div className="flex items-center justify-between mb-6">
                 <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
                   <Layers className="w-8 h-8 text-white" />
@@ -202,7 +247,9 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
               <div>
                 <p className="text-sm font-black text-blue-900 mb-2">Total de Experimentos</p>
-                <p className="text-4xl font-black text-blue-700">{stats.total}</p>
+                <p className="text-4xl font-black text-blue-700 transition-all duration-300">
+                  {statsLoading ? '...' : stats.total}
+                </p>
                 <p className="text-xs text-blue-600 flex items-center gap-1 mt-3">
                   <TrendingUp className="w-3 h-3" />
                   Últimos 30 dias
@@ -210,7 +257,13 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
             </Card>
 
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group">
+            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
+              {statsLoading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                  <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              
               <div className="flex items-center justify-between mb-6">
                 <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
                   <Activity className="w-8 h-8 text-white" />
@@ -221,7 +274,9 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
               <div>
                 <p className="text-sm font-black text-green-900 mb-2">Ativos</p>
-                <p className="text-4xl font-black text-green-700">{stats.running}</p>
+                <p className="text-4xl font-black text-green-700 transition-all duration-300">
+                  {statsLoading ? '...' : stats.running}
+                </p>
                 <p className="text-xs text-green-600 flex items-center gap-1 mt-3">
                   <Play className="w-3 h-3" />
                   Em execução
@@ -229,7 +284,13 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
             </Card>
 
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group">
+            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
+              {statsLoading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                  <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              
               <div className="flex items-center justify-between mb-6">
                 <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
                   <Trophy className="w-8 h-8 text-white" />
@@ -240,7 +301,9 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
               <div>
                 <p className="text-sm font-black text-purple-900 mb-2">Concluídos</p>
-                <p className="text-4xl font-black text-purple-700">{stats.completed}</p>
+                <p className="text-4xl font-black text-purple-700 transition-all duration-300">
+                  {statsLoading ? '...' : stats.completed}
+                </p>
                 <p className="text-xs text-purple-600 flex items-center gap-1 mt-3">
                   <Award className="w-3 h-3" />
                   Com resultados
@@ -248,7 +311,13 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
             </Card>
 
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 border-2 border-amber-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group">
+            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 border-2 border-amber-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
+              {statsLoading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                  <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              
               <div className="flex items-center justify-between mb-6">
                 <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
                   <TrendingUp className="w-8 h-8 text-white" />
@@ -259,7 +328,9 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
               <div>
                 <p className="text-sm font-black text-amber-900 mb-2">Conv. Média</p>
-                <p className="text-4xl font-black text-amber-700">{stats.avgConversionRate.toFixed(1)}%</p>
+                <p className="text-4xl font-black text-amber-700 transition-all duration-300">
+                  {statsLoading ? '...' : `${stats.avgConversionRate.toFixed(1)}%`}
+                </p>
                 <p className="text-xs text-amber-600 flex items-center gap-1 mt-3">
                   <Target className="w-3 h-3" />
                   Taxa global
@@ -267,7 +338,13 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
             </Card>
 
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 border-2 border-indigo-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group">
+            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 border-2 border-indigo-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
+              {statsLoading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                  <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              
               <div className="flex items-center justify-between mb-6">
                 <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
                   <DollarSign className="w-8 h-8 text-white" />
@@ -278,8 +355,8 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
               <div>
                 <p className="text-sm font-black text-indigo-900 mb-2">Receita</p>
-                <p className="text-4xl font-black text-indigo-700">
-                  ${(stats.totalRevenue / 1000).toFixed(0)}k
+                <p className="text-4xl font-black text-indigo-700 transition-all duration-300">
+                  {statsLoading ? '...' : `R$ ${(stats.totalRevenue / 1000).toFixed(0)}k`}
                 </p>
                 <p className="text-xs text-indigo-600 flex items-center gap-1 mt-3">
                   <Sparkles className="w-3 h-3" />
@@ -288,7 +365,13 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
             </Card>
 
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border-2 border-emerald-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group">
+            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border-2 border-emerald-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
+              {statsLoading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                  <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              
               <div className="flex items-center justify-between mb-6">
                 <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
                   <Rocket className="w-8 h-8 text-white" />
@@ -299,7 +382,9 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
               </div>
               <div>
                 <p className="text-sm font-black text-emerald-900 mb-2">Melhoria</p>
-                <p className="text-4xl font-black text-emerald-700">+{stats.avgImprovement.toFixed(0)}%</p>
+                <p className="text-4xl font-black text-emerald-700 transition-all duration-300">
+                  {statsLoading ? '...' : `+${stats.avgImprovement.toFixed(0)}%`}
+                </p>
                 <p className="text-xs text-emerald-600 flex items-center gap-1 mt-3">
                   <Star className="w-3 h-3" />
                   Média geral
@@ -309,78 +394,97 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
           </div>
         </div>
 
-        {/* Filtros Premium */}
-        <Card className="p-10 bg-gradient-to-r from-white via-blue-50 to-indigo-50 border-2 border-blue-200 shadow-2xl">
-          <div className="space-y-8">
-            <div className="flex flex-col xl:flex-row gap-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 w-6 h-6 text-slate-400" />
+        {/* Barra de Filtros Melhorada */}
+        <Card className="p-6 bg-gradient-to-r from-white via-slate-50/50 to-blue-50/30 border border-slate-200/50 shadow-lg relative z-10">
+          <div className="space-y-6">
+            <div className="flex flex-col xl:flex-row gap-4">
+              {/* Busca */}
+              <div className="relative flex-1 max-w-lg">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  placeholder="Buscar experimentos por nome ou descrição..."
+                  placeholder="Buscar experimentos..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="pl-14 h-16 text-lg border-2 border-slate-300 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 font-medium"
+                  className="pl-10 h-12 text-sm border-2 border-slate-200 rounded-xl focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300 bg-white/90 backdrop-blur-sm"
                 />
               </div>
 
-              <div className="flex gap-4">
+              {/* Filtros e Controles */}
+              <div className="flex flex-wrap gap-3 items-center">
+                {/* Filtro de Status */}
                 <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-                  <SelectTrigger className="w-52 h-16 border-2 border-slate-300 rounded-2xl focus:border-blue-500 transition-all duration-300 text-lg font-medium">
-                    <SelectValue placeholder="Status" />
+                  <SelectTrigger className="w-48 h-12 border-2 border-slate-200 rounded-xl focus:border-primary transition-all duration-300 text-sm font-medium bg-white/90 backdrop-blur-sm hover:border-slate-300">
+                    <SelectValue placeholder="Filtrar por status" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os Status</SelectItem>
-                    <SelectItem value="draft">Rascunho</SelectItem>
-                    <SelectItem value="running">Executando</SelectItem>
-                    <SelectItem value="paused">Pausado</SelectItem>
-                    <SelectItem value="completed">Concluído</SelectItem>
+                  <SelectContent className="z-[9999] rounded-xl border-border/60 shadow-xl bg-white/95 backdrop-blur-xl">
+                    <SelectItem value="all" className="rounded-lg">Todos os Status</SelectItem>
+                    <SelectItem value="draft" className="rounded-lg">Rascunho</SelectItem>
+                    <SelectItem value="running" className="rounded-lg">Executando</SelectItem>
+                    <SelectItem value="paused" className="rounded-lg">Pausado</SelectItem>
+                    <SelectItem value="completed" className="rounded-lg">Concluído</SelectItem>
                   </SelectContent>
                 </Select>
 
+                {/* Ordenação */}
                 <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                  <SelectTrigger className="w-60 h-16 border-2 border-slate-300 rounded-2xl focus:border-blue-500 transition-all duration-300 text-lg font-medium">
-                    <ArrowUpDown className="w-5 h-5 mr-2" />
-                    <SelectValue />
+                  <SelectTrigger className="w-44 h-12 border-2 border-slate-200 rounded-xl focus:border-primary transition-all duration-300 text-sm font-medium bg-white/90 backdrop-blur-sm hover:border-slate-300">
+                    <ArrowUpDown className="w-4 h-4 mr-2 text-slate-500" />
+                    <SelectValue placeholder="Ordenar por" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recent">Mais recentes</SelectItem>
-                    <SelectItem value="name">Nome A-Z</SelectItem>
-                    <SelectItem value="status">Status</SelectItem>
-                    <SelectItem value="performance">Performance</SelectItem>
+                  <SelectContent className="z-[9999] rounded-xl border-border/60 shadow-xl bg-white/95 backdrop-blur-xl">
+                    <SelectItem value="recent" className="rounded-lg">Mais recentes</SelectItem>
+                    <SelectItem value="name" className="rounded-lg">Nome A-Z</SelectItem>
+                    <SelectItem value="status" className="rounded-lg">Status</SelectItem>
+                    <SelectItem value="performance" className="rounded-lg">Desempenho</SelectItem>
                   </SelectContent>
                 </Select>
 
-                <div className="flex gap-2">
+                {/* Botões de Visualização */}
+                <div className="flex gap-2 bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200/60 p-1">
                   <Button
-                    variant={layout === 'grid' ? 'default' : 'outline'}
+                    variant={layout === 'grid' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setLayout('grid')}
-                    className="h-16 w-16 p-0 rounded-2xl transition-all duration-300 border-2"
+                    className="h-10 w-10 p-0 rounded-lg transition-all duration-300"
+                    title="Visualização em grade"
                   >
-                    <Grid className="w-6 h-6" />
+                    <Grid className="w-4 h-4" />
                   </Button>
                   <Button
-                    variant={layout === 'list' ? 'default' : 'outline'}
+                    variant={layout === 'list' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setLayout('list')}
-                    className="h-16 w-16 p-0 rounded-2xl transition-all duration-300 border-2"
+                    className="h-10 w-10 p-0 rounded-lg transition-all duration-300"
+                    title="Visualização em lista"
                   >
-                    <List className="w-6 h-6" />
+                    <List className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
             </div>
 
             {hasActiveFilters && (
-              <div className="flex justify-between items-center pt-6 border-t">
-                <p className="text-lg text-slate-600 font-semibold">
-                  {filteredExperiments.length} de {processedExperiments.length} experimentos
-                </p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 border-t border-slate-200/60">
+                <div className="flex items-center gap-4">
+                  <p className="text-lg text-slate-600 font-semibold">
+                    {filteredExperiments.length} de {processedExperiments.length} experimentos encontrados
+                  </p>
+                  {query && (
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+                      Busca: "{query}"
+                    </span>
+                  )}
+                  {status !== 'all' && (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
+                      Status: {statusConfig[status as keyof typeof statusConfig]?.label}
+                    </span>
+                  )}
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={clearFilters}
-                  className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-2xl h-12 px-6 font-medium"
+                  className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl h-12 px-6 font-medium transition-all duration-200 hover:scale-105"
                 >
                   <X className="w-5 h-5 mr-2" />
                   Limpar filtros
@@ -435,8 +539,8 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
         ) : (
           <div className={cn(
             layout === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8'
-              : 'space-y-8'
+              ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 stagger-animation'
+              : 'space-y-8 stagger-animation'
           )}>
             {filteredExperiments.map((experiment) => (
               <PremiumExperimentCard
@@ -444,6 +548,7 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
                 experiment={experiment}
                 layout={layout}
                 onViewDetails={handleViewDetails}
+                metricsLoading={metricsLoading}
               />
             ))}
           </div>
@@ -469,11 +574,13 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
 function PremiumExperimentCard({
   experiment,
   layout,
-  onViewDetails
+  onViewDetails,
+  metricsLoading
 }: {
   experiment: any
   layout: 'grid' | 'list'
   onViewDetails: (experiment: any) => void
+  metricsLoading: boolean
 }) {
   const statusInfo = statusConfig[experiment.status as keyof typeof statusConfig]
   const StatusIcon = statusInfo.icon
@@ -482,7 +589,7 @@ function PremiumExperimentCard({
 
   if (layout === 'list') {
     return (
-      <Card className="p-10 hover:shadow-2xl transition-all duration-500 border-2 hover:border-blue-300 hover:scale-[1.01] bg-gradient-to-r from-white to-blue-50/30">
+      <Card className="p-10 hover:shadow-2xl transition-all duration-500 border-2 hover:border-blue-300 hover:scale-[1.01] bg-gradient-to-r from-white to-blue-50/30 z-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8 flex-1">
             <div className="w-20 h-20 rounded-4xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-2xl">
@@ -543,10 +650,6 @@ function PremiumExperimentCard({
           </div>
 
           <div className="flex gap-4">
-            <Button variant="outline" size="sm" className="rounded-2xl border-2 hover:border-blue-400 h-14 px-6 font-semibold">
-              <Settings className="w-5 h-5 mr-2" />
-              Configurar
-            </Button>
             <Button
               onClick={() => onViewDetails(experiment)}
               className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-14 px-8 font-bold"
@@ -561,113 +664,116 @@ function PremiumExperimentCard({
   }
 
   return (
-    <Card className="group p-10 hover:shadow-2xl transition-all duration-500 border-2 hover:border-blue-300 hover:scale-[1.02] bg-gradient-to-br from-white to-blue-50/50">
-      <div className="space-y-8">
+    <Card className="group relative overflow-hidden p-8 hover:shadow-2xl transition-all duration-500 border border-border/60 hover:border-primary/40 hover:scale-[1.02] bg-gradient-to-br from-white via-slate-50/50 to-blue-50/30 backdrop-blur-sm card-hover z-0">
+      <div className="space-y-6">
+        {/* Enhanced Header com ícone, título e status */}
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-6">
-            <div className="w-18 h-18 rounded-4xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-2xl group-hover:shadow-3xl transition-all duration-300">
-              <FlaskConical className="w-9 h-9 text-white" />
+          <div className="flex items-start gap-4 flex-1 min-w-0">
+            <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
+              <FlaskConical className="w-8 h-8 text-white" />
             </div>
-            <div>
-              <h3 className="font-black text-2xl text-slate-900 group-hover:text-blue-600 transition-colors mb-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-xl text-slate-900 group-hover:text-primary transition-colors mb-1 truncate">
                 {experiment.name}
               </h3>
-              <p className="text-base text-slate-500 flex items-center gap-3">
-                <Layers className="w-5 h-5" />
+              <p className="text-sm text-slate-500 flex items-center gap-2">
+                <Layers className="w-4 h-4" />
                 {experiment.variants?.length || 0} variantes
               </p>
             </div>
           </div>
-
-          <Badge className={cn("text-white text-base px-4 py-2", statusInfo.color)}>
-            <StatusIcon className="w-5 h-5 mr-2" />
+          
+          {/* Enhanced Status badge */}
+          <Badge className={cn(
+            "text-white text-sm px-4 py-2 shadow-lg flex-shrink-0 rounded-full font-medium transition-all duration-200 hover:scale-105", 
+            statusInfo.color
+          )}>
+            <StatusIcon className="w-4 h-4 mr-1.5" />
             {statusInfo.label}
           </Badge>
         </div>
 
-        <p className="text-slate-600 text-base line-clamp-3 leading-relaxed">
+        {/* Descrição */}
+        <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed">
           {experiment.description || 'Experimento A/B para otimização de conversões e análise de performance detalhada.'}
         </p>
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-3xl border-2 border-green-200">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-base font-bold text-green-700">Conversão</span>
-                <TrendingUp className="w-6 h-6 text-green-600" />
+        {/* Enhanced Métricas principais */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200/60 hover:border-green-300 hover:shadow-md transition-all duration-200 group">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors duration-200">
+                <TrendingUp className="w-4 h-4 text-green-600" />
               </div>
-              <span className="font-black text-3xl text-green-700">
-                {experiment.performance?.conversionRate.toFixed(1)}%
-              </span>
+              <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Conversão</span>
             </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-6 rounded-3xl border-2 border-blue-200">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-base font-bold text-blue-700">Visitantes</span>
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-              <span className="font-black text-3xl text-blue-700">
-                {(experiment.performance?.visitors || 0) > 1000
-                  ? `${Math.round((experiment.performance?.visitors || 0) / 1000)}k`
-                  : experiment.performance?.visitors.toLocaleString()
-                }
-              </span>
-            </div>
+            <span className="font-bold text-2xl text-green-700">
+              {metricsLoading ? '...' : formatMetricValue(experiment.performance?.conversionRate || 0, 'conversion')}
+            </span>
           </div>
 
-          <div className="flex justify-between items-center text-base">
-            <div className="flex items-center gap-3">
-              <AlgorithmIcon className="w-6 h-6 text-slate-600" />
-              <span className="font-bold text-slate-700">{algorithmInfo?.label}</span>
-              {algorithmInfo?.premium && (
-                <Crown className="w-5 h-5 text-amber-500" />
-              )}
-            </div>
-
-            {experiment.performance?.improvement !== undefined && (
-              <div className="flex items-center gap-2">
-                {experiment.performance.improvement > 0 ? (
-                  <ArrowUpRight className="w-6 h-6 text-green-600" />
-                ) : (
-                  <ArrowDownRight className="w-6 h-6 text-red-600" />
-                )}
-                <span className={cn(
-                  "font-black text-lg",
-                  experiment.performance.improvement > 0 ? "text-green-600" : "text-red-600"
-                )}>
-                  {experiment.performance.improvement > 0 ? '+' : ''}{experiment.performance.improvement.toFixed(1)}%
-                </span>
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-5 rounded-2xl border border-blue-200/60 hover:border-blue-300 hover:shadow-md transition-all duration-200 group">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors duration-200">
+                <Users className="w-4 h-4 text-blue-600" />
               </div>
+              <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Visitantes</span>
+            </div>
+            <span className="font-bold text-2xl text-blue-700">
+              {metricsLoading ? '...' : formatMetricValue(experiment.performance?.visitors || 0, 'visitors')}
+            </span>
+          </div>
+        </div>
+
+        {/* Enhanced Algoritmo e melhoria */}
+        <div className="flex justify-between items-center text-sm">
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl">
+            <AlgorithmIcon className="w-4 h-4 text-slate-600" />
+            <span className="font-medium text-slate-700">{algorithmInfo?.label}</span>
+            {algorithmInfo?.premium && (
+              <Crown className="w-4 h-4 text-amber-500" />
             )}
           </div>
 
-          {experiment.performance?.confidence && experiment.performance.confidence > 90 && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-2xl border-2 border-amber-200">
-              <div className="flex items-center gap-3">
-                <Shield className="w-6 h-6 text-amber-600" />
-                <span className="text-base font-black text-amber-900">
-                  {experiment.performance.confidence.toFixed(0)}% de confiabilidade
-                </span>
-              </div>
+          {experiment.performance?.improvement !== undefined && (
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200/60">
+              {experiment.performance.improvement > 0 ? (
+                <ArrowUpRight className="w-4 h-4 text-green-600" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-600" />
+              )}
+              <span className={cn(
+                "font-bold text-sm",
+                experiment.performance.improvement > 0 ? "text-green-600" : "text-red-600"
+              )}>
+                {formatMetricValue(experiment.performance.improvement, 'improvement')}
+              </span>
             </div>
           )}
         </div>
 
-        <div className="pt-6 border-t border-slate-200 flex gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 rounded-2xl border-2 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 h-14 font-semibold"
-          >
-            <Settings className="w-5 h-5 mr-2" />
-            Configurar
-          </Button>
+        {/* Enhanced Indicador de confiabilidade */}
+        {experiment.performance?.confidence && experiment.performance.confidence > 90 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200/60 hover:border-amber-300 hover:shadow-md transition-all duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                <Shield className="w-4 h-4 text-amber-600" />
+              </div>
+              <span className="text-sm font-semibold text-amber-900">
+                {experiment.performance.confidence.toFixed(0)}% confiável
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Botão de ação */}
+        <div className="pt-4 border-t border-slate-200/50">
           <Button
             onClick={() => onViewDetails(experiment)}
-            className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-2xl transition-all duration-300 h-14 font-bold"
+            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 rounded-xl transition-all duration-300 h-12 font-semibold text-sm shadow-lg hover:shadow-xl ripple-effect"
           >
-            <Eye className="w-5 h-5 mr-2" />
-            Detalhes
+            <Eye className="w-4 h-4 mr-2" />
+            Ver Detalhes
           </Button>
         </div>
       </div>

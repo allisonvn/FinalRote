@@ -61,6 +61,7 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
 
     if (expError) {
       console.error('Erro ao buscar experimentos:', expError)
+      // Continuar com dados vazios em caso de erro
     }
 
     // Buscar total de eventos (visitantes únicos)

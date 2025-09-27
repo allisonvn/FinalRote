@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { config, safeLog } from '@/lib/config'
 
 type ExperimentStatus = 'draft' | 'running' | 'paused' | 'completed'
 
@@ -74,15 +75,56 @@ const algorithmConfig = {
   uniform: { label: 'Uniforme', icon: BarChart3, premium: false }
 }
 
-// Mock data mais elaborado
-const generateMockPerformance = () => ({
-  conversions: Math.floor(Math.random() * 500) + 100,
-  visitors: Math.floor(Math.random() * 10000) + 2000,
-  conversionRate: Math.random() * 8 + 2,
-  confidence: Math.random() * 40 + 60,
-  revenue: Math.floor(Math.random() * 50000) + 10000,
-  improvement: (Math.random() - 0.5) * 50
-})
+// Função para calcular métricas reais dos experimentos
+const calculateExperimentMetrics = async (experimentId: string, supabase: any) => {
+  try {
+    // Buscar eventos de conversão para este experimento
+    const { data: conversions, error: convError } = await supabase
+      .from('events')
+      .select('*')
+      .eq('experiment_id', experimentId)
+      .eq('event_type', 'conversion')
+
+    // Buscar total de visitantes únicos
+    const { data: visitors, error: visitError } = await supabase
+      .from('assignments')
+      .select('user_id')
+      .eq('experiment_id', experimentId)
+
+    if (convError || visitError) throw new Error('Erro ao calcular métricas')
+
+    const totalConversions = conversions?.length || 0
+    const totalVisitors = visitors?.length || 0
+    const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
+
+    // Calcular receita total (assumindo valor médio por conversão)
+    const avgOrderValue = 150 // R$ por conversão
+    const revenue = totalConversions * avgOrderValue
+
+    // Calcular improvement comparando com baseline (assumindo 3% como baseline)
+    const baseline = 3.0
+    const improvement = conversionRate > 0 ? ((conversionRate - baseline) / baseline) * 100 : 0
+
+    return {
+      conversions: totalConversions,
+      visitors: totalVisitors,
+      conversionRate,
+      confidence: conversionRate > baseline ? 95 : 75,
+      revenue,
+      improvement
+    }
+  } catch (error) {
+    safeLog('Erro ao calcular métricas:', error)
+    return {
+      conversions: 0,
+      visitors: 0,
+      conversionRate: 0,
+      confidence: 0,
+      revenue: 0,
+      improvement: 0
+    }
+  }
+}
 
 export default function ProfessionalExperimentsPage() {
   const supabase = createClient()
@@ -129,38 +171,53 @@ export default function ProfessionalExperimentsPage() {
           setExperiments([])
           return
         }
+
+        // Buscar experimentos do usuário atual
         const { data, error } = await supabase
           .from('experiments')
-          .select('*, variants:variants(*)')
+          .select(`
+            *,
+            variants:variants(*),
+            project:projects(name, domain)
+          `)
           .eq('created_by', user.id)
           .order('created_at', { ascending: false })
+
         if (error) throw error
 
-        const mapped: Experiment[] = (data || []).map(exp => ({
-          id: exp.id,
-          name: exp.name,
-          description: exp.description || undefined,
-          status: exp.status,
-          created_at: exp.created_at,
-          project_id: exp.project_id,
-          algorithm: exp.mab_config?.algorithm || 'thompson_sampling',
-          traffic_allocation: exp.traffic_allocation || undefined,
-          tags: (exp.tags as any) || [],
-          variants: (exp.variants || []).map((v: any) => ({
-            id: v.id,
-            name: v.name,
-            key: v.key || v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
-            is_control: !!v.is_control,
-            weight: v.weight || v.traffic_percentage || 50,
-            url: v.url || v.target_url || v.config?.url || undefined,
-            description: v.description || undefined,
-            config: v.config || {}
-          })),
-          performance: generateMockPerformance()
-        }))
+        // Mapear experimentos e calcular métricas reais
+        const mapped: Experiment[] = await Promise.all(
+          (data || []).map(async (exp: any) => {
+            const performance = await calculateExperimentMetrics(exp.id, supabase)
+
+            return {
+              id: exp.id,
+              name: exp.name,
+              description: exp.description || undefined,
+              status: exp.status,
+              created_at: exp.created_at,
+              project_id: exp.project_id,
+              algorithm: exp.mab_config?.algorithm || 'thompson_sampling',
+              traffic_allocation: exp.traffic_allocation || undefined,
+              tags: (exp.tags as any) || [],
+              variants: (exp.variants || []).map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                key: v.key || v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
+                is_control: !!v.is_control,
+                weight: v.weight || v.traffic_percentage || 50,
+                url: v.url || v.target_url || v.config?.url || undefined,
+                description: v.description || undefined,
+                config: v.config || {}
+              })),
+              performance
+            }
+          })
+        )
+
         setExperiments(mapped)
       } catch (e) {
-        console.error('Erro ao carregar experimentos', e)
+        safeLog('Erro ao carregar experimentos', e)
         setExperiments([])
       } finally {
         setLoading(false)
@@ -238,7 +295,7 @@ export default function ProfessionalExperimentsPage() {
           </div>
 
           <Button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push(config.app.newExperiment)}
             className="bg-gray-900 hover:bg-gray-800 text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -380,7 +437,7 @@ export default function ProfessionalExperimentsPage() {
                   Limpar filtros
                 </Button>
               ) : (
-                <Button onClick={() => router.push('/dashboard')} className="bg-gray-900 hover:bg-gray-800">
+                <Button onClick={() => router.push(config.app.newExperiment)} className="bg-gray-900 hover:bg-gray-800">
                   <Plus className="w-4 h-4 mr-2" />
                   Criar primeiro experimento
                 </Button>
@@ -433,6 +490,63 @@ function ProfessionalExperimentCard({
   const statusInfo = statusConfig[experiment.status]
   const StatusIcon = statusInfo.icon
   const algorithmInfo = algorithmConfig[experiment.algorithm || 'uniform']
+  const router = useRouter()
+  const supabase = createClient()
+
+  // Funções para ações dos botões
+  const handleConfigure = () => {
+    router.push(`${config.app.experiments}/${experiment.id}/settings`)
+  }
+
+  const handleViewDetails = () => {
+    onViewDetails(experiment)
+  }
+
+  const handleToggleStatus = async () => {
+    try {
+      const newStatus = experiment.status === 'running' ? 'paused' : 'running'
+      const { error } = await supabase
+        .from('experiments')
+        .update({ status: newStatus })
+        .eq('id', experiment.id)
+
+      if (error) throw error
+
+      // Recarregar a página para refletir mudanças
+      window.location.reload()
+    } catch (error) {
+      safeLog('Erro ao alterar status:', error)
+      alert('Erro ao alterar status do experimento')
+    }
+  }
+
+  const handleDuplicate = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('experiments')
+        .insert({
+          name: `${experiment.name} (Cópia)`,
+          description: experiment.description,
+          status: 'draft',
+          project_id: experiment.project_id,
+          created_by: user.id,
+          mab_config: { algorithm: experiment.algorithm },
+          traffic_allocation: experiment.traffic_allocation,
+          tags: experiment.tags
+        })
+
+      if (error) throw error
+
+      // Recarregar a página para mostrar o novo experimento
+      window.location.reload()
+    } catch (error) {
+      safeLog('Erro ao duplicar experimento:', error)
+      alert('Erro ao duplicar experimento')
+    }
+  }
 
   if (layout === 'list') {
     return (
@@ -470,14 +584,21 @@ function ProfessionalExperimentCard({
           </div>
 
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
-              <Settings className="w-4 h-4" />
-            </Button>
             <Button
-              onClick={() => onViewDetails(experiment)}
               variant="ghost"
               size="sm"
               className="text-gray-600 hover:text-gray-900"
+              onClick={handleConfigure}
+              title="Configurações"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={handleViewDetails}
+              variant="ghost"
+              size="sm"
+              className="text-gray-600 hover:text-gray-900"
+              title="Ver detalhes"
             >
               <Eye className="w-4 h-4" />
             </Button>
@@ -542,11 +663,16 @@ function ProfessionalExperimentCard({
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1 text-gray-600 border-gray-300">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-gray-600 border-gray-300"
+            onClick={handleConfigure}
+          >
             Configurar
           </Button>
           <Button
-            onClick={() => onViewDetails(experiment)}
+            onClick={handleViewDetails}
             size="sm"
             className="flex-1 bg-gray-900 hover:bg-gray-800 text-white"
           >

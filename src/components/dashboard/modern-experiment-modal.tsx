@@ -10,7 +10,7 @@ import {
   X, Target, Globe, Shuffle, TrendingUp, Zap, Check,
   Lightbulb, Eye, AlertCircle, Plus, Trash2, Crown,
   ArrowLeft, ArrowRight, Sparkles, Settings, Clock,
-  BarChart3, Users, Link2
+  BarChart3, Users, Link2, DollarSign
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -41,6 +41,7 @@ interface ExperimentFormData {
   primaryGoal: string
   goalType: 'page_view' | 'click' | 'form_submit' | 'custom'
   goalValue: string
+  conversionValue: number
   duration: number
   minSampleSize: number
   algorithm: 'uniform' | 'thompson_sampling' | 'ucb1'
@@ -64,6 +65,7 @@ const INITIAL_FORM_DATA: ExperimentFormData = {
   primaryGoal: '',
   goalType: 'page_view',
   goalValue: '',
+  conversionValue: 0,
   duration: 14,
   minSampleSize: 1000,
   algorithm: 'thompson_sampling'
@@ -663,6 +665,26 @@ export function ModernExperimentModal({ isOpen, onClose, onSave, saving = false 
                   />
                 </div>
               )}
+
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-slate-900">
+                  <DollarSign className="w-4 h-4 inline mr-2" />
+                  Valor da Conversão (R$)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.conversionValue}
+                  onChange={(e) => updateFormData({ conversionValue: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                  className="h-12 rounded-xl"
+                />
+                <p className="text-sm text-slate-500 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Valor monetário de cada conversão para cálculo de receita
+                </p>
+              </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-3">

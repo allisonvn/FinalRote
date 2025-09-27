@@ -1,16 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { config } from '@/lib/config'
 
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
 
+    // Suporte para ambos os formatos: novo SDK e legado
+    let experimentId = data.experimentId || data.experiment_id
+    const userId = data.userId || data.visitor_id
+    const eventType = data.eventType || data.event_type
+
     // Validar dados obrigatórios
-    if (!data.experiment_id || !data.visitor_id || !data.event_type) {
+    if (!experimentId || !userId || !eventType) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios: experiment_id, visitor_id, event_type' },
+        { error: 'Campos obrigatórios: experimentId/experiment_id, userId/visitor_id, eventType/event_type' },
         { status: 400 }
       )
+    }
+
+    // Validar API key se fornecida
+    const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
+    let project = null
+
+    if (apiKey) {
+      const supabase = createClient()
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('api_key', apiKey)
+        .single()
+
+      if (projectError || !projectData) {
+        return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+      }
+      project = projectData
     }
 
     const supabase = createClient()
@@ -39,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extrair experiment_id real (remover prefixo 'exp_' se existir)
-    const experimentId = data.experiment_id.replace('exp_', '')
+    experimentId = experimentId.replace('exp_', '')
 
     // Verificar se o experimento existe
     const { data: experiment, error: expError } = await supabase

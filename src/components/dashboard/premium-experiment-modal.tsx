@@ -10,7 +10,7 @@ import {
   X, Target, Globe, Shuffle, ArrowLeft, ArrowRight, Check,
   AlertTriangle, Link, Plus, Trash2, Crown, Info,
   Zap, BarChart3, Clock, Users, ChevronRight, Settings,
-  Sparkles, Brain, TrendingUp, Rocket, Star, Shield
+  Sparkles, Brain, TrendingUp, Rocket, Star, Shield, DollarSign
 } from 'lucide-react'
 
 interface PremiumExperimentModalProps {
@@ -34,6 +34,7 @@ interface ExperimentFormData {
   }>
   goalType: 'page_view' | 'click' | 'form_submit'
   goalValue: string
+  conversionValue?: number
   duration: number
   algorithm: 'uniform' | 'thompson_sampling' | 'ucb1' | 'epsilon_greedy'
 }
@@ -50,6 +51,7 @@ const INITIAL_FORM_DATA: ExperimentFormData = {
   ],
   goalType: 'page_view',
   goalValue: '',
+  conversionValue: undefined,
   duration: 14,
   algorithm: 'thompson_sampling'
 }
@@ -747,6 +749,29 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
                   {formData.goalType === 'page_view' && 'URL que indica uma conversão bem-sucedida'}
                   {formData.goalType === 'click' && 'Use seletores CSS como #id, .classe, ou tag'}
                   {formData.goalType === 'form_submit' && 'Seletor do formulário que será monitorado'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-500" />
+                  Valor da Conversão (R$)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.conversionValue || ''}
+                  onChange={(e) => updateFormData({ conversionValue: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="0.00"
+                  className={cn(
+                    "h-14 text-base border-2 border-slate-200 rounded-2xl transition-all duration-300",
+                    "focus:border-green-500 focus:ring-4 focus:ring-green-500/20"
+                  )}
+                />
+                <p className="text-sm text-slate-500 mt-2 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Valor monetário de cada conversão para cálculo de receita
                 </p>
               </div>
 

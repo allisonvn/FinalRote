@@ -177,47 +177,51 @@ export function DashboardLayout({ children, title, description, actions }: Dashb
           )}
 
           {/* Header actions */}
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Search */}
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.75} />
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Enhanced Search */}
+            <div className="relative hidden md:block group">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors duration-200" strokeWidth={1.75} />
               <Input
                 placeholder="Buscar experimentos..."
-                className="w-64 pl-9"
+                className="w-72 pl-10 pr-4 py-2.5 bg-white/80 dark:bg-background/80 border-border/60 hover:border-border focus:border-primary focus:bg-white dark:focus:bg-background transition-all duration-200 rounded-xl shadow-sm hover:shadow-md focus:shadow-lg backdrop-blur-sm"
               />
             </div>
 
-            {/* Notifications */}
-            <Button variant="ghost" size="sm">
-              <Bell className="h-4 w-4" strokeWidth={1.75} />
+            {/* Enhanced Notifications */}
+            <Button variant="ghost" size="sm" className="relative h-10 w-10 rounded-xl hover:bg-primary/10 hover:scale-105 transition-all duration-200">
+              <Bell className="h-4 w-4 strokeWidth={1.75}" />
               <span className="sr-only">Notificações</span>
+              {/* Notification dot */}
+              <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
             </Button>
 
-            {/* Global Time Range */}
+            {/* Enhanced Global Time Range */}
             <Select
               value={preferences.defaultTimeRange}
               onValueChange={(v) => updatePreference('defaultTimeRange', v as any)}
             >
-              <SelectTrigger className="w-[128px]">
+              <SelectTrigger className="w-[140px] h-10 bg-white/80 dark:bg-background/80 border-border/60 hover:border-border focus:border-primary transition-all duration-200 rounded-xl shadow-sm hover:shadow-md backdrop-blur-sm">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">7 dias</SelectItem>
-                <SelectItem value="30d">30 dias</SelectItem>
-                <SelectItem value="90d">90 dias</SelectItem>
+              <SelectContent className="rounded-xl border-border/60 shadow-xl">
+                <SelectItem value="7d" className="rounded-lg">7 dias</SelectItem>
+                <SelectItem value="30d" className="rounded-lg">30 dias</SelectItem>
+                <SelectItem value="90d" className="rounded-lg">90 dias</SelectItem>
               </SelectContent>
             </Select>
 
-            {/* Theme toggle */}
-            <ThemeToggle />
+            {/* Enhanced Theme toggle */}
+            <div className="h-10 w-10 rounded-xl overflow-hidden">
+              <ThemeToggle />
+            </div>
 
             {/* Actions */}
             {actions}
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-4 lg:p-6">
+        {/* Enhanced Page content */}
+        <main className="flex-1 p-4 lg:p-6 animate-fade-in-up">
           {children}
         </main>
       </div>
