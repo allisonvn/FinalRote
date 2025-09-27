@@ -168,7 +168,6 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
         name,
         status,
         created_at,
-        ended_at,
         variants!inner(id, name, is_control)
       `)
       .order('created_at', { ascending: false })
@@ -208,7 +207,7 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
             improvement: 0,
             significance: 0,
             startDate: exp.created_at,
-            endDate: exp.ended_at
+            endDate: undefined
           }
         }
 
@@ -261,7 +260,7 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
           improvement: Math.round(improvement * 10) / 10,
           significance: Math.round(significance * 10) / 10,
           startDate: exp.created_at,
-          endDate: exp.ended_at
+          endDate: undefined
         }
       } catch (error) {
         console.error(`Erro ao processar métricas do experimento ${exp.id}:`, error)

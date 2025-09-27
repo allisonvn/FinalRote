@@ -1,93 +1,116 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import type { Tables } from '@/types/supabase'
 
-type Project = {
-  id: string
-  organization_id: string
-  name: string
-  description?: string
-  public_key?: string
-  secret_key?: string
-  allowed_origins?: string[]
-  created_at: string
-  updated_at?: string
-}
+type Project = Tables<'projects'>
+type ProjectStatus = Tables<'project_statuses'>
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([])
+  const [statuses, setStatuses] = useState<ProjectStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentProject, setCurrentProject] = useState<Project | null>(null)
 
   const supabase = createClient()
 
-  // Carregar projetos do usuário
+  // Carregar projetos da organização atual
   const loadProjects = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const { data, error: queryError } = await supabase
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setProjects([])
+        return
+      }
+
+      // Buscar organização atual do usuário
+      const { data: userData } = await supabase
+        .from('users')
+        .select('default_org_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!userData?.default_org_id) {
+        setProjects([])
+        return
+      }
+
+      // Buscar projetos da organização
+      const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .eq('org_id', userData.default_org_id)
         .order('created_at', { ascending: false })
 
-      if (queryError) {
-        throw queryError
-      }
+      if (error) throw error
 
       setProjects(data || [])
-
-      // Se não há projeto atual selecionado, selecionar o primeiro
-      if (!currentProject && data && data.length > 0) {
-        setCurrentProject(data[0])
-      }
     } catch (err) {
       console.error('Erro ao carregar projetos:', err)
       setError(err instanceof Error ? err.message : 'Falha ao carregar projetos')
+      toast.error('Erro ao carregar projetos')
     } finally {
       setLoading(false)
     }
-  }, [supabase, currentProject])
+  }, [supabase])
+
+  // Carregar status disponíveis
+  const loadStatuses = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_statuses')
+        .select('*')
+        .order('sort_order', { ascending: true })
+
+      if (error) throw error
+
+      setStatuses(data || [])
+    } catch (err) {
+      console.error('Erro ao carregar status:', err)
+    }
+  }, [supabase])
 
   // Criar novo projeto
   const createProject = useCallback(async (data: {
     name: string
     description?: string
+    status?: string
+    start_date?: string
+    end_date?: string
   }) => {
     try {
-      // Gerar chaves API
-      const publicKey = `pk_live_${generateApiKey()}`
-      const secretKey = `sk_live_${generateApiKey()}`
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
 
-      // Buscar organização do usuário
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) throw new Error('Usuário não autenticado')
-
-      // Buscar primeira organização do usuário
-      const { data: memberData } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', userData.user.id)
+      // Buscar organização atual
+      const { data: userData } = await supabase
+        .from('users')
+        .select('default_org_id')
+        .eq('id', user.id)
         .single()
 
-      if (!memberData) throw new Error('Usuário não pertence a nenhuma organização')
+      if (!userData?.default_org_id) {
+        throw new Error('Nenhuma organização selecionada')
+      }
 
-      const { data: newProject, error: insertError } = await supabase
+      const { data: newProject, error } = await supabase
         .from('projects')
         .insert({
-          organization_id: memberData.organization_id,
           name: data.name.trim(),
           description: data.description?.trim(),
-          public_key: publicKey,
-          secret_key: secretKey,
-          allowed_origins: ['http://localhost:*', 'https://localhost:*']
+          status: data.status || 'draft',
+          start_date: data.start_date || null,
+          end_date: data.end_date || null,
+          org_id: userData.default_org_id,
+          created_by: user.id
         })
         .select()
         .single()
 
-      if (insertError) throw insertError
+      if (error) throw error
 
       await loadProjects()
       toast.success('Projeto criado com sucesso!')
@@ -102,46 +125,27 @@ export function useProjects() {
   // Atualizar projeto
   const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
       const { error } = await supabase
         .from('projects')
-        .update(updates)
+        .update({
+          ...updates,
+          updated_by: user.id
+        })
         .eq('id', id)
 
       if (error) throw error
 
-      setProjects(prev =>
-        prev.map(proj =>
-          proj.id === id ? { ...proj, ...updates } : proj
-        )
-      )
-
-      // Atualizar projeto atual se for o mesmo
-      if (currentProject?.id === id) {
-        setCurrentProject(prev => prev ? { ...prev, ...updates } : null)
-      }
-
+      await loadProjects()
       toast.success('Projeto atualizado!')
     } catch (err) {
       console.error('Erro ao atualizar projeto:', err)
       toast.error('Erro ao atualizar projeto')
       throw err
     }
-  }, [supabase, currentProject])
-
-  // Regenerar chaves API
-  const regenerateApiKeys = useCallback(async (id: string) => {
-    try {
-      const publicKey = `pk_live_${generateApiKey()}`
-      const secretKey = `sk_live_${generateApiKey()}`
-
-      await updateProject(id, { public_key: publicKey, secret_key: secretKey })
-      toast.success('Chaves API regeneradas!')
-    } catch (err) {
-      console.error('Erro ao regenerar chaves:', err)
-      toast.error('Erro ao regenerar chaves')
-      throw err
-    }
-  }, [updateProject])
+  }, [supabase, loadProjects])
 
   // Deletar projeto
   const deleteProject = useCallback(async (id: string) => {
@@ -153,65 +157,91 @@ export function useProjects() {
 
       if (error) throw error
 
-      setProjects(prev => prev.filter(proj => proj.id !== id))
-      
-      // Se deletou o projeto atual, selecionar outro
-      if (currentProject?.id === id) {
-        const remaining = projects.filter(p => p.id !== id)
-        setCurrentProject(remaining.length > 0 ? remaining[0] : null)
-      }
-
+      setProjects(prev => prev.filter(project => project.id !== id))
       toast.success('Projeto deletado!')
     } catch (err) {
       console.error('Erro ao deletar projeto:', err)
       toast.error('Erro ao deletar projeto')
       throw err
     }
-  }, [supabase, currentProject, projects])
+  }, [supabase])
 
-  // Selecionar projeto atual
-  const selectProject = useCallback((project: Project) => {
-    setCurrentProject(project)
-    // Salvar no localStorage para persistir
-    localStorage.setItem('currentProjectId', project.id)
-  }, [])
+  // Arquivar projeto
+  const archiveProject = useCallback(async (id: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
 
-  // Carregar projeto salvo do localStorage
-  useEffect(() => {
-    const savedProjectId = localStorage.getItem('currentProjectId')
-    if (savedProjectId && projects.length > 0) {
-      const savedProject = projects.find(p => p.id === savedProjectId)
-      if (savedProject) {
-        setCurrentProject(savedProject)
-      }
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          archived_at: new Date().toISOString(),
+          updated_by: user.id
+        })
+        .eq('id', id)
+
+      if (error) throw error
+
+      await loadProjects()
+      toast.success('Projeto arquivado!')
+    } catch (err) {
+      console.error('Erro ao arquivar projeto:', err)
+      toast.error('Erro ao arquivar projeto')
+      throw err
     }
-  }, [projects])
+  }, [supabase, loadProjects])
 
-  // Carregar projetos na montagem
+  // Restaurar projeto
+  const restoreProject = useCallback(async (id: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          archived_at: null,
+          updated_by: user.id
+        })
+        .eq('id', id)
+
+      if (error) throw error
+
+      await loadProjects()
+      toast.success('Projeto restaurado!')
+    } catch (err) {
+      console.error('Erro ao restaurar projeto:', err)
+      toast.error('Erro ao restaurar projeto')
+      throw err
+    }
+  }, [supabase, loadProjects])
+
+  // Stats
+  const stats = {
+    total: projects.length,
+    active: projects.filter(p => p.status === 'active').length,
+    draft: projects.filter(p => p.status === 'draft').length,
+    completed: projects.filter(p => p.status === 'completed').length,
+    archived: projects.filter(p => p.archived_at !== null).length
+  }
+
+  // Carregar dados na montagem
   useEffect(() => {
     loadProjects()
-  }, [loadProjects])
+    loadStatuses()
+  }, [loadProjects, loadStatuses])
 
   return {
     projects,
-    currentProject,
+    statuses,
     loading,
     error,
+    stats,
     createProject,
     updateProject,
     deleteProject,
-    regenerateApiKeys,
-    selectProject,
+    archiveProject,
+    restoreProject,
     refetch: loadProjects
   }
-}
-
-// Função auxiliar para gerar chave API
-function generateApiKey(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  let key = ''
-  for (let i = 0; i < 32; i++) {
-    key += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return key
 }

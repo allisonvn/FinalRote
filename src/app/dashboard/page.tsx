@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { useRealtimeAnalytics } from '@/hooks/useRealtimeAnalytics'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { EmptyState } from '@/components/empty-state'
+import { safeTrafficAllocation } from '@/lib/numeric-utils'
 
 interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string; config?: any; weight?: number }
 interface Experiment {
@@ -604,19 +605,41 @@ export default function Dashboard() {
       
       // Carregar experimentos (filtrar por projetos do usuário)
       const projectIds = projects.map(p => p.id)
-      const { data: experimentsData, error: experimentsError } = await supabase
+      let query = supabase
         .from('experiments')
         .select(`
-          *,
-          variants:variants(*),
-          projects:projects(
-            id,
-            name,
-            organization_id
+          id,
+          name,
+          description,
+          status,
+          type,
+          traffic_allocation,
+          created_at,
+          updated_at,
+          project_id,
+          variants:variants(
+            id, 
+            name, 
+            description,
+            is_control, 
+            traffic_percentage, 
+            redirect_url,
+            changes,
+            css_changes,
+            js_changes,
+            visitors,
+            conversions,
+            conversion_rate
           )
         `)
-        .in('project_id', projectIds)
         .order('created_at', { ascending: false })
+      
+      // Aplicar filtro por projetos apenas se houver projetos carregados
+      if (projectIds.length > 0) {
+        query = query.in('project_id', projectIds)
+      }
+      
+      const { data: experimentsData, error: experimentsError } = await query
 
       if (experimentsError) {
         console.error('Erro ao carregar experimentos:', experimentsError)
@@ -631,7 +654,9 @@ export default function Dashboard() {
         name: exp.name,
         description: exp.description,
         status: exp.status,
+        type: exp.type,
         created_at: exp.created_at,
+        updated_at: exp.updated_at,
         project_id: exp.project_id,
         algorithm: exp.mab_config?.algorithm || 'thompson_sampling',
         traffic_allocation: exp.traffic_allocation,
@@ -640,10 +665,16 @@ export default function Dashboard() {
           name: v.name,
           key: v.key || v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
           is_control: v.is_control,
-          weight: v.weight || v.traffic_percentage || 50,
-          url: v.url || v.target_url || v.config?.url || v.config?.target_url || undefined,
+          traffic_percentage: v.traffic_percentage || 50,
+          url: v.redirect_url || v.url || v.target_url || v.config?.url || v.config?.target_url || undefined,
           description: v.description || (typeof v.config?.rules === 'string' ? v.config.rules : (v.config?.rules ? JSON.stringify(v.config.rules) : undefined)),
-          config: v.config || {}
+          config: v.config || {},
+          changes: v.changes || {},
+          css_changes: v.css_changes,
+          js_changes: v.js_changes,
+          visitors: v.visitors || 0,
+          conversions: v.conversions || 0,
+          conversion_rate: v.conversion_rate || 0
         }))
       }))
 
@@ -743,7 +774,7 @@ export default function Dashboard() {
       key: v.key || v.name.toLowerCase(),
       url: v.url ?? (v as any).target_url ?? v.config?.url ?? v.config?.target_url ?? null,
       isControl: v.is_control,
-      weight: v.weight || 50,
+      traffic_percentage: v.traffic_percentage || 50,
       description: v.description ?? (typeof v.config?.rules === 'string' ? v.config.rules : (v.config?.rules ? JSON.stringify(v.config.rules) : null))
     }))
     const goal = (exp as any).goal_value || (exp as any).goal_type || 'conversion'
@@ -1261,8 +1292,8 @@ export default function Dashboard() {
       
       // Criar variantes padrão
       const defaultVariants = [
-        { name: 'Controle', key: 'A', is_control: true, weight: 50 },
-        { name: 'Variante B', key: 'B', is_control: false, weight: 50 }
+        { name: 'Controle', key: 'A', is_control: true, traffic_percentage: 50 },
+        { name: 'Variante B', key: 'B', is_control: false, traffic_percentage: 50 }
       ]
 
       // Criar variantes padrão via API (por enquanto, vamos pular isso)
@@ -1284,7 +1315,7 @@ export default function Dashboard() {
           name: v.name,
           key: v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
           is_control: v.is_control,
-          weight: v.traffic_percentage || 50
+          traffic_percentage: v.traffic_percentage || 50
         }))
       }
 
@@ -1348,15 +1379,13 @@ export default function Dashboard() {
           .replace(/[^a-z0-9]+/g, '_')
           .replace(/^_+|_+$/g, '')
 
-      // Prepare experiment data (aligned with schema)
+      // Prepare experiment data (aligned with DB schema)
       const experimentData = {
         name: String(formData.name || '').trim(),
-        key: toKey(formData.name) || 'experiment',
         project_id: String(projectId),
         description: formData.description || null,
         status: 'draft' as const,
-        algorithm: formData.algorithm as any || 'thompson_sampling',
-        traffic_allocation: Math.floor(Math.min(100, Math.max(1, formData.trafficAllocation || 100)))
+        traffic_allocation: safeTrafficAllocation(formData.trafficAllocation, 100)
       }
 
       console.log('📋 Creating experiment with data:', experimentData)
@@ -1371,24 +1400,25 @@ export default function Dashboard() {
         algorithm_value: experimentData.algorithm
       })
 
-      // Create experiment
-      const { data: experiment, error: expError } = await supabase
-        .from('experiments')
-        .insert([experimentData])
-        .select()
-        .single()
-
-      if (expError) {
-        console.error('❌ Experiment creation error:', expError)
-        console.error('❌ Error details:', {
-          code: expError.code,
-          message: expError.message,
-          details: expError.details,
-          hint: expError.hint
+      // Create experiment via API (server handles validation and schema)
+      const apiResponse = await fetch('/api/experiments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: experimentData.name,
+          project_id: experimentData.project_id,
+          description: experimentData.description,
+          traffic_allocation: experimentData.traffic_allocation
         })
-        throw new Error(`Erro ao criar experimento: ${expError.message}`)
+      })
+
+      const apiResult = await apiResponse.json()
+      if (!apiResponse.ok) {
+        console.error('❌ Experiment creation error:', apiResult)
+        throw new Error(`Erro ao criar experimento: ${apiResult?.error || 'Falha desconhecida'}`)
       }
 
+      const experiment = apiResult.experiment
       console.log('✅ Experiment created:', experiment.id)
 
       // Create variants (aligned with schema)
@@ -1399,18 +1429,19 @@ export default function Dashboard() {
       const variantsData = formData.variants.map((variant: any, index: number) => ({
         experiment_id: experiment.id,
         name: variant.name,
-        key: toKey(variant.name) || `variant_${index}`,
-        weight: baseWeight + (index < remainder ? 1 : 0), // Distribute remainder
-        is_control: variant.isControl,
-        config: {
+        traffic_percentage: Number((baseWeight + (index < remainder ? 1 : 0)).toFixed(2)),
+        is_control: Boolean(variant.isControl),
+        redirect_url: variant.url || formData.targetUrl || null,
+        description: variant.description || null,
+        changes: {
           type: formData.testType,
-          url: variant.url || formData.targetUrl,
-          changes: [],
           target_url: formData.targetUrl,
-          conversion_type: formData.conversionType,
-          conversion_url: formData.conversionUrl,
-          conversion_selector: formData.conversionSelector,
-          conversion_event: formData.conversionEvent
+          conversion: {
+            type: formData.conversionType,
+            url: formData.conversionUrl,
+            selector: formData.conversionSelector,
+            event: formData.conversionEvent
+          }
         }
       }))
 
@@ -1420,7 +1451,7 @@ export default function Dashboard() {
         baseWeight,
         remainder,
         weights: variantsData.map(v => v.weight),
-        weightSum: variantsData.reduce((sum, v) => sum + v.weight, 0)
+        weightSum: variantsData.reduce((sum, v) => sum + parseFloat(v.traffic_percentage), 0)
       })
 
       const { error: variantsError } = await supabase
@@ -1445,12 +1476,9 @@ export default function Dashboard() {
         const goalData = {
           experiment_id: experiment.id,
           name: formData.primaryGoal,
-          key: toKey(formData.primaryGoal) || 'primary_goal',
-          type: formData.conversionType === 'page_view' ? 'page_view' :
-                formData.conversionType === 'click' ? 'click' :
-                formData.conversionType === 'form_submit' ? 'conversion' : 'custom',
-          value_type: 'binary' as const,
-          description: `Objetivo: ${formData.primaryGoal}`
+          description: `Objetivo primário: ${formData.primaryGoal}`,
+          event_name: formData.conversionEvent || 'conversion',
+          is_primary: true
         }
 
         const { error: goalError } = await supabase
@@ -1459,7 +1487,7 @@ export default function Dashboard() {
 
         if (goalError) {
           console.error('Goal creation error:', goalError)
-          // Don't throw - goal is optional
+          // Goal é opcional
         } else {
           console.log('✅ Goal created for experiment:', experiment.id)
         }
@@ -1509,10 +1537,9 @@ export default function Dashboard() {
          headers: {
            'Content-Type': 'application/json',
          },
-         body: JSON.stringify({ 
-           status: 'running',
-           started_at: new Date().toISOString()
-         })
+        body: JSON.stringify({ 
+          status: 'running'
+        })
        })
 
        if (!response.ok) {
@@ -1522,7 +1549,7 @@ export default function Dashboard() {
 
       // Sucesso - atualizar estado local
       setExperiments(prev => {
-        const next = prev.map(e => e.id === id ? { ...e, status: 'running' as const, started_at: new Date().toISOString() } : e)
+        const next = prev.map(e => e.id === id ? { ...e, status: 'running' as const } : e)
         updateStatsFromExperiments(next)
         return next
       })

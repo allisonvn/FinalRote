@@ -53,12 +53,12 @@ serve(async (req) => {
     const origin = req.headers.get('origin')
     // For now, allow all origins - can be restricted later if needed
 
-    // Get experiment by key (correct field)
+    // Get experiment by name (using name field instead of key)
     const { data: experiment, error: expError } = await supabase
       .from('experiments')
-      .select('id, status, name, key')
+      .select('id, status, name')
       .eq('project_id', project.id)
-      .eq('key', experiment_key)
+      .eq('name', experiment_key)
       .single()
 
     if (expError || !experiment) {
@@ -69,42 +69,13 @@ serve(async (req) => {
       throw new Error('Experiment is not running')
     }
 
-    // Check existing assignment (correct table name)
-    const { data: existingAssignment } = await supabase
-      .from('assignments')
-      .select('variant_id')
-      .eq('experiment_id', experiment.id)
-      .eq('visitor_id', visitor_id)
-      .single()
+    // For now, skip assignment tracking and always assign randomly
+    // TODO: Implement assignment table for consistent user experience
 
-    if (existingAssignment) {
-      // Return existing assignment
-      const { data: variant } = await supabase
-        .from('variants')
-        .select('id, name, key, is_control, config')
-        .eq('id', existingAssignment.variant_id)
-        .single()
-
-      return new Response(
-        JSON.stringify({
-          variant_id: variant.id,
-          variant_key: variant.key,
-          variant_name: variant.name,
-          config: variant.config || {},
-          is_new: false,
-          variant: variant.key // SDK compatibility
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
-      )
-    }
-
-    // Get all variants for this experiment (correct fields)
+    // Get all variants for this experiment (using name instead of key)
     const { data: variants, error: variantsError } = await supabase
       .from('variants')
-      .select('id, name, key, is_control, weight, config')
+      .select('id, name, is_control, traffic_percentage')
       .eq('experiment_id', experiment.id)
       .order('created_at')
 
@@ -112,33 +83,21 @@ serve(async (req) => {
       throw new Error('No active variants found for experiment')
     }
 
-    // Simple random assignment based on weight
+    // Simple random assignment based on traffic_percentage
     const random = Math.random() * 100
     let cumulative = 0
     let selectedVariant = variants[0] // Fallback to first variant
 
     for (const variant of variants) {
-      cumulative += (variant.weight || 50) // Default 50% if null
+      cumulative += (variant.traffic_percentage || 50) // Default 50% if null
       if (random <= cumulative) {
         selectedVariant = variant
         break
       }
     }
 
-    // Save assignment (correct table and fields)
-    const { error: assignmentError } = await supabase
-      .from('assignments')
-      .insert({
-        experiment_id: experiment.id,
-        variant_id: selectedVariant.id,
-        visitor_id: visitor_id,
-        context: context || {}
-      })
-
-    if (assignmentError) {
-      console.error('Error saving assignment:', assignmentError)
-      // Continue even if assignment save fails
-    }
+    // Skip assignment saving for now
+    // TODO: Implement assignment table
 
     // Log the assignment event (correct field names)
     await supabase.from('events').insert({
@@ -149,7 +108,7 @@ serve(async (req) => {
       event_name: 'variant_assigned',
       properties: {
         variant_id: selectedVariant.id,
-        variant_key: selectedVariant.key,
+        variant_key: selectedVariant.name, // Using name as key
         variant_name: selectedVariant.name,
         page_url: req.headers.get('referer') || '',
         ...context
@@ -159,11 +118,11 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         variant_id: selectedVariant.id,
-        variant_key: selectedVariant.key, // Using correct key field
+        variant_key: selectedVariant.name, // Using name as key
         variant_name: selectedVariant.name,
-        config: selectedVariant.config || {},
+        config: {},
         is_new: true,
-        variant: selectedVariant.key // SDK compatibility with key field
+        variant: selectedVariant.name // SDK compatibility using name
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

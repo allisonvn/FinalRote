@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { safeTrafficAllocation } from '@/lib/numeric-utils'
 
 type Variant = {
   id: string
@@ -161,7 +162,7 @@ export function useSupabaseExperiments() {
           description: data.description?.trim(),
           project_id: data.project_id,
           algorithm: (data.algorithm || 'thompson_sampling') as any,
-          traffic_allocation: data.traffic_allocation || 100,
+          traffic_allocation: safeTrafficAllocation(data.traffic_allocation, 100),
           status: 'draft'
         })
         .select()
@@ -326,7 +327,7 @@ export function useSupabaseExperiments() {
           description: original.description,
           project_id: original.project_id,
           algorithm: original.algorithm,
-          traffic_allocation: original.traffic_allocation,
+          traffic_allocation: safeTrafficAllocation(original.traffic_allocation, 100),
           status: 'draft'
         })
         .select()

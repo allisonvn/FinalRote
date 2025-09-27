@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function PATCH(
@@ -21,15 +20,12 @@ export async function PATCH(
       )
     }
 
-    // Usar service client para contornar RLS
-    const serviceClient = createServiceClient()
-
-    // Atualizar experimento
-    const { data: updatedExperiment, error: updateError } = await serviceClient
+    // Atualizar experimento usando o client do usuário autenticado
+    const { data: updatedExperiment, error: updateError } = await supabase
       .from('experiments')
       .update(data)
       .eq('id', experimentId)
-      .eq('created_by', user.id) // Garantir que só o criador pode atualizar
+      .eq('user_id', user.id) // Garantir que só o criador pode atualizar
       .select()
       .single()
 
@@ -73,20 +69,39 @@ export async function DELETE(
       )
     }
 
-    // Usar service client para contornar RLS
-    const serviceClient = createServiceClient()
+    // Usar client autenticado e RLS
+    const userClient = supabase as any
 
-    // Deletar experimento
-    const { error: deleteError } = await serviceClient
+    // Remover dependências primeiro (ordem segura)
+    const tables = [
+      { name: 'assignments', col: 'experiment_id' },
+      { name: 'events', col: 'experiment_id' },
+      { name: 'goals', col: 'experiment_id' },
+      { name: 'metrics_snapshots', col: 'experiment_id' },
+      { name: 'variants', col: 'experiment_id' },
+    ]
+
+    for (const t of tables) {
+      const { error } = await userClient.from(t.name).delete().eq(t.col, experimentId)
+      if (error) {
+        console.error(`Erro ao deletar ${t.name}:`, error)
+        return NextResponse.json(
+          { error: `Erro ao deletar ${t.name}: ${error.message}` },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Por fim deletar o experimento
+    const { error: expDeleteError } = await userClient
       .from('experiments')
       .delete()
       .eq('id', experimentId)
-      .eq('created_by', user.id) // Garantir que só o criador pode deletar
 
-    if (deleteError) {
-      console.error('Erro ao deletar experimento:', deleteError)
+    if (expDeleteError) {
+      console.error('Erro ao deletar experimento:', expDeleteError)
       return NextResponse.json(
-        { error: 'Erro ao deletar experimento: ' + deleteError.message },
+        { error: 'Erro ao deletar experimento: ' + expDeleteError.message },
         { status: 500 }
       )
     }

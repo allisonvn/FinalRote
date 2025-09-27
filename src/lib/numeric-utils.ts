@@ -37,13 +37,13 @@ export function safeNumeric(
 }
 
 /**
- * Valida e formata traffic_allocation (NUMERIC(5,2))
+ * Valida e formata traffic_allocation (NUMERIC(4,2))
  * @param value Valor do traffic allocation
- * @param defaultValue Valor padrão (padrão: 100)
- * @returns Valor formatado entre 1 e 100
+ * @param defaultValue Valor padrão (padrão: 99.99)
+ * @returns Valor formatado entre 1 e 99.99
  */
-export function safeTrafficAllocation(value: any, defaultValue: number = 100): number {
-  return safeNumeric(value, defaultValue, 1, 100, 2);
+export function safeTrafficAllocation(value: any, defaultValue: number = 99.99): number {
+  return safeNumeric(value, defaultValue, 1, 99.99, 2);
 }
 
 /**
@@ -57,13 +57,13 @@ export function safeConfidenceLevel(value: any, defaultValue: number = 95): numb
 }
 
 /**
- * Valida e formata traffic_percentage para variantes (NUMERIC(5,2))
+ * Valida e formata traffic_percentage para variantes (NUMERIC(4,2))
  * @param value Valor do traffic percentage
  * @param defaultValue Valor padrão (padrão: 50)
- * @returns Valor formatado entre 0 e 100
+ * @returns Valor formatado entre 0 e 99.99
  */
 export function safeTrafficPercentage(value: any, defaultValue: number = 50): number {
-  return safeNumeric(value, defaultValue, 0, 100, 2);
+  return safeNumeric(value, defaultValue, 0, 99.99, 2);
 }
 
 /**
@@ -77,11 +77,11 @@ export function safeConversionRate(value: any, defaultValue: number = 0): number
 }
 
 /**
- * Valida e formata statistical_significance (NUMERIC(5,4))
+ * Valida e formata statistical_significance (NUMERIC(6,4))
  * @param value Valor da significância estatística
  * @param defaultValue Valor padrão (padrão: 0)
- * @returns Valor formatado entre 0 e 99.9999
+ * @returns Valor formatado entre 0 e 100.0000
  */
 export function safeStatisticalSignificance(value: any, defaultValue: number = 0): number {
-  return safeNumeric(value, defaultValue, 0, 99.9999, 4);
+  return safeNumeric(value, defaultValue, 0, 100.0000, 4);
 }
