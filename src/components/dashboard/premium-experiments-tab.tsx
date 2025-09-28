@@ -81,7 +81,7 @@ interface ExperimentWithMetrics {
   performance?: ExperimentMetrics
 }
 
-export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }: PremiumExperimentsTabProps) {
+export function PremiumExperimentsTab({ experiments: initialExperiments, loading, onNewExperiment }: PremiumExperimentsTabProps) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<'all' | string>('all')
   const [layout, setLayout] = useState<'grid' | 'list'>('grid')
@@ -89,6 +89,14 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'status' | 'performance'>('recent')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedExperiment, setSelectedExperiment] = useState<any>(null)
+  
+  // Estado local dos experimentos
+  const [experiments, setExperiments] = useState(initialExperiments)
+  
+  // Sincronizar estado local com props
+  useEffect(() => {
+    setExperiments(initialExperiments)
+  }, [initialExperiments])
   
   // Usar estatísticas reais do Supabase
   const { stats: realStats, loading: statsLoading } = useDashboardStats()
@@ -100,6 +108,9 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
   
   // Estado para deletar experimentos
   const [deletingExperiment, setDeletingExperiment] = useState<string | null>(null)
+  
+  // Estado para toggle de status
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null)
 
   // Função para deletar experimento
   const handleDeleteExperiment = async (experimentId: string, experimentName: string) => {
@@ -131,6 +142,61 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
       alert(`Erro ao deletar experimento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
     } finally {
       setDeletingExperiment(null)
+    }
+  }
+
+  // Função para toggle de status do experimento
+  const handleToggleStatus = async (experimentId: string, currentStatus: string) => {
+    setTogglingStatus(experimentId)
+    
+    try {
+      // Determinar novo status
+      let newStatus: string
+      if (currentStatus === 'running') {
+        newStatus = 'paused'
+      } else if (currentStatus === 'paused') {
+        newStatus = 'running'
+      } else if (currentStatus === 'draft') {
+        newStatus = 'running'
+      } else {
+        // completed - não pode ser alterado
+        return
+      }
+
+      const response = await fetch(`/api/experiments/${experimentId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Erro ao atualizar status do experimento')
+      }
+
+      // Atualizar estado local
+      setExperiments(prev => prev.map(exp => 
+        exp.id === experimentId 
+          ? { ...exp, status: newStatus }
+          : exp
+      ))
+
+      const statusLabels = {
+        draft: 'Rascunho',
+        running: 'Executando',
+        paused: 'Pausado',
+        completed: 'Concluído'
+      }
+
+      alert(`Experimento ${statusLabels[newStatus as keyof typeof statusLabels].toLowerCase()} com sucesso!`)
+      
+    } catch (error) {
+      console.error('Erro ao atualizar status do experimento:', error)
+      alert(`Erro ao atualizar status: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+    } finally {
+      setTogglingStatus(null)
     }
   }
 
@@ -585,8 +651,10 @@ export function PremiumExperimentsTab({ experiments, loading, onNewExperiment }:
                 layout={layout}
                 onViewDetails={handleViewDetails}
                 onDelete={handleDeleteExperiment}
+                onToggleStatus={handleToggleStatus}
                 metricsLoading={metricsLoading}
                 isDeleting={deletingExperiment === experiment.id}
+                isToggling={togglingStatus === experiment.id}
               />
             ))}
           </div>
@@ -614,15 +682,19 @@ function PremiumExperimentCard({
   layout,
   onViewDetails,
   onDelete,
+  onToggleStatus,
   metricsLoading,
-  isDeleting
+  isDeleting,
+  isToggling
 }: {
   experiment: any
   layout: 'grid' | 'list'
   onViewDetails: (experiment: any) => void
   onDelete: (experimentId: string, experimentName: string) => void
+  onToggleStatus: (experimentId: string, currentStatus: string) => void
   metricsLoading: boolean
   isDeleting: boolean
+  isToggling: boolean
 }) {
   const statusInfo = statusConfig[experiment.status as keyof typeof statusConfig]
   const StatusIcon = statusInfo.icon
@@ -692,6 +764,41 @@ function PremiumExperimentCard({
           </div>
 
           <div className="flex gap-4">
+            {/* Botão de Toggle Status */}
+            {experiment.status !== 'completed' && (
+              <Button
+                onClick={() => onToggleStatus(experiment.id, experiment.status)}
+                disabled={isToggling}
+                variant="outline"
+                className={`rounded-2xl h-14 px-8 font-bold ${
+                  experiment.status === 'running' 
+                    ? 'border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300'
+                    : 'border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300'
+                }`}
+              >
+                {isToggling ? (
+                  <>
+                    <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    {experiment.status === 'running' ? 'Pausando...' : 'Ativando...'}
+                  </>
+                ) : (
+                  <>
+                    {experiment.status === 'running' ? (
+                      <>
+                        <Pause className="w-5 h-5 mr-2" />
+                        Pausar
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-5 h-5 mr-2" />
+                        Ativar
+                      </>
+                    )}
+                  </>
+                )}
+              </Button>
+            )}
+            
             <Button
               onClick={() => onViewDetails(experiment)}
               className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-14 px-8 font-bold"
@@ -828,6 +935,41 @@ function PremiumExperimentCard({
 
         {/* Enhanced Botões de ação */}
         <div className="pt-4 border-t border-slate-200/50 space-y-3">
+          {/* Botão de Toggle Status */}
+          {experiment.status !== 'completed' && (
+            <Button
+              onClick={() => onToggleStatus(experiment.id, experiment.status)}
+              disabled={isToggling}
+              variant="outline"
+              className={`w-full rounded-xl transition-all duration-300 h-10 font-semibold text-sm ${
+                experiment.status === 'running' 
+                  ? 'border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300'
+                  : 'border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300'
+              }`}
+            >
+              {isToggling ? (
+                <>
+                  <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  {experiment.status === 'running' ? 'Pausando...' : 'Ativando...'}
+                </>
+              ) : (
+                <>
+                  {experiment.status === 'running' ? (
+                    <>
+                      <Pause className="w-4 h-4 mr-2" />
+                      Pausar Experimento
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Ativar Experimento
+                    </>
+                  )}
+                </>
+              )}
+            </Button>
+          )}
+          
           <Button
             onClick={() => onViewDetails(experiment)}
             className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 rounded-xl transition-all duration-300 h-12 font-semibold text-sm shadow-lg hover:shadow-xl ripple-effect"
