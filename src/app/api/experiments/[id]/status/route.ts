@@ -28,24 +28,10 @@ export async function PATCH(
       )
     }
 
-    // Verificar se o experimento pertence ao usuário através do projeto
+    // Verificar se o experimento existe
     const { data: experiment, error: fetchError } = await supabase
       .from('experiments')
-      .select(`
-        id, 
-        user_id, 
-        status, 
-        project_id,
-        projects!inner(
-          id,
-          created_by,
-          org_id,
-          organization_members!inner(
-            user_id,
-            role
-          )
-        )
-      `)
+      .select('id, status, project_id, user_id')
       .eq('id', experimentId)
       .single()
 
@@ -57,12 +43,35 @@ export async function PATCH(
     }
 
     // Verificar se o usuário tem acesso ao experimento
-    const hasAccess = experiment.user_id === user.id || 
-                     experiment.projects?.created_by === user.id ||
-                     experiment.projects?.organization_members?.some((member: any) => 
-                       member.user_id === user.id && 
-                       ['owner', 'admin', 'member'].includes(member.role)
-                     )
+    // Verificação direta: user_id do experimento ou acesso via projeto
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        created_by,
+        org_id,
+        organization_members!inner(
+          user_id,
+          role
+        )
+      `)
+      .eq('id', experiment.project_id)
+      .single()
+
+    if (projectError || !project) {
+      return NextResponse.json(
+        { error: 'Projeto não encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verificar acesso: user_id direto, created_by do projeto, ou membro da organização
+    const hasAccess = 
+      experiment.user_id === user.id ||
+      project.created_by === user.id ||
+      project.organization_members.some((member: any) => 
+        member.user_id === user.id && ['owner', 'admin', 'member'].includes(member.role)
+      )
 
     if (!hasAccess) {
       return NextResponse.json(

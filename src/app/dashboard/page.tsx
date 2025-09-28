@@ -1405,55 +1405,8 @@ ${baseCode}
       const experiment = apiResult.experiment
       console.log('✅ Experiment created:', experiment.id)
 
-      // Create variants (aligned with schema)
-      const totalVariants = formData.variants.length
-      const baseWeight = Math.floor(100 / totalVariants)
-      const remainder = 100 - (baseWeight * totalVariants)
-
-      const variantsData = formData.variants.map((variant: any, index: number) => ({
-        experiment_id: experiment.id,
-        name: variant.name,
-        traffic_percentage: Number((baseWeight + (index < remainder ? 1 : 0)).toFixed(2)),
-        is_control: Boolean(variant.isControl),
-        redirect_url: variant.url || formData.targetUrl || null,
-        description: variant.description || null,
-        changes: {
-          type: formData.testType,
-          target_url: formData.targetUrl,
-          conversion: {
-            type: formData.conversionType,
-            url: formData.conversionUrl,
-            selector: formData.conversionSelector,
-            event: formData.conversionEvent
-          }
-        }
-      }))
-
-      console.log('📋 Creating variants with data:', variantsData)
-      console.log('🔍 Variants validation:', {
-        totalVariants,
-        baseWeight,
-        remainder,
-        weights: variantsData.map(v => v.weight),
-        weightSum: variantsData.reduce((sum, v) => sum + parseFloat(v.traffic_percentage), 0)
-      })
-
-      const { error: variantsError } = await supabase
-        .from('variants')
-        .insert(variantsData)
-
-      if (variantsError) {
-        console.error('❌ Variants creation error:', variantsError)
-        console.error('❌ Error details:', {
-          code: variantsError.code,
-          message: variantsError.message,
-          details: variantsError.details,
-          hint: variantsError.hint
-        })
-        throw new Error(`Erro ao criar variantes: ${variantsError.message}`)
-      }
-
-      console.log('✅ Variants created for experiment:', experiment.id)
+      // As variantes já foram criadas pela API do servidor
+      console.log('✅ Variants already created by server API for experiment:', experiment.id)
 
       // Create goal (aligned with schema)
       if (formData.primaryGoal) {
