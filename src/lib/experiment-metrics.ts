@@ -18,17 +18,15 @@ export async function calculateExperimentMetrics(experimentId: string): Promise<
   try {
     console.log('🔍 Calculando métricas para experimento:', experimentId)
     
-    // Primeiro, tentar usar a view materializada se existir
+    // Primeiro, tentar usar a função RPC para buscar estatísticas
     const { data: statsData, error: statsError } = await supabase
-      .from('experiment_stats')
-      .select('total_visitors, total_conversions')
-      .eq('experiment_id', experimentId)
-      .single()
+      .rpc('get_experiment_stats', { experiment_uuid: experimentId })
 
-    if (!statsError && statsData) {
-      console.log('📊 Usando dados da view materializada:', statsData)
-      const totalVisitors = statsData.total_visitors || 0
-      const totalConversions = statsData.total_conversions || 0
+    if (!statsError && statsData && statsData.length > 0) {
+      console.log('📊 Usando dados da função RPC:', statsData[0])
+      const stats = statsData[0]
+      const totalVisitors = stats.total_visitors || 0
+      const totalConversions = stats.total_conversions || 0
       const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
       
       const avgOrderValue = 150

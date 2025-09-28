@@ -40,12 +40,17 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
 
     try {
       const result = await supabase
-        .from('experiment_stats')
-        .select('experiment_id, experiment_name, status, total_visitors, total_conversions')
-      experiments = result.data
+        .rpc('get_experiment_stats')
+      experiments = result.data?.map(stat => ({
+        experiment_id: stat.experiment_id,
+        experiment_name: stat.experiment_name,
+        status: stat.status,
+        total_visitors: stat.total_visitors,
+        total_conversions: stat.total_conversions
+      })) || []
       expError = result.error
     } catch (viewError) {
-      console.log('View materializada não disponível, usando tabela experiments diretamente')
+      console.log('Função RPC não disponível, usando tabela experiments diretamente')
       const result = await supabase
         .from('experiments')
         .select('id, name, status, created_at')

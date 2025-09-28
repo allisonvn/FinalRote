@@ -108,56 +108,66 @@ export async function POST(request: NextRequest) {
     if (experimentResult && experimentResult.id) {
       console.log('Criando variantes padrão para experimento:', experimentResult.id)
       
-      const defaultVariants = [
-        {
-          experiment_id: experimentResult.id,
-          name: 'Controle',
-          description: 'Versão original',
-          is_control: true,
-          traffic_percentage: 50.00,
-          redirect_url: null,
-          changes: {},
-          css_changes: null,
-          js_changes: null,
-          created_by: createdBy,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0.0000,
-          is_active: true
-        },
-        {
-          experiment_id: experimentResult.id,
-          name: 'Variante B',
-          description: 'Versão alternativa',
-          is_control: false,
-          traffic_percentage: 50.00,
-          redirect_url: null,
-          changes: {},
-          css_changes: null,
-          js_changes: null,
-          created_by: createdBy,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0.0000,
-          is_active: true
-        }
-      ]
+      // Verificar se já existem variantes para este experimento
+      const { data: existingVariants } = await userClient
+        .from('variants')
+        .select('id')
+        .eq('experiment_id', experimentResult.id)
+      
+      if (existingVariants && existingVariants.length > 0) {
+        console.log('Variantes já existem para este experimento, pulando criação')
+      } else {
+        const defaultVariants = [
+          {
+            experiment_id: experimentResult.id,
+            name: 'Controle',
+            description: 'Versão original',
+            is_control: true,
+            traffic_percentage: 50.00,
+            redirect_url: null,
+            changes: {},
+            css_changes: null,
+            js_changes: null,
+            created_by: createdBy,
+            visitors: 0,
+            conversions: 0,
+            conversion_rate: 0.0000,
+            is_active: true
+          },
+          {
+            experiment_id: experimentResult.id,
+            name: 'Variante A',
+            description: 'Versão alternativa',
+            is_control: false,
+            traffic_percentage: 50.00,
+            redirect_url: null,
+            changes: {},
+            css_changes: null,
+            js_changes: null,
+            created_by: createdBy,
+            visitors: 0,
+            conversions: 0,
+            conversion_rate: 0.0000,
+            is_active: true
+          }
+        ]
 
-      try {
-        const { data: variants, error: variantsError } = await (userClient as any)
-          .from('variants')
-          .insert(defaultVariants)
-          .select('id, name, is_control, traffic_percentage')
+        try {
+          const { data: variants, error: variantsError } = await (userClient as any)
+            .from('variants')
+            .insert(defaultVariants)
+            .select('id, name, is_control, traffic_percentage')
 
-        if (variantsError) {
-          console.error('Erro ao criar variantes:', variantsError.message)
-          // Não falhamos a criação do experimento por causa das variantes
-        } else {
-          console.log('✅ Variantes criadas:', variants)
-          experiment.variants = variants
+          if (variantsError) {
+            console.error('Erro ao criar variantes:', variantsError.message)
+            // Não falhamos a criação do experimento por causa das variantes
+          } else {
+            console.log('✅ Variantes criadas:', variants)
+            experiment.variants = variants
+          }
+        } catch (variantErr) {
+          console.error('Erro ao criar variantes:', variantErr)
         }
-      } catch (variantErr) {
-        console.error('Erro ao criar variantes:', variantErr)
       }
     }
 
