@@ -28,10 +28,24 @@ export async function PATCH(
       )
     }
 
-    // Verificar se o experimento pertence ao usuário
+    // Verificar se o experimento pertence ao usuário através do projeto
     const { data: experiment, error: fetchError } = await supabase
       .from('experiments')
-      .select('id, user_id, status')
+      .select(`
+        id, 
+        user_id, 
+        status, 
+        project_id,
+        projects!inner(
+          id,
+          created_by,
+          org_id,
+          organization_members!inner(
+            user_id,
+            role
+          )
+        )
+      `)
       .eq('id', experimentId)
       .single()
 
@@ -42,7 +56,15 @@ export async function PATCH(
       )
     }
 
-    if (experiment.user_id !== user.id) {
+    // Verificar se o usuário tem acesso ao experimento
+    const hasAccess = experiment.user_id === user.id || 
+                     experiment.projects?.created_by === user.id ||
+                     experiment.projects?.organization_members?.some((member: any) => 
+                       member.user_id === user.id && 
+                       ['owner', 'admin', 'member'].includes(member.role)
+                     )
+
+    if (!hasAccess) {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }

@@ -824,7 +824,7 @@ ${usageInstructions}`
             <RechartsPieChart>
               <Tooltip />
               <RechartsPieChart>
-                {mockVariantData.map((entry, index) => (
+                {variantData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </RechartsPieChart>
@@ -892,69 +892,78 @@ ${usageInstructions}`
 
             {/* URLs e Configurações */}
             <div className="space-y-3 mb-4">
-              {variant.redirect_url && (
-                <div className="p-3 bg-slate-50 rounded-lg border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe className="w-4 h-4 text-slate-600" />
-                    <span className="text-sm font-medium text-slate-700">URL de Redirecionamento</span>
+              {/* URL de Redirecionamento - sempre mostrar */}
+              <div className="p-3 bg-slate-50 rounded-lg border">
+                <div className="flex items-center gap-2 mb-2">
+                  <Globe className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm font-medium text-slate-700">URL de Redirecionamento</span>
+                </div>
+                {isEditing ? (
+                  <input
+                    type="url"
+                    value={variant.redirect_url || ''}
+                    onChange={(e) => {
+                      const updatedVariants = variantData.map(v => 
+                        v.id === variant.id ? {...v, redirect_url: e.target.value} : v
+                      )
+                      setVariantData(updatedVariants)
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="https://exemplo.com"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {variant.redirect_url ? (
+                      <>
+                        <a 
+                          href={variant.redirect_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-sm truncate flex-1"
+                        >
+                          {variant.redirect_url}
+                        </a>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => window.open(variant.redirect_url, '_blank')}
+                          className="p-1 h-6 w-6"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-slate-500 text-sm italic">Nenhuma URL configurada</span>
+                    )}
                   </div>
-                  {isEditing ? (
-                    <input
-                      type="url"
-                      value={variant.redirect_url}
-                      onChange={(e) => {
-                        const updatedVariants = variantData.map(v => 
-                          v.id === variant.id ? {...v, redirect_url: e.target.value} : v
-                        )
-                        setVariantData(updatedVariants)
-                      }}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      placeholder="https://exemplo.com"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <a 
-                        href={variant.redirect_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 text-sm truncate flex-1"
-                      >
-                        {variant.redirect_url}
-                      </a>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => window.open(variant.redirect_url, '_blank')}
-                        className="p-1 h-6 w-6"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </Button>
-                    </div>
+                )}
+              </div>
+
+              {/* Configurações de Conversão - sempre mostrar */}
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-700">Configuração de Conversão</span>
+                </div>
+                <div className="space-y-1 text-sm text-green-600">
+                  <div><strong>Tipo:</strong> {variant.changes?.conversion?.type || 'page_view'}</div>
+                  {variant.changes?.conversion?.url && (
+                    <div><strong>URL:</strong> {variant.changes.conversion.url}</div>
+                  )}
+                  {variant.changes?.conversion?.selector && (
+                    <div><strong>Seletor:</strong> {variant.changes.conversion.selector}</div>
+                  )}
+                  {variant.changes?.conversion?.event && (
+                    <div><strong>Evento:</strong> {variant.changes.conversion.event}</div>
+                  )}
+                  {variant.changes?.target_url && (
+                    <div><strong>URL Alvo:</strong> {variant.changes.target_url}</div>
+                  )}
+                  {!variant.changes?.conversion && !variant.changes?.target_url && (
+                    <div className="text-slate-500 italic">Configuração padrão de conversão</div>
                   )}
                 </div>
-              )}
-
-              {/* Configurações de Conversão */}
-              {variant.changes?.conversion && (
-                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-700">Configuração de Conversão</span>
-                  </div>
-                  <div className="space-y-1 text-sm text-green-600">
-                    <div><strong>Tipo:</strong> {variant.changes.conversion.type || 'page_view'}</div>
-                    {variant.changes.conversion.url && (
-                      <div><strong>URL:</strong> {variant.changes.conversion.url}</div>
-                    )}
-                    {variant.changes.conversion.selector && (
-                      <div><strong>Seletor:</strong> {variant.changes.conversion.selector}</div>
-                    )}
-                    {variant.changes.conversion.event && (
-                      <div><strong>Evento:</strong> {variant.changes.conversion.event}</div>
-                    )}
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* Mudanças CSS */}
               {variant.css_changes && (

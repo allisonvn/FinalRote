@@ -250,62 +250,75 @@ export async function POST(request: NextRequest) {
         experimentName: newExperiment.name
       })
       
-      const defaultVariants = [
-        {
-          experiment_id: newExperiment.id,
-          name: 'Controle',
-          description: 'Versão original',
-          is_control: true,
-          traffic_percentage: 49.99,
-          redirect_url: null,
-          changes: {},
-          css_changes: null,
-          js_changes: null,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0.0000,
-          is_active: true,
-          created_by: user.id
-        },
-        {
-          experiment_id: newExperiment.id,
-          name: 'Variante B',
-          description: 'Versão alternativa',
-          is_control: false,
-          traffic_percentage: 49.99,
-          redirect_url: null,
-          changes: {},
-          css_changes: null,
-          js_changes: null,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0.0000,
-          is_active: true,
-          created_by: user.id
+      // Verificar se já existem variantes para este experimento
+      const { data: existingVariants } = await userClient
+        .from('variants')
+        .select('id')
+        .eq('experiment_id', newExperiment.id)
+      
+      if (existingVariants && existingVariants.length > 0) {
+        logger.warn('Variantes já existem para este experimento, pulando criação', {
+          experimentId: newExperiment.id,
+          existingCount: existingVariants.length
+        })
+      } else {
+        const defaultVariants = [
+          {
+            experiment_id: newExperiment.id,
+            name: 'Controle',
+            description: 'Versão original',
+            is_control: true,
+            traffic_percentage: 50.00,
+            redirect_url: null,
+            changes: {},
+            css_changes: null,
+            js_changes: null,
+            visitors: 0,
+            conversions: 0,
+            conversion_rate: 0.0000,
+            is_active: true,
+            created_by: user.id
+          },
+          {
+            experiment_id: newExperiment.id,
+            name: 'Variante A',
+            description: 'Versão alternativa',
+            is_control: false,
+            traffic_percentage: 50.00,
+            redirect_url: null,
+            changes: {},
+            css_changes: null,
+            js_changes: null,
+            visitors: 0,
+            conversions: 0,
+            conversion_rate: 0.0000,
+            is_active: true,
+            created_by: user.id
+          }
+        ]
+
+        logger.debug('Dados das variantes para inserção:', defaultVariants)
+
+        try {
+          const { data: variants, error: variantsError } = await (userClient as any)
+            .from('variants')
+            .insert(defaultVariants)
+            .select('id, name, description, is_control, traffic_percentage, visitors, conversions, conversion_rate')
+
+          if (variantsError) {
+            logger.database('insert', 'variants', null, variantsError)
+            logTypes.experimentError('create', variantsError, {
+              experimentId: newExperiment.id,
+              action: 'create_variants'
+            })
+            // Não falhamos a criação do experimento por causa das variantes
+          } else {
+            logger.database('insert', 'variants', variants)
+            safeExperiment.variants = variants
+          }
+        } catch (variantErr) {
+          logger.error('Exceção ao criar variantes', variantErr)
         }
-      ]
-
-      logger.debug('Dados das variantes para inserção:', defaultVariants)
-
-      try {
-        const { data: variants, error: variantsError } = await (userClient as any)
-          .from('variants')
-          .insert(defaultVariants)
-          .select('id, name, description, is_control, traffic_percentage, visitors, conversions, conversion_rate')
-
-        if (variantsError) {
-          logger.database('insert', 'variants', null, variantsError)
-          logTypes.experimentError('create', variantsError, {
-            experimentId: newExperiment.id,
-            action: 'create_variants'
-          })
-          // Não falhamos a criação do experimento por causa das variantes
-        } else {
-          logger.database('insert', 'variants', variants)
-          safeExperiment.variants = variants
-        }
-      } catch (variantErr) {
-        logger.error('Exceção ao criar variantes', variantErr)
       }
     }
 

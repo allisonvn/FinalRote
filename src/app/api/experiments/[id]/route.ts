@@ -20,12 +20,53 @@ export async function PATCH(
       )
     }
 
+    // Verificar se o experimento pertence ao usuário através do projeto
+    const { data: experiment, error: fetchError } = await supabase
+      .from('experiments')
+      .select(`
+        id, 
+        user_id, 
+        project_id,
+        projects!inner(
+          id,
+          created_by,
+          org_id,
+          organization_members!inner(
+            user_id,
+            role
+          )
+        )
+      `)
+      .eq('id', experimentId)
+      .single()
+
+    if (fetchError || !experiment) {
+      return NextResponse.json(
+        { error: 'Experimento não encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verificar se o usuário tem acesso ao experimento
+    const hasAccess = experiment.user_id === user.id || 
+                     experiment.projects?.created_by === user.id ||
+                     experiment.projects?.organization_members?.some((member: any) => 
+                       member.user_id === user.id && 
+                       ['owner', 'admin', 'member'].includes(member.role)
+                     )
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
     // Atualizar experimento usando o client do usuário autenticado
     const { data: updatedExperiment, error: updateError } = await supabase
       .from('experiments')
       .update(data)
       .eq('id', experimentId)
-      .eq('user_id', user.id) // Garantir que só o criador pode atualizar
       .select()
       .single()
 
@@ -69,8 +110,47 @@ export async function DELETE(
       )
     }
 
-    // Usar client autenticado e RLS
-    const userClient = supabase as any
+    // Verificar se o experimento pertence ao usuário através do projeto
+    const { data: experiment, error: fetchError } = await supabase
+      .from('experiments')
+      .select(`
+        id, 
+        user_id, 
+        project_id,
+        projects!inner(
+          id,
+          created_by,
+          org_id,
+          organization_members!inner(
+            user_id,
+            role
+          )
+        )
+      `)
+      .eq('id', experimentId)
+      .single()
+
+    if (fetchError || !experiment) {
+      return NextResponse.json(
+        { error: 'Experimento não encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verificar se o usuário tem acesso ao experimento
+    const hasAccess = experiment.user_id === user.id || 
+                     experiment.projects?.created_by === user.id ||
+                     experiment.projects?.organization_members?.some((member: any) => 
+                       member.user_id === user.id && 
+                       ['owner', 'admin', 'member'].includes(member.role)
+                     )
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
 
     // Remover dependências primeiro (ordem segura)
     const tables = [
@@ -82,7 +162,7 @@ export async function DELETE(
     ]
 
     for (const t of tables) {
-      const { error } = await userClient.from(t.name).delete().eq(t.col, experimentId)
+      const { error } = await supabase.from(t.name).delete().eq(t.col, experimentId)
       if (error) {
         console.error(`Erro ao deletar ${t.name}:`, error)
         return NextResponse.json(
@@ -93,7 +173,7 @@ export async function DELETE(
     }
 
     // Por fim deletar o experimento
-    const { error: expDeleteError } = await userClient
+    const { error: expDeleteError } = await supabase
       .from('experiments')
       .delete()
       .eq('id', experimentId)
