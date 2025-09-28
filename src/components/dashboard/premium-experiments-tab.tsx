@@ -124,7 +124,8 @@ export function PremiumExperimentsTab({ experiments: initialExperiments, loading
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       })
 
       if (!response.ok) {
@@ -168,7 +169,8 @@ export function PremiumExperimentsTab({ experiments: initialExperiments, loading
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
+        credentials: 'include'
       })
 
       if (!response.ok) {

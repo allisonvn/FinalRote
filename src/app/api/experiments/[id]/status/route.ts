@@ -50,7 +50,7 @@ export async function PATCH(
         id,
         created_by,
         org_id,
-        organization_members!inner(
+        organization_members(
           user_id,
           role
         )
