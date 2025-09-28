@@ -1259,7 +1259,8 @@ ${baseCode}
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(experimentData)
+        body: JSON.stringify(experimentData),
+        credentials: 'include'
       })
 
       const result = await response.json()
@@ -1393,7 +1394,8 @@ ${baseCode}
           project_id: experimentData.project_id,
           description: experimentData.description,
           traffic_allocation: experimentData.traffic_allocation
-        })
+        }),
+        credentials: 'include'
       })
 
       const apiResult = await apiResponse.json()
@@ -1476,7 +1478,8 @@ ${baseCode}
          },
         body: JSON.stringify({ 
           status: 'running'
-        })
+        }),
+        credentials: 'include'
        })
 
        if (!response.ok) {
@@ -1507,7 +1510,8 @@ ${baseCode}
          headers: {
            'Content-Type': 'application/json',
          },
-         body: JSON.stringify({ status: 'paused' })
+         body: JSON.stringify({ status: 'paused' }),
+         credentials: 'include'
        })
 
        if (!response.ok) {
@@ -1541,7 +1545,8 @@ ${baseCode}
          body: JSON.stringify({ 
            status: 'completed',
            ended_at: new Date().toISOString()
-         })
+         }),
+         credentials: 'include'
        })
 
        if (!response.ok) {
@@ -1601,7 +1606,8 @@ ${baseCode}
 
       // Deletar via API
       const response = await fetch(`/api/experiments/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
       if (!response.ok) {

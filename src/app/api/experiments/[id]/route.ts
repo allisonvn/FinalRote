@@ -69,7 +69,7 @@ export async function GET(
         id,
         created_by,
         org_id,
-        organization_members!inner(
+        organization_members(
           user_id,
           role
         )
@@ -139,11 +139,11 @@ export async function PATCH(
         id, 
         user_id, 
         project_id,
-        projects!inner(
+        projects(
           id,
           created_by,
           org_id,
-          organization_members!inner(
+          organization_members(
             user_id,
             role
           )
@@ -229,11 +229,11 @@ export async function DELETE(
         id, 
         user_id, 
         project_id,
-        projects!inner(
+        projects(
           id,
           created_by,
           org_id,
-          organization_members!inner(
+          organization_members(
             user_id,
             role
           )
