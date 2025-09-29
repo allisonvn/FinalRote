@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     logger.debug('É um número válido?', !isNaN(trafficAllocation))
     
     // Forçar valor seguro para teste (máximo 99.99 para numeric(4,2))
-    const safeTrafficValue = Math.min(Math.max(Number(trafficAllocation) || 99.99, 1), 99.99)
+    const safeTrafficValue = Math.min(Math.max(Number(trafficAllocation) || 99.99, 0), 99.99)
     logger.debug('Traffic allocation forçado para teste:', safeTrafficValue)
     logger.debug('Tipo do safeTrafficValue:', typeof safeTrafficValue)
     logger.debug('safeTrafficValue é número?', !isNaN(safeTrafficValue))
@@ -370,8 +370,9 @@ export async function GET(request: NextRequest) {
     logger.addContext({ userId: user.id })
     logger.info('✅ Usuário autenticado', { user_id: user.id, email: user.email })
 
-    // Buscar experimentos do usuário
-    const { data: experiments, error: experimentsError } = await (supabase as any)
+    // Buscar experimentos do usuário (diretos ou via organização)
+    // Primeiro, buscar experimentos diretos do usuário
+    const { data: directExperiments, error: directError } = await (supabase as any)
       .from('experiments')
       .select(`
         id,
@@ -382,6 +383,8 @@ export async function GET(request: NextRequest) {
         traffic_allocation,
         created_at,
         updated_at,
+        user_id,
+        project_id,
         variants:variants(
           id,
           name,
@@ -395,6 +398,51 @@ export async function GET(request: NextRequest) {
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+
+    // Buscar experimentos via organização
+    const { data: orgExperiments, error: orgError } = await (supabase as any)
+      .from('experiments')
+      .select(`
+        id,
+        name,
+        description,
+        type,
+        status,
+        traffic_allocation,
+        created_at,
+        updated_at,
+        user_id,
+        project_id,
+        projects!inner(
+          id,
+          org_id,
+          organization_members!inner(
+            user_id,
+            role
+          )
+        ),
+        variants:variants(
+          id,
+          name,
+          description,
+          is_control,
+          traffic_percentage,
+          visitors,
+          conversions,
+          conversion_rate
+        )
+      `)
+      .eq('projects.organization_members.user_id', user.id)
+      .is('user_id', null)
+      .order('created_at', { ascending: false })
+
+    // Combinar resultados
+    const experiments = [
+      ...(directExperiments || []),
+      ...(orgExperiments || [])
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    const experimentsError = directError || orgError
 
     if (experimentsError) {
       logger.error('❌ Erro ao buscar experimentos', experimentsError)
