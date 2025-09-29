@@ -65,15 +65,7 @@ export async function GET(
     // Verificação direta: user_id do experimento ou acesso via projeto
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select(`
-        id,
-        created_by,
-        org_id,
-        organization_members(
-          user_id,
-          role
-        )
-      `)
+      .select('id, created_by, org_id')
       .eq('id', experiment.project_id)
       .single()
 
@@ -84,13 +76,19 @@ export async function GET(
       )
     }
 
+    // Verificar se o usuário é membro da organização do projeto
+    const { data: orgMember, error: orgMemberError } = await supabase
+      .from('organization_members')
+      .select('user_id, role')
+      .eq('org_id', project.org_id)
+      .eq('user_id', user.id)
+      .single()
+
     // Verificar acesso: user_id direto, created_by do projeto, ou membro da organização
     const hasAccess = 
       experiment.user_id === user.id ||
       project.created_by === user.id ||
-      project.organization_members.some((member: any) => 
-        member.user_id === user.id && ['owner', 'admin', 'member'].includes(member.role)
-      )
+      (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -142,11 +140,7 @@ export async function PATCH(
         projects(
           id,
           created_by,
-          org_id,
-          organization_members(
-            user_id,
-            role
-          )
+          org_id
         )
       `)
       .eq('id', experimentId)
@@ -159,13 +153,18 @@ export async function PATCH(
       )
     }
 
+    // Verificar se o usuário é membro da organização do projeto
+    const { data: orgMember, error: orgMemberError } = await supabase
+      .from('organization_members')
+      .select('user_id, role')
+      .eq('org_id', experiment.projects.org_id)
+      .eq('user_id', user.id)
+      .single()
+
     // Verificar se o usuário tem acesso ao experimento
     const hasAccess = experiment.user_id === user.id || 
                      experiment.projects?.created_by === user.id ||
-                     experiment.projects?.organization_members?.some((member: any) => 
-                       member.user_id === user.id && 
-                       ['owner', 'admin', 'member'].includes(member.role)
-                     )
+                     (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -232,11 +231,7 @@ export async function DELETE(
         projects(
           id,
           created_by,
-          org_id,
-          organization_members(
-            user_id,
-            role
-          )
+          org_id
         )
       `)
       .eq('id', experimentId)
@@ -249,13 +244,18 @@ export async function DELETE(
       )
     }
 
+    // Verificar se o usuário é membro da organização do projeto
+    const { data: orgMember, error: orgMemberError } = await supabase
+      .from('organization_members')
+      .select('user_id, role')
+      .eq('org_id', experiment.projects.org_id)
+      .eq('user_id', user.id)
+      .single()
+
     // Verificar se o usuário tem acesso ao experimento
     const hasAccess = experiment.user_id === user.id || 
                      experiment.projects?.created_by === user.id ||
-                     experiment.projects?.organization_members?.some((member: any) => 
-                       member.user_id === user.id && 
-                       ['owner', 'admin', 'member'].includes(member.role)
-                     )
+                     (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
 
     if (!hasAccess) {
       return NextResponse.json(
