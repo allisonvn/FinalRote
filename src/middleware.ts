@@ -1,60 +1,76 @@
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
-    request: { headers: request.headers },
+    request: {
+      headers: request.headers,
+    },
   })
 
   const pathname = request.nextUrl.pathname
+  const isAuthRoute = pathname.startsWith('/auth')
+  const isProtectedRoute = ['/dashboard', '/experiments', '/analytics', '/settings'].some(route =>
+    pathname.startsWith(route)
+  )
 
-  // Ignora assets internos do Next
-  if (pathname.startsWith('/_next') || pathname.includes('.')) {
+  // Anti-flicker para rotas públicas relevantes
+  if (pathname === '/' || pathname.startsWith('/experiments/public/')) {
+    response.headers.set('X-RF-Ready', 'true')
+  }
+
+  // Se não for rota protegida nem rota de auth, não precisamos de Supabase aqui
+  if (!isProtectedRoute && !isAuthRoute) {
     return response
   }
 
-  // Anti-flicker para rotas públicas
-  const isPublicRoute = pathname === '/' || 
-                       pathname.startsWith('/experiments/') ||
-                       pathname.startsWith('/demo/')
+  // Checagem de configuração mínima do Supabase (evita travar em dev sem credenciais reais)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseConfigured = Boolean(
+    supabaseUrl && supabaseAnonKey &&
+    !supabaseUrl.includes('example.supabase.co') &&
+    !supabaseAnonKey.includes('demo')
+  )
 
-  if (isPublicRoute) {
-    // Adicionar headers para anti-flicker
-    response.headers.set('X-RF-Ready', 'true')
-    response.headers.set('X-RF-Route', pathname)
-    
-    // Adicionar CSP header permitindo inline script
-    const csp = response.headers.get('Content-Security-Policy') || ''
-    if (!csp.includes('unsafe-inline')) {
-      response.headers.set(
-        'Content-Security-Policy',
-        `${csp}${csp ? '; ' : ''}script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline';`
-      )
+  if (!supabaseConfigured) {
+    // Sem Supabase configurado: permite telas de auth carregarem e bloqueia rotas protegidas
+    if (isProtectedRoute) {
+      const redirectUrl = new URL('/auth/signin', request.url)
+      redirectUrl.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(redirectUrl)
     }
-
-    // Cache control para melhor performance
-    response.headers.set(
-      'Cache-Control',
-      'public, max-age=0, must-revalidate'
-    )
-
-    // Adicionar timing headers para debug
-    if (process.env.NODE_ENV === 'development') {
-      response.headers.set('X-RF-Timing', Date.now().toString())
-    }
+    return response
   }
 
-  // Adicionar CORS headers para Edge Functions
-  const origin = request.headers.get('origin')
-  if (pathname.startsWith('/api/')) {
-    response.headers.set('Access-Control-Allow-Origin', origin || '*')
-    response.headers.set(
-      'Access-Control-Allow-Methods',
-      'GET, POST, PUT, DELETE, OPTIONS'
-    )
-    response.headers.set(
-      'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, X-Api-Key'
-    )
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set({ name, value })
+            response.cookies.set({ name, value, ...options })
+          })
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (isProtectedRoute && !user) {
+    const redirectUrl = new URL('/auth/signin', request.url)
+    redirectUrl.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  if (isAuthRoute && user && !pathname.includes('/callback')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response
