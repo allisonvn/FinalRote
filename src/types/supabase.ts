@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -13,33 +12,54 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
+      assignments: {
+        Row: {
+          assigned_at: string
+          experiment_id: string
+          id: string
+          variant_id: string
+          visitor_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          experiment_id: string
+          id?: string
+          variant_id: string
+          visitor_id: string
+        }
+        Update: {
+          assigned_at?: string
+          experiment_id?: string
+          id?: string
+          variant_id?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiment_stats"
+            referencedColumns: ["experiment_id"]
+          },
+          {
+            foreignKeyName: "assignments_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attachments: {
         Row: {
           bucket: string
@@ -144,6 +164,230 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_name: string
+          event_type: string | null
+          experiment_id: string | null
+          id: string
+          utm_data: Json | null
+          value: number | null
+          variant_id: string | null
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_name: string
+          event_type?: string | null
+          experiment_id?: string | null
+          id?: string
+          utm_data?: Json | null
+          value?: number | null
+          variant_id?: string | null
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_name?: string
+          event_type?: string | null
+          experiment_id?: string | null
+          id?: string
+          utm_data?: Json | null
+          value?: number | null
+          variant_id?: string | null
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiment_stats"
+            referencedColumns: ["experiment_id"]
+          },
+          {
+            foreignKeyName: "events_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      experiments: {
+        Row: {
+          created_at: string
+          description: string | null
+          ended_at: string | null
+          id: string
+          name: string
+          project_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["experiment_status"] | null
+          traffic_allocation: number | null
+          type: Database["public"]["Enums"]["experiment_type"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          name: string
+          project_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["experiment_status"] | null
+          traffic_allocation?: number | null
+          type?: Database["public"]["Enums"]["experiment_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["experiment_status"] | null
+          traffic_allocation?: number | null
+          type?: Database["public"]["Enums"]["experiment_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experiments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "experiments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          conversion_value: number | null
+          created_at: string
+          description: string | null
+          event_name: string
+          experiment_id: string
+          id: string
+          is_primary: boolean | null
+          name: string
+        }
+        Insert: {
+          conversion_value?: number | null
+          created_at?: string
+          description?: string | null
+          event_name: string
+          experiment_id: string
+          id?: string
+          is_primary?: boolean | null
+          name: string
+        }
+        Update: {
+          conversion_value?: number | null
+          created_at?: string
+          description?: string | null
+          event_name?: string
+          experiment_id?: string
+          id?: string
+          is_primary?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiment_stats"
+            referencedColumns: ["experiment_id"]
+          },
+          {
+            foreignKeyName: "goals_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metrics_snapshots: {
+        Row: {
+          conversion_rate: number | null
+          conversions: number | null
+          created_at: string
+          experiment_id: string
+          id: string
+          snapshot_date: string
+          variant_id: string | null
+          visitors: number | null
+        }
+        Insert: {
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string
+          experiment_id: string
+          id?: string
+          snapshot_date?: string
+          variant_id?: string | null
+          visitors?: number | null
+        }
+        Update: {
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string
+          experiment_id?: string
+          id?: string
+          snapshot_date?: string
+          variant_id?: string | null
+          visitors?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metrics_snapshots_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiment_stats"
+            referencedColumns: ["experiment_id"]
+          },
+          {
+            foreignKeyName: "metrics_snapshots_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metrics_snapshots_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants"
             referencedColumns: ["id"]
           },
         ]
@@ -579,14 +823,187 @@ export type Database = {
           },
         ]
       }
+      variants: {
+        Row: {
+          changes: Json | null
+          conversion_rate: number | null
+          conversions: number | null
+          created_at: string
+          created_by: string | null
+          css_changes: string | null
+          description: string | null
+          experiment_id: string
+          id: string
+          is_active: boolean | null
+          is_control: boolean | null
+          js_changes: string | null
+          name: string
+          redirect_url: string | null
+          traffic_percentage: number | null
+          updated_at: string
+          visitors: number | null
+        }
+        Insert: {
+          changes?: Json | null
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string
+          created_by?: string | null
+          css_changes?: string | null
+          description?: string | null
+          experiment_id: string
+          id?: string
+          is_active?: boolean | null
+          is_control?: boolean | null
+          js_changes?: string | null
+          name: string
+          redirect_url?: string | null
+          traffic_percentage?: number | null
+          updated_at?: string
+          visitors?: number | null
+        }
+        Update: {
+          changes?: Json | null
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string
+          created_by?: string | null
+          css_changes?: string | null
+          description?: string | null
+          experiment_id?: string
+          id?: string
+          is_active?: boolean | null
+          is_control?: boolean | null
+          js_changes?: string | null
+          name?: string
+          redirect_url?: string | null
+          traffic_percentage?: number | null
+          updated_at?: string
+          visitors?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variants_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variants_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiment_stats"
+            referencedColumns: ["experiment_id"]
+          },
+          {
+            foreignKeyName: "variants_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visitor_sessions: {
+        Row: {
+          browser: string | null
+          country_code: string | null
+          created_at: string
+          device_type: string | null
+          ended_at: string | null
+          events_count: number | null
+          id: string
+          os: string | null
+          session_id: string | null
+          started_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          visitor_id: string
+        }
+        Insert: {
+          browser?: string | null
+          country_code?: string | null
+          created_at?: string
+          device_type?: string | null
+          ended_at?: string | null
+          events_count?: number | null
+          id?: string
+          os?: string | null
+          session_id?: string | null
+          started_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          visitor_id: string
+        }
+        Update: {
+          browser?: string | null
+          country_code?: string | null
+          created_at?: string
+          device_type?: string | null
+          ended_at?: string | null
+          events_count?: number | null
+          id?: string
+          os?: string | null
+          session_id?: string | null
+          started_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          visitor_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      experiment_stats: {
+        Row: {
+          experiment_id: string | null
+          experiment_name: string | null
+          status: Database["public"]["Enums"]["experiment_status"] | null
+          total_conversions: number | null
+          total_visitors: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_user_to_org: {
         Args: { target_org: string; target_role: string; target_user: string }
         Returns: undefined
+      }
+      assign_variant: {
+        Args: {
+          p_context?: Json
+          p_experiment_key: string
+          p_visitor_id: string
+        }
+        Returns: {
+          experiment_id: string
+          variant_id: string
+          variant_name: string
+        }[]
+      }
+      calculate_significance: {
+        Args: {
+          control_conversions: number
+          control_visitors: number
+          variant_conversions: number
+          variant_visitors: number
+        }
+        Returns: {
+          confidence_level: number
+          is_significant: boolean
+          p_value: number
+        }[]
       }
       citext: {
         Args: { "": boolean } | { "": string } | { "": unknown }
@@ -624,13 +1041,58 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_experiment_metrics: {
+        Args:
+          | { exp_id: string; from_date?: string; to_date?: string }
+          | { p_experiment_key: string }
+        Returns: {
+          conversion_rate: number
+          conversions: number
+          variant_name: string
+          visitors: number
+        }[]
+      }
+      get_experiment_stats: {
+        Args: { experiment_uuid?: string }
+        Returns: {
+          experiment_id: string
+          experiment_name: string
+          status: string
+          total_conversions: number
+          total_visitors: number
+        }[]
+      }
+      populate_visitor_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       switch_organization: {
         Args: { new_org_id: string }
         Returns: undefined
       }
+      track_event: {
+        Args: {
+          p_event_data?: Json
+          p_event_name: string
+          p_experiment_key: string
+          p_utm_data?: Json
+          p_visitor_id: string
+        }
+        Returns: boolean
+      }
+      user_has_project_access: {
+        Args: { project_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      experiment_status:
+        | "draft"
+        | "running"
+        | "paused"
+        | "completed"
+        | "archived"
+      experiment_type: "redirect" | "element" | "split_url" | "mab"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -756,10 +1218,16 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
-    Enums: {},
+    Enums: {
+      experiment_status: [
+        "draft",
+        "running",
+        "paused",
+        "completed",
+        "archived",
+      ],
+      experiment_type: ["redirect", "element", "split_url", "mab"],
+    },
   },
 } as const
