@@ -299,7 +299,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     const conversionValue = experiment.conversionValue || 0
 
     // Código base comum - versão corrigida e funcional
-    const baseCode = `!function(){"use strict";var experimentId="${experimentId}",baseUrl="${baseUrl}",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","X-RF-Version":"2.0.0"};return fetch(url,Object.assign(headers,options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})})},applyVariant:function(variant){if(!variant)return;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url}}`
+    const baseCode = `!function(){"use strict";var experimentId="${experimentId}",baseUrl="${baseUrl}",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","X-RF-Version":"2.0.0"};return fetch(url,Object.assign(headers,options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})})},applyVariant:function(variant){if(!variant)return;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url}`
 
     // Código específico por tipo
     let typeSpecificCode = ''
@@ -307,7 +307,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
     switch (experimentType) {
       case 'redirect':
-        typeSpecificCode = `,e.redirect_url&&(window.location.href=e.redirect_url)`
+        typeSpecificCode = `,variant.redirect_url&&(window.location.href=variant.redirect_url)`
         if (hasConversionTracking) {
           usageInstructions = `<!-- Experimento de Redirecionamento com Tracking Automático -->
 <!-- Este código redireciona automaticamente os visitantes para diferentes URLs -->
@@ -322,7 +322,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         break
 
       case 'element':
-        typeSpecificCode = `,e.css_changes&&(function(){var t=document.createElement("style");t.innerHTML=e.css_changes,t.setAttribute("data-rf-css",e.name||"control"),document.head.appendChild(t)}()),e.js_changes&&(function(){try{new Function(e.js_changes)()}catch(t){}}()),e.changes&&"object"==typeof e.changes&&Object.entries(e.changes).forEach(function(e){var t=e[0],n=e[1];document.querySelectorAll(t).forEach(function(e){e.innerHTML=n,e.setAttribute("data-rf-modified","true")})})`
+        typeSpecificCode = `,variant.css_changes&&(function(){var t=document.createElement("style");t.innerHTML=variant.css_changes,t.setAttribute("data-rf-css",variant.name||"control"),document.head.appendChild(t)}()),variant.js_changes&&(function(){try{new Function(variant.js_changes)()}catch(t){}}()),variant.changes&&"object"==typeof variant.changes&&Object.entries(variant.changes).forEach(function(e){var t=e[0],n=e[1];document.querySelectorAll(t).forEach(function(e){e.innerHTML=n,e.setAttribute("data-rf-modified","true")})})`
         if (hasConversionTracking) {
           usageInstructions = `<!-- Experimento de Elemento com Tracking Automático -->
 <!-- Este código modifica elementos específicos da página -->
@@ -339,7 +339,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         break
 
       case 'split_url':
-        typeSpecificCode = `,e.redirect_url&&(window.location.href=e.redirect_url)`
+        typeSpecificCode = `,variant.redirect_url&&(window.location.href=variant.redirect_url)`
         if (hasConversionTracking) {
           usageInstructions = `<!-- Experimento de Split URL com Tracking Automático -->
 <!-- Este código redireciona para diferentes versões da mesma página -->
@@ -354,7 +354,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         break
 
       case 'mab':
-        typeSpecificCode = `,e.redirect_url&&(window.location.href=e.redirect_url),e.css_changes&&(function(){var t=document.createElement("style");t.innerHTML=e.css_changes,t.setAttribute("data-rf-css",e.name||"control"),document.head.appendChild(t)}()),e.js_changes&&(function(){try{new Function(e.js_changes)()}catch(t){}}()),e.changes&&"object"==typeof e.changes&&Object.entries(e.changes).forEach(function(e){var t=e[0],n=e[1];document.querySelectorAll(t).forEach(function(e){e.innerHTML=n,e.setAttribute("data-rf-modified","true")})})`
+        typeSpecificCode = `,variant.redirect_url&&(window.location.href=variant.redirect_url),variant.css_changes&&(function(){var t=document.createElement("style");t.innerHTML=variant.css_changes,t.setAttribute("data-rf-css",variant.name||"control"),document.head.appendChild(t)}()),variant.js_changes&&(function(){try{new Function(variant.js_changes)()}catch(t){}}()),variant.changes&&"object"==typeof variant.changes&&Object.entries(variant.changes).forEach(function(e){var t=e[0],n=e[1];document.querySelectorAll(t).forEach(function(e){e.innerHTML=n,e.setAttribute("data-rf-modified","true")})})`
         if (hasConversionTracking) {
           usageInstructions = `<!-- Experimento Multi-Armed Bandit com Tracking Automático -->
 <!-- Este código usa IA para otimizar automaticamente as variantes -->
@@ -371,7 +371,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         break
 
       default:
-        typeSpecificCode = `,e.redirect_url&&(window.location.href=e.redirect_url)`
+        typeSpecificCode = `,variant.redirect_url&&(window.location.href=variant.redirect_url)`
         if (hasConversionTracking) {
           usageInstructions = `<!-- Experimento de Redirecionamento com Tracking Automático -->
 <!-- O tracking de conversão é automático - não é necessário código adicional -->
@@ -403,7 +403,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
     return `<!-- Rota Final SDK - Experimento: ${experiment.name} (${experimentType}) -->
 <script>
-${baseCode}${typeSpecificCode}${trackingCode}
+${baseCode}${typeSpecificCode}}${trackingCode}
 </script>
 
 <!-- CSS Anti-Flicker (adicionar no <head> antes do script) -->

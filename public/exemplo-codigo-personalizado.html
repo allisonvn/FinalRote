@@ -188,7 +188,7 @@
 <div id="variant-control" class="rf-variant" style="display: none;">
     <h2>Versão Original</h2>
     <p>Esta é a versão de controle do seu site</p>
-    <button class="rf-button" onclick="rf.conversion('button_click', 1)">
+    <button class="rf-button" onclick="window.RotaFinal.convert(1, {element: 'button', variant: 'control'})">
         Botão Original
     </button>
 </div>
@@ -196,7 +196,7 @@
 <div id="variant-a" class="rf-variant" style="display: none;">
     <h2>Versão A - Verde</h2>
     <p>Variante A com design verde para melhor conversão</p>
-    <button class="rf-button" onclick="rf.conversion('button_click', 1)">
+    <button class="rf-button" onclick="window.RotaFinal.convert(1, {element: 'button', variant: 'a'})">
         Comprar Agora!
     </button>
 </div>
@@ -204,7 +204,7 @@
 <div id="variant-b" class="rf-variant" style="display: none;">
     <h2>Versão B - Urgência</h2>
     <p>Variante B com senso de urgência</p>
-    <button class="rf-button" onclick="rf.conversion('button_click', 1)">
+    <button class="rf-button" onclick="window.RotaFinal.convert(1, {element: 'button', variant: 'b'})">
         Últimas Unidades!
     </button>
 </div>
@@ -219,7 +219,7 @@
   async function runExperiment() {
     try {
       // Obter variante para o experimento
-      const variant = await rf.getVariant('teste correto');
+      const variant = await window.RotaFinal.getVariant();
       
       console.log('Variante atribuída:', variant);
       
@@ -331,7 +331,7 @@
         // Função para rastrear conversões da demo
         function trackConversion(eventName) {
             if (window.rf) {
-                rf.conversion(eventName, 1, {
+                window.RotaFinal.convert(1, {
                     page: 'demo-codigo-personalizado',
                     experiment: 'teste correto'
                 });
@@ -349,7 +349,7 @@
             try {
                 console.log('🧪 Iniciando experimento de demonstração...');
                 
-                const variant = await rf.getVariant('teste correto');
+                const variant = await window.RotaFinal.getVariant();
                 
                 console.log('✅ Variante da demo:', variant);
                 

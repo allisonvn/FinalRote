@@ -49,7 +49,7 @@ ${variants.map((variant, index) => `<!-- Variante ${variant.name.toUpperCase()}:
   <!-- Conteúdo da variante ${variant.name} aqui -->
   <h2>Versão ${variant.name.toUpperCase()}</h2>
   <p>Customize este conteúdo para a variante ${variant.name}</p>
-  <button onclick="rf.conversion('button_click', 1)">
+  <button onclick="window.RotaFinal.convert(1, {element: 'button', variant: '${variant.name}'})">
     ${variant.name === 'control' ? 'Botão Original' : `Botão Variante ${variant.name.toUpperCase()}`}
   </button>
 </div>
@@ -60,7 +60,7 @@ ${variants.map((variant, index) => `<!-- Variante ${variant.name.toUpperCase()}:
   async function runExperiment() {
     try {
       // Obter variante do experimento
-      const variant = await rf.getVariant('${experimentName}');
+      const variant = await window.RotaFinal.getVariant();
       
       console.log('Variante atribuída:', variant);
       
@@ -136,7 +136,7 @@ ${variants.map((variant, index) => `<!-- Variante ${variant.name.toUpperCase()}:
 <script>
   // Função para rastrear diferentes tipos de conversão
   function trackConversion(eventName, value = 1, properties = {}) {
-    rf.conversion(eventName, value, {
+    window.RotaFinal.convert(value, {
       experiment: '${experimentName}',
       page: window.location.pathname,
       ...properties

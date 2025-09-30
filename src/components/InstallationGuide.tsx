@@ -35,7 +35,7 @@ export default function InstallationGuide({
   const rf = new RotaFinal({ debug: true });
   
   async function runExperiment() {
-    const variant = await rf.getVariant('${experimentName}');
+    const variant = await window.RotaFinal.getVariant();
     // Seu código aqui
   }
   
