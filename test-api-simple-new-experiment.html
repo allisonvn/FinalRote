@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste API Simples - Novo Experimento</title>
+</head>
+<body>
+    <h1>Teste da API - Experimento Esmatl</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testando API...</p>';
+            
+            const experimentId = "ce9ed456-1d03-494a-8b1a-54a51a50286c";
+            const apiKey = "exp_52784fbfaa613b3d115cb4247f7fce50";
+            const baseUrl = "https://rotafinal.com.br";
+            
+            try {
+                console.log('Testando API com:', {
+                    experimentId,
+                    apiKey,
+                    url: `${baseUrl}/api/experiments/${experimentId}/assign`
+                });
+                
+                const response = await fetch(`${baseUrl}/api/experiments/${experimentId}/assign`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                        'X-RF-Version': '2.0.0'
+                    },
+                    body: JSON.stringify({
+                        visitor_id: 'test_user_' + Math.random().toString(36).substr(2, 9),
+                        user_agent: navigator.userAgent,
+                        url: window.location.href,
+                        referrer: document.referrer,
+                        timestamp: new Date().toISOString(),
+                        viewport: {
+                            width: window.innerWidth,
+                            height: window.innerHeight
+                        }
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${responseText}`);
+                }
+                
+                const data = JSON.parse(responseText);
+                resultDiv.innerHTML = `
+                    <h2>✅ Sucesso!</h2>
+                    <p><strong>Variante:</strong> ${data.variant.name}</p>
+                    <p><strong>Assignment:</strong> ${data.assignment}</p>
+                    <p><strong>Algorithm:</strong> ${data.algorithm}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h2>❌ Erro</h2>
+                    <p><strong>Erro:</strong> ${error.message}</p>
+                    <p><strong>Detalhes:</strong> Verifique o console do navegador</p>
+                `;
+                console.error('Erro no teste:', error);
+            }
+        }
+        
+        // Executar teste quando a página carregar
+        window.addEventListener('load', testAPI);
+    </script>
+</body>
+</html>

@@ -290,8 +290,8 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     const experimentId = experiment.id
     const baseUrl = config.baseUrl
     const experimentType = experiment.type || 'redirect'
-    // ✅ Usar API key do experimento (cada experimento tem sua própria)
-    const experimentApiKey = experiment.api_key || apiKey || projectData?.api_key || ''
+    // ✅ Usar SEMPRE a API key do experimento (cada experimento tem sua própria)
+    const experimentApiKey = experiment.api_key || ''
 
     // Buscar configuração de conversão das variantes
     const conversionConfig = variantData.find(v => v.changes?.conversion)?.changes?.conversion

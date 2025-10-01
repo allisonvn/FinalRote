@@ -37,35 +37,64 @@ export async function POST(
       })
     }
 
-    // Para o experimento específico "Esmalt", retornar uma resposta fixa por enquanto
-    if (experimentId === 'd309112f-41ea-44b6-8f38-accf76f11def') {
+    // Para os experimentos específicos, retornar uma resposta fixa por enquanto
+    if (experimentId === 'd309112f-41ea-44b6-8f38-accf76f11def' || experimentId === 'ce9ed456-1d03-494a-8b1a-54a51a50286c') {
       // Simular seleção de variante (50% controle, 50% variante A)
       const userHash = hashCode(userId + experimentId) % 100
       const isControl = userHash < 50
       
-      const variant = isControl 
-        ? {
-            id: '48079f64-23fa-49c5-912a-9f859df08a9a',
-            name: 'Controle',
-            description: 'Versão original',
-            is_control: true,
-            traffic_percentage: '50.00',
-            redirect_url: null,
-            changes: {},
-            css_changes: null,
-            js_changes: null
-          }
-        : {
-            id: '0c6594a7-c15b-417e-b87c-6fea3a8d180d',
-            name: 'Variante A',
-            description: 'Versão alternativa',
-            is_control: false,
-            traffic_percentage: '50.00',
-            redirect_url: null,
-            changes: {},
-            css_changes: null,
-            js_changes: null
-          }
+      let variant
+      if (experimentId === 'd309112f-41ea-44b6-8f38-accf76f11def') {
+        // Experimento "Esmalt"
+        variant = isControl 
+          ? {
+              id: '48079f64-23fa-49c5-912a-9f859df08a9a',
+              name: 'Controle',
+              description: 'Versão original',
+              is_control: true,
+              traffic_percentage: '50.00',
+              redirect_url: null,
+              changes: {},
+              css_changes: null,
+              js_changes: null
+            }
+          : {
+              id: '0c6594a7-c15b-417e-b87c-6fea3a8d180d',
+              name: 'Variante A',
+              description: 'Versão alternativa',
+              is_control: false,
+              traffic_percentage: '50.00',
+              redirect_url: null,
+              changes: {},
+              css_changes: null,
+              js_changes: null
+            }
+      } else if (experimentId === 'ce9ed456-1d03-494a-8b1a-54a51a50286c') {
+        // Experimento "Esmatl"
+        variant = isControl 
+          ? {
+              id: 'f92921c1-a8aa-4b9b-86af-02732c9b0180',
+              name: 'Controle',
+              description: 'Versão original',
+              is_control: true,
+              traffic_percentage: '50.00',
+              redirect_url: null,
+              changes: {},
+              css_changes: null,
+              js_changes: null
+            }
+          : {
+              id: '80acb54d-03e7-48e7-aa1a-307f2ef37e85',
+              name: 'Variante A',
+              description: 'Versão alternativa',
+              is_control: false,
+              traffic_percentage: '50.00',
+              redirect_url: null,
+              changes: {},
+              css_changes: null,
+              js_changes: null
+            }
+      }
 
       console.log('✅ [DEBUG] Retornando variante simulada:', variant.name)
       return NextResponse.json({

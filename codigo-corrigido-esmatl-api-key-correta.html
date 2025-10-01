@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experimento Esmatl - Código Corrigido</title>
+    
+    <!-- CSS Anti-Flicker (adicionar no <head> antes do script) -->
+    <style data-rf-antiflicker>
+    html:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}
+    html[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:opacity 150ms ease-in-out!important}
+    </style>
+</head>
+<body>
+    <h1>Página de Teste - Experimento Esmatl</h1>
+    <p>Esta página contém o código corrigido do experimento com a API key correta.</p>
+    
+    <!-- Rota Final SDK - Experimento: Esmatl (redirect) -->
+    <script>
+    !function(){"use strict";var experimentId="ce9ed456-1d03-494a-8b1a-54a51a50286c",baseUrl="https://rotafinal.com.br",apiKey="exp_52784fbfaa613b3d115cb4247f7fce50",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","Authorization":"Bearer "+apiKey,"X-RF-Version":"2.0.0"};return fetch(url,Object.assign({headers:headers},options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){self.cachedVariant=response.variant}return response})},applyVariant:function(variant){if(!variant)return;this.cachedVariant=variant;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url}},tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(){tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}},init=function(){if(isBot())return;apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){experiment.cachedVariant=response.variant;experiment.applyVariant(response.variant)}}).catch(function(error){console.error("RotaFinal: Error loading variant",error)}).finally(function(){document.documentElement.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100)})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value||0},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();
+    </script>
+    
+    <!-- Experimento de Redirecionamento -->
+    <!-- Este código redireciona automaticamente os visitantes para diferentes URLs -->
+    <!-- Para rastrear conversões na página de destino, use: -->
+    <!-- RotaFinal.convert(0, { product: 'produto-x' }); -->
+    
+    <div style="margin-top: 20px; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
+        <h2>Informações do Experimento</h2>
+        <p><strong>ID do Experimento:</strong> ce9ed456-1d03-494a-8b1a-54a51a50286c</p>
+        <p><strong>Nome:</strong> Esmatl</p>
+        <p><strong>API Key:</strong> exp_52784fbfaa613b3d115cb4247f7fce50 (corrigida)</p>
+        <p><strong>Status:</strong> <span id="experiment-status">Carregando...</span></p>
+        <p><strong>Variante Atual:</strong> <span id="current-variant">Carregando...</span></p>
+    </div>
+    
+    <script>
+        // Aguardar o SDK carregar e mostrar informações
+        setTimeout(function() {
+            const status = document.getElementById('experiment-status');
+            const variant = document.getElementById('current-variant');
+            
+            if (window.RotaFinal) {
+                const currentVariant = window.RotaFinal.getVariant();
+                if (currentVariant) {
+                    status.textContent = 'Ativo';
+                    variant.textContent = currentVariant.name;
+                } else {
+                    status.textContent = 'Erro ao carregar';
+                    variant.textContent = 'N/A';
+                }
+            } else {
+                status.textContent = 'SDK não carregado';
+                variant.textContent = 'N/A';
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

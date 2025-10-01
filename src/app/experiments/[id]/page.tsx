@@ -221,7 +221,7 @@ export default function ExperimentDetailsPage() {
                     experimentName={experiment.name}
                     experimentId={experiment.id}
                     variants={experiment.variants || []}
-                    apiKey={projectApiKey}
+                    apiKey={experiment.api_key || ''}
                   />
                 </CardContent>
               </Card>
