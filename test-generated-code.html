@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste do Código Gerado</title>
+</head>
+<body>
+    <h1>Teste do Gerador de Código</h1>
+    <div id="output"></div>
+
+    <!-- CSS Anti-Flicker -->
+    <style data-rf-antiflicker>
+    html:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}
+    html[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:opacity 150ms ease-in-out!important}
+    </style>
+
+    <!-- SDK Gerado pelo CodeGenerator -->
+    <script>
+    !function(){"use strict";var experimentId="test-123",baseUrl="http://localhost:3000",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","X-RF-Version":"2.0.0"};return fetch(url,Object.assign(headers,options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})})},applyVariant:function(variant){if(!variant)return;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url}},tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(){tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}},init=function(){if(isBot())return;apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign").then(function(response){experiment.applyVariant(response.variant)}).catch(function(){}).finally(function(){document.documentElement.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100)})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();
+    </script>
+
+    <script>
+    // Teste do código gerado
+    setTimeout(() => {
+        const output = document.getElementById('output');
+        const variant = window.RotaFinal.getVariant();
+        
+        output.innerHTML = `
+            <h2>Resultado do Teste:</h2>
+            <p><strong>Variante retornada:</strong> ${variant ? JSON.stringify(variant) : 'NULL ou UNDEFINED'}</p>
+            <p><strong>Problema identificado:</strong> ${!variant ? 'SIM - A variante não está sendo armazenada!' : 'NÃO'}</p>
+            <h3>Análise:</h3>
+            <ul>
+                <li>window.RotaFinal.getVariant() retorna: experiment.cachedVariant</li>
+                <li>experiment.cachedVariant é inicializado como: null</li>
+                <li>experiment.applyVariant() não armazena a variante em cachedVariant</li>
+                <li>Portanto, getVariant() sempre retorna null!</li>
+            </ul>
+            <h3>Solução Necessária:</h3>
+            <p>No código gerado, a função applyVariant() deve armazenar a variante:</p>
+            <pre>applyVariant:function(variant){
+    if(!variant)return;
+    this.cachedVariant=variant; // ADICIONAR ESTA LINHA
+    document.documentElement.setAttribute("data-rf-experiment",experimentId);
+    // ... resto do código
+}</pre>
+        `;
+    }, 2000);
+    </script>
+</body>
+</html>

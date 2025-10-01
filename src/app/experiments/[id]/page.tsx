@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import CodeGenerator from '@/components/CodeGenerator'
+import { createClient } from '@/lib/supabase/client'
 
 interface Experiment {
   id: string
@@ -36,6 +37,7 @@ export default function ExperimentDetailsPage() {
   const router = useRouter()
   const [experiment, setExperiment] = useState<Experiment | null>(null)
   const [loading, setLoading] = useState(true)
+  const [projectApiKey, setProjectApiKey] = useState('')
 
   useEffect(() => {
     loadExperiment()
@@ -43,54 +45,42 @@ export default function ExperimentDetailsPage() {
 
   const loadExperiment = async () => {
     try {
-      // Simular carregamento de experimento
-      // Em produção, faria a chamada real para a API
-      const mockExperiment: Experiment = {
-        id: params.id as string,
-        name: 'teste correto',
-        description: 'Experimento de teste para validar funcionalidades',
-        status: 'draft',
-        type: 'redirect',
-        traffic_allocation: 100,
-        created_at: new Date().toISOString(),
-        variants: [
-          {
-            id: '1',
-            name: 'control',
-            description: 'Versão original',
-            is_control: true,
-            traffic_percentage: 34,
-            visitors: 120,
-            conversions: 12,
-            conversion_rate: 10.0
-          },
-          {
-            id: '2', 
-            name: 'a',
-            description: 'Variante A - Verde',
-            is_control: false,
-            traffic_percentage: 33,
-            visitors: 115,
-            conversions: 18,
-            conversion_rate: 15.7
-          },
-          {
-            id: '3',
-            name: 'b',
-            description: 'Variante B - Vermelha',
-            is_control: false,
-            traffic_percentage: 33,
-            visitors: 110,
-            conversions: 14,
-            conversion_rate: 12.7
-          }
-        ]
+      const supabase = createClient()
+      
+      // Buscar experimento com variantes
+      const { data, error } = await supabase
+        .from('experiments')
+        .select(`
+          *,
+          variants:variants(*)
+        `)
+        .eq('id', params.id)
+        .single()
+      
+      if (error || !data) {
+        console.error('Erro ao carregar experimento:', error)
+        setLoading(false)
+        return
       }
       
-      setExperiment(mockExperiment)
+      setExperiment(data)
+      
+      // Buscar API Key do projeto
+      if (data.project_id) {
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('api_key')
+          .eq('id', data.project_id)
+          .single()
+        
+        if (projectData?.api_key) {
+          setProjectApiKey(projectData.api_key)
+        }
+      }
+      
+      setLoading(false)
     } catch (error) {
       console.error('Erro ao carregar experimento:', error)
-    } finally {
       setLoading(false)
     }
   }
@@ -231,6 +221,7 @@ export default function ExperimentDetailsPage() {
                     experimentName={experiment.name}
                     experimentId={experiment.id}
                     variants={experiment.variants || []}
+                    apiKey={projectApiKey}
                   />
                 </CardContent>
               </Card>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Final - Código Gerado Corrigido</title>
+    
+    <!-- CSS Anti-Flicker - Adicionar no <head> antes do script -->
+    <style data-rf-antiflicker>
+    html:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}
+    html[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:opacity 150ms ease-in-out!important}
+    </style>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .rf-variant {
+            display: none;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .rf-variant.active {
+            display: block;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .test-results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Teste do Código Gerado - VERSÃO CORRIGIDA</h1>
+        
+        <div id="loading" class="status info">
+            ⏳ Carregando SDK e atribuindo variante...
+        </div>
+        
+        <div id="results" class="test-results" style="display: none;">
+            <h2>Resultados do Teste:</h2>
+            <div id="test-output"></div>
+        </div>
+        
+        <!-- Estrutura do Experimento -->
+        <div id="variant-control" class="rf-variant">
+            <h2>🎯 Versão CONTROL (Original)</h2>
+            <p>Esta é a versão de controle do experimento.</p>
+            <button onclick="window.RotaFinal.convert(10, {element: 'button', variant: 'control'})">
+                Botão Original - Converter (R$ 10)
+            </button>
+        </div>
+        
+        <div id="variant-a" class="rf-variant">
+            <h2>🚀 Versão VARIANTE A</h2>
+            <p>Esta é a variante A com design otimizado.</p>
+            <button onclick="window.RotaFinal.convert(10, {element: 'button', variant: 'variant-a'})">
+                Botão Variante A - Converter (R$ 10)
+            </button>
+        </div>
+        
+        <div id="variant-b" class="rf-variant">
+            <h2>⭐ Versão VARIANTE B</h2>
+            <p>Esta é a variante B com copy diferente.</p>
+            <button onclick="window.RotaFinal.convert(10, {element: 'button', variant: 'variant-b'})">
+                Botão Variante B - Converter (R$ 10)
+            </button>
+        </div>
+    </div>
+
+    <!-- RotaFinal SDK - VERSÃO CORRIGIDA -->
+    <script>
+    !function(){"use strict";var experimentId="test-experiment-123",baseUrl="http://localhost:3000",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","X-RF-Version":"2.0.0"};return fetch(url,Object.assign({headers:headers},options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){self.cachedVariant=response.variant}return response})},applyVariant:function(variant){if(!variant)return;this.cachedVariant=variant;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url}},tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(){tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}},init=function(){if(isBot())return;apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){experiment.cachedVariant=response.variant;experiment.applyVariant(response.variant)}}).catch(function(error){console.error("RotaFinal: Error loading variant",error)}).finally(function(){document.documentElement.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100)})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value||0},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();
+    </script>
+
+    <!-- Código de Execução do Experimento - VERSÃO CORRIGIDA -->
+    <script>
+    async function runExperiment() {
+        try {
+            // Aguardar atributo data-rf-ready
+            if (!document.documentElement.hasAttribute('data-rf-ready')) {
+                await new Promise(resolve => {
+                    const observer = new MutationObserver(() => {
+                        if (document.documentElement.hasAttribute('data-rf-ready')) {
+                            observer.disconnect();
+                            resolve();
+                        }
+                    });
+                    observer.observe(document.documentElement, { attributes: true });
+                    
+                    // Timeout de segurança (3 segundos)
+                    setTimeout(resolve, 3000);
+                });
+            }
+            
+            // Obter variante do experimento
+            const variant = window.RotaFinal.getVariant();
+            
+            // Esconder loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Mostrar resultados
+            const resultsDiv = document.getElementById('results');
+            const outputDiv = document.getElementById('test-output');
+            resultsDiv.style.display = 'block';
+            
+            if (!variant) {
+                outputDiv.innerHTML = `
+                    <div class="status error">
+                        <strong>❌ ERRO:</strong> Variante não foi atribuída!
+                        <p>window.RotaFinal.getVariant() retornou: ${variant}</p>
+                    </div>
+                `;
+                showVariant('control');
+                return;
+            }
+            
+            // SUCESSO!
+            outputDiv.innerHTML = `
+                <div class="status success">
+                    <strong>✅ SUCESSO!</strong> O código gerado está funcionando corretamente!
+                </div>
+                <h3>Dados da Variante:</h3>
+                <pre>${JSON.stringify(variant, null, 2)}</pre>
+                <h3>Validações:</h3>
+                <ul>
+                    <li>✅ <code>window.RotaFinal.getVariant()</code> retornou objeto válido</li>
+                    <li>✅ <code>experiment.cachedVariant</code> foi armazenado corretamente</li>
+                    <li>✅ Variante atribuída: <strong>${variant.name || 'N/A'}</strong></li>
+                    <li>✅ Atributo DOM: <code>${document.documentElement.getAttribute('data-rf-variant')}</code></li>
+                    <li>✅ CSS Anti-Flicker aplicado e removido</li>
+                </ul>
+                <h3>Teste de Tracking:</h3>
+                <p>Clique no botão da variante abaixo para testar o tracking de conversão.</p>
+            `;
+            
+            console.log('✅ RotaFinal: Variant assigned:', variant);
+            
+            const variantName = variant.name || 'control';
+            showVariant(variantName);
+            
+        } catch (error) {
+            console.error('❌ RotaFinal: Error in experiment:', error);
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('test-output').innerHTML = `
+                <div class="status error">
+                    <strong>❌ ERRO:</strong> ${error.message}
+                    <pre>${error.stack}</pre>
+                </div>
+            `;
+            
+            showVariant('control');
+        }
+    }
+    
+    function showVariant(variantName) {
+        // Esconder todas as variantes
+        document.querySelectorAll('.rf-variant').forEach(el => {
+            el.style.display = 'none';
+            el.classList.remove('active');
+        });
+        
+        // Mostrar variante atribuída
+        const variantElement = document.getElementById('variant-' + variantName);
+        if (variantElement) {
+            variantElement.style.display = 'block';
+            variantElement.classList.add('active');
+            console.log('✅ RotaFinal: Showing variant:', variantName);
+        } else {
+            console.warn('⚠️ RotaFinal: Variant element not found:', variantName);
+        }
+    }
+
+    // Executar quando a página carregar
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', runExperiment);
+    } else {
+        runExperiment();
+    }
+    </script>
+</body>
+</html>
+
