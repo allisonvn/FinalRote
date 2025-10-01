@@ -58,6 +58,13 @@ const algorithms = {
   }
 }
 
+// Headers CORS para todas as respostas
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version',
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -70,40 +77,83 @@ export async function POST(
     // Validar API key
     const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key required' }, { status: 401 })
+      return NextResponse.json({ error: 'API key required' }, { 
+        status: 401,
+        headers: corsHeaders 
+      })
     }
 
     const supabase = createClient()
 
-    // Verificar se o projeto existe e a API key é válida
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
+    // ✅ NOVO: Verificar se é API key do experimento OU do projeto
+    let project = null
+    let isValidApiKey = false
+
+    // Primeiro, tentar como API key do experimento
+    const { data: experimentWithKey, error: expKeyError } = await supabase
+      .from('experiments')
+      .select('id, project_id, api_key')
       .eq('api_key', apiKey)
       .single()
 
-    if (projectError || !project) {
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    if (experimentWithKey && !expKeyError) {
+      // API key do experimento encontrada
+      project = { id: experimentWithKey.project_id }
+      isValidApiKey = true
+    } else {
+      // Fallback: tentar como API key do projeto (compatibilidade)
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('api_key', apiKey)
+        .single()
+
+      if (projectData && !projectError) {
+        project = projectData
+        isValidApiKey = true
+      }
+    }
+
+    if (!isValidApiKey) {
+      return NextResponse.json({ error: 'Invalid API key' }, { 
+        status: 401,
+        headers: corsHeaders 
+      })
     }
 
     // Buscar experimento
-    const { data: experiment, error: expError } = await supabase
+    let experimentQuery = supabase
       .from('experiments')
       .select(`
         *,
         variants:variants(*)
       `)
       .eq('id', experimentId)
-      .eq('project_id', project.id)
-      .single()
+
+    // Se API key é do experimento, não precisa verificar project_id
+    if (experimentWithKey) {
+      // API key do experimento - buscar diretamente
+      experimentQuery = experimentQuery.single()
+    } else {
+      // API key do projeto - verificar project_id
+      experimentQuery = experimentQuery.eq('project_id', project.id).single()
+    }
+
+    const { data: experiment, error: expError } = await experimentQuery
 
     if (expError || !experiment) {
-      return NextResponse.json({ error: 'Experiment not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Experiment not found' }, { 
+        status: 404,
+        headers: corsHeaders 
+      })
     }
 
     // Verificar se experimento está ativo
     if (experiment.status !== 'running') {
-      return NextResponse.json({ error: 'Experiment not running' }, { status: 400 })
+      return NextResponse.json({ error: 'Experiment not running' }, { 
+        status: 400,
+        headers: corsHeaders 
+      })
     }
 
     // Verificar se já existe atribuição para este usuário
@@ -122,6 +172,8 @@ export async function POST(
       return NextResponse.json({
         variant: existingAssignment.variant,
         assignment: 'existing'
+      }, {
+        headers: corsHeaders
       })
     }
 
@@ -135,6 +187,8 @@ export async function POST(
       return NextResponse.json({
         variant: controlVariant || experiment.variants[0],
         assignment: 'control_excluded'
+      }, {
+        headers: corsHeaders
       })
     }
 
@@ -184,7 +238,10 @@ export async function POST(
 
     if (assignError) {
       console.error('Error creating assignment:', assignError)
-      return NextResponse.json({ error: 'Failed to assign variant' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to assign variant' }, { 
+        status: 500,
+        headers: corsHeaders 
+      })
     }
 
     // Registrar evento de pageview
@@ -208,13 +265,15 @@ export async function POST(
       variant: selectedVariant,
       assignment: 'new',
       algorithm: algorithm
+    }, {
+      headers: corsHeaders
     })
 
   } catch (error) {
     console.error('Assignment error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }

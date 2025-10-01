@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { config } from '@/lib/config'
 
+// Headers CORS para todas as respostas
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version',
+}
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
@@ -15,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (!experimentId || !userId || !eventType) {
       return NextResponse.json(
         { error: 'Campos obrigatórios: experimentId/experiment_id, userId/visitor_id, eventType/event_type' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -32,7 +39,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (projectError || !projectData) {
-        return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+        return NextResponse.json({ error: 'Invalid API key' }, { status: 401, headers: corsHeaders })
       }
       project = projectData
     }
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest) {
       console.warn('Experimento não encontrado:', experimentId)
       return NextResponse.json(
         { error: 'Experimento não encontrado' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       )
     }
 
@@ -105,7 +112,7 @@ export async function POST(request: NextRequest) {
       console.error('Erro ao inserir evento:', insertError)
       return NextResponse.json(
         { error: 'Erro ao salvar evento' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -185,13 +192,15 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Evento registrado com sucesso',
       experiment_id: experimentId
+    }, {
+      headers: corsHeaders
     })
 
   } catch (error) {
     console.error('Erro no tracking:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }

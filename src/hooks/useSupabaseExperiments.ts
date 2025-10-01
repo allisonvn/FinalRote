@@ -154,7 +154,17 @@ export function useSupabaseExperiments() {
     traffic_allocation?: number
   }) => {
     try {
-      // Inserir experimento
+      // Gerar API key única para o experimento
+      const generateApiKey = () => {
+        const randomBytes = new Uint8Array(16)
+        crypto.getRandomValues(randomBytes)
+        const hexString = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('')
+        return `exp_${hexString}`
+      }
+
+      const experimentApiKey = generateApiKey()
+
+      // Inserir experimento COM API key
       const { data: newExp, error: insertError } = await supabase
         .from('experiments')
         .insert({
@@ -163,7 +173,8 @@ export function useSupabaseExperiments() {
           project_id: data.project_id,
           algorithm: (data.algorithm || 'thompson_sampling') as any,
           traffic_allocation: safeTrafficAllocation(data.traffic_allocation, 100),
-          status: 'draft'
+          status: 'draft',
+          api_key: experimentApiKey  // ✅ API key única para o experimento
         })
         .select()
         .single()

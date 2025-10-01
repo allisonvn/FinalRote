@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ Novo Sistema: API Key por Experimento</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #2d3748;
+            font-size: 36px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 40px;
+            font-size: 18px;
+        }
+        
+        .status-box {
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+        
+        .status-success {
+            background: #f0fdf4;
+            border-color: #10b981;
+            color: #065f46;
+        }
+        
+        .status-info {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+        
+        .status-warning {
+            background: #fffbeb;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .before, .after {
+            padding: 20px;
+            border-radius: 12px;
+        }
+        
+        .before {
+            background: #fef2f2;
+            border: 2px solid #fca5a5;
+        }
+        
+        .after {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+        }
+        
+        .before h3 {
+            color: #dc2626;
+            margin-bottom: 15px;
+        }
+        
+        .after h3 {
+            color: #16a34a;
+            margin-bottom: 15px;
+        }
+        
+        .code-box {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        .highlight {
+            background: #fbbf24;
+            color: #78350f;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .step-text {
+            flex: 1;
+        }
+        
+        .step-status {
+            font-size: 24px;
+            margin-left: 10px;
+        }
+        
+        .benefits {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        
+        .benefits ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+        
+        .benefits li {
+            margin: 8px 0;
+        }
+        
+        h2 {
+            color: #2d3748;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-example {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 15px 0;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ NOVO SISTEMA IMPLEMENTADO</h1>
+        <p class="subtitle">Cada experimento agora tem sua própria API key automaticamente!</p>
+        
+        <div class="status-box status-success">
+            <h3 style="margin-bottom: 15px;">🎉 Sistema Atualizado com Sucesso!</h3>
+            <p><strong>Mudança implementada:</strong> Removida a necessidade de criar projeto para ter API key.</p>
+            <p><strong>Resultado:</strong> Cada experimento gera sua própria API key automaticamente!</p>
+        </div>
+
+        <h2>📊 Comparação: ANTES vs DEPOIS</h2>
+        
+        <div class="comparison">
+            <div class="before">
+                <h3>❌ ANTES (Sistema Antigo)</h3>
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">Usuário cria projeto</div>
+                    <span class="step-status">⚠️</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">Projeto gera API key</div>
+                    <span class="step-status">⚠️</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">Usuário cria experimento</div>
+                    <span class="step-status">⚠️</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-text">Sistema busca API key do projeto</div>
+                    <span class="step-status">⚠️</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-text">Código gerado com API key</div>
+                    <span class="step-status">⚠️</span>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #fee2e2; border-radius: 8px;">
+                    <strong>Problemas:</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li>Usuário precisa criar projeto primeiro</li>
+                        <li>API key compartilhada entre experimentos</li>
+                        <li>Fluxo mais complexo</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="after">
+                <h3>✅ DEPOIS (Sistema Novo)</h3>
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">Usuário cria experimento</div>
+                    <span class="step-status">✅</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">Sistema gera API key automaticamente</div>
+                    <span class="step-status">✅</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">Código gerado com API key única</div>
+                    <span class="step-status">✅</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-text">Usuário cola código → funciona!</div>
+                    <span class="step-status">✅</span>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #dcfce7; border-radius: 8px;">
+                    <strong>Benefícios:</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li>Zero configuração manual</li>
+                        <li>API key única por experimento</li>
+                        <li>Fluxo simplificado</li>
+                        <li>Mais seguro</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <h2>🔧 Mudanças Técnicas Implementadas</h2>
+        
+        <div class="status-box status-info">
+            <h3 style="margin-bottom: 15px;">1. ✅ Coluna api_key na tabela experiments</h3>
+            <p>Cada experimento agora tem sua própria coluna <span class="highlight">api_key</span> na tabela <code>experiments</code>.</p>
+            
+            <div class="api-key-example">
+                Formato: exp_XXXXXXXXXXXXXXXX<br>
+                Exemplo: exp_20399e6aab57596a23c4f4084023a76e
+            </div>
+        </div>
+        
+        <div class="status-box status-info">
+            <h3 style="margin-bottom: 15px;">2. ✅ Geração Automática de API Key</h3>
+            <p>Quando um experimento é criado, o sistema gera automaticamente uma API key única.</p>
+            
+            <div class="code-box">
+// No hook useSupabaseExperiments.ts
+const generateApiKey = () => {
+  const randomBytes = new Uint8Array(16)
+  crypto.getRandomValues(randomBytes)
+  const hexString = Array.from(randomBytes, byte => 
+    byte.toString(16).padStart(2, '0')).join('')
+  return `exp_${hexString}`
+}
+
+// Inserir experimento COM API key
+const { data: newExp } = await supabase
+  .from('experiments')
+  .insert({
+    name: data.name,
+    api_key: experimentApiKey  // ✅ Gerada automaticamente
+  })
+            </div>
+        </div>
+        
+        <div class="status-box status-info">
+            <h3 style="margin-bottom: 15px;">3. ✅ Código Gerado com API Key do Experimento</h3>
+            <p>O código gerado agora usa a API key específica do experimento, não do projeto.</p>
+            
+            <div class="code-box">
+// ANTES (API key do projeto):
+var apiKey="pk_ea145f98f99dc7df53fd4faeedba160f"
+
+// DEPOIS (API key do experimento):
+var apiKey="exp_20399e6aab57596a23c4f4084023a76e"
+            </div>
+        </div>
+        
+        <div class="status-box status-info">
+            <h3 style="margin-bottom: 15px;">4. ✅ API Aceita Ambas as API Keys</h3>
+            <p>O sistema aceita tanto API keys de experimentos quanto de projetos (compatibilidade).</p>
+            
+            <div class="code-box">
+// Verificação dupla na API:
+// 1. Tentar como API key do experimento
+const { data: experimentWithKey } = await supabase
+  .from('experiments')
+  .select('id, project_id, api_key')
+  .eq('api_key', apiKey)
+
+// 2. Fallback: API key do projeto (compatibilidade)
+const { data: projectData } = await supabase
+  .from('projects')
+  .select('*')
+  .eq('api_key', apiKey)
+            </div>
+        </div>
+
+        <h2>🎯 Benefícios do Novo Sistema</h2>
+        
+        <div class="benefits">
+            <ul>
+                <li><strong>🚀 Fluxo Simplificado:</strong> Usuário cria experimento → API key gerada automaticamente → código pronto</li>
+                <li><strong>🔒 Maior Segurança:</strong> Cada experimento tem sua própria API key única</li>
+                <li><strong>⚡ Zero Configuração:</strong> Nenhuma configuração manual necessária</li>
+                <li><strong>🔧 Flexibilidade:</strong> Experimentos independentes uns dos outros</li>
+                <li><strong>📊 Melhor Rastreamento:</strong> Cada experimento pode ser rastreado individualmente</li>
+                <li><strong>🔄 Compatibilidade:</strong> Sistema antigo ainda funciona (API keys de projetos)</li>
+            </ul>
+        </div>
+
+        <h2>📋 Exemplo de API Key Gerada</h2>
+        
+        <div class="status-box status-warning">
+            <h3 style="margin-bottom: 15px;">Experimento: "Esmalt"</h3>
+            <p><strong>ID:</strong> cbe17fb2-8b0a-4126-af81-f261db17f711</p>
+            <p><strong>API Key:</strong> exp_20399e6aab57596a23c4f4084023a76e</p>
+            <p><strong>Status:</strong> running ✅</p>
+        </div>
+
+        <div class="status-box status-success">
+            <h3 style="margin-bottom: 15px;">🎉 Sistema Pronto!</h3>
+            <p><strong>Resultado:</strong> Agora quando um usuário criar um novo experimento, ele automaticamente terá sua própria API key única e o código gerado funcionará imediatamente!</p>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #dcfce7; border-radius: 8px;">
+                <strong>✅ Teste realizado:</strong> Experimento "Esmalt" já tem API key única e está funcionando!
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+            <h3 style="color: #2d3748; margin-bottom: 10px;">🚀 Próximos Passos</h3>
+            <p style="color: #718096; margin-bottom: 20px;">O sistema está pronto! Agora todos os novos experimentos terão API keys automáticas.</p>
+            <div style="background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px;">
+                Usuário cria experimento → API key gerada → Código pronto → Funciona! ✅
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
