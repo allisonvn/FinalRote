@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste A/B Corrigido - Rota Final</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 10px 5px;
+        }
+        .status.success { background: #dcfce7; color: #166534; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        .status.info { background: #dbeafe; color: #1e40af; }
+        .status.warning { background: #fef3c7; color: #92400e; }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #2563eb;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        .debug-log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        .debug-log div {
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid #374151;
+        }
+        .variant-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .variant-info h2 {
+            margin: 0 0 15px 0;
+            font-size: 28px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .info-item {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        .info-item strong {
+            display: block;
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .info-item span {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        pre {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            border: 1px solid #e5e7eb;
+        }
+        .instructions {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #92400e;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        .instructions li {
+            margin: 8px 0;
+            color: #78350f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste A/B Corrigido - Rota Final SDK</h1>
+        <p>Esta página testa o código gerado corrigido para experimentos A/B.</p>
+        
+        <div class="status info" id="sdk-status">⏳ Aguardando SDK...</div>
+        <div class="status info" id="variant-status">⏳ Aguardando variante...</div>
+        <div class="status info" id="user-status">⏳ Aguardando user ID...</div>
+    </div>
+
+    <div class="container">
+        <div class="instructions">
+            <h3>📋 Instruções de Teste</h3>
+            <ol>
+                <li><strong>Abra o Console do navegador</strong> (F12) para ver logs detalhados</li>
+                <li><strong>Teste em modo anônimo:</strong> Abra esta página em uma janela anônima - você deve ver uma variante diferente</li>
+                <li><strong>Limpe o localStorage:</strong> Clique em "Limpar Cache & Recarregar" para simular um novo visitante</li>
+                <li><strong>Verifique consistência:</strong> Recarregue a página várias vezes - você deve sempre ver a mesma variante</li>
+                <li><strong>Teste redirecionamento:</strong> Se sua variante tem redirect_url, a página deve redirecionar automaticamente</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="variant-info" id="variant-display" style="display: none;">
+        <h2 id="variant-name">Carregando...</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>User ID</strong>
+                <span id="user-id-display">-</span>
+            </div>
+            <div class="info-item">
+                <strong>Experimento</strong>
+                <span id="experiment-id-display">-</span>
+            </div>
+            <div class="info-item">
+                <strong>Tipo de Assignment</strong>
+                <span id="assignment-type">-</span>
+            </div>
+            <div class="info-item">
+                <strong>Algoritmo</strong>
+                <span id="algorithm-display">-</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>🎯 Ações de Teste</h3>
+        <div class="action-buttons">
+            <button onclick="testConversion()">🎉 Simular Conversão</button>
+            <button onclick="testCustomEvent()">📊 Enviar Evento Custom</button>
+            <button onclick="showVariantInfo()">ℹ️ Mostrar Variante Atual</button>
+            <button onclick="clearAndReload()">🔄 Limpar Cache & Recarregar</button>
+            <button onclick="window.RotaFinal.setDebug(true); alert('Debug ativado! Recarregue a página.')">🐛 Ativar Debug</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>📝 Log de Debug</h3>
+        <div class="debug-log" id="debug-log">
+            <div style="color: #60a5fa;">Aguardando eventos...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>💻 Código Gerado (Exemplo)</h3>
+        <p>Este é o formato do código que você deve receber do dashboard:</p>
+        <pre>&lt;!-- Rota Final SDK - Experimento: Seu Experimento (redirect) --&gt;
+&lt;script&gt;
+!function(){"use strict";
+var experimentId="SEU-ID-AQUI",
+    baseUrl="https://rotafinal.com.br",
+    apiKey="SUA-API-KEY-AQUI",  // ✅ API Key incluída
+    debugMode=false,
+    // ... resto do código
+}();
+&lt;/script&gt;
+
+&lt;!-- CSS Anti-Flicker --&gt;
+&lt;style data-rf-antiflicker&gt;
+html:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}
+html[data-rf-ready]{opacity:1!important;visibility:visible!important}
+&lt;/style&gt;</pre>
+    </div>
+
+    <div class="container test-section">
+        <h3>✅ Checklist de Funcionalidades</h3>
+        <div id="checklist">
+            <p>⏳ Aguardando inicialização...</p>
+        </div>
+    </div>
+
+    <script>
+        // Sistema de logging
+        const logs = [];
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#60a5fa',
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b'
+            };
+            logs.push({ timestamp, message, type });
+            const logDiv = document.getElementById('debug-log');
+            const entry = document.createElement('div');
+            entry.style.color = colors[type];
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Interceptar console.log para capturar logs do RotaFinal
+        const originalLog = console.log;
+        console.log = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('[RotaFinal]')) {
+                addLog(args.join(' '), 'info');
+            }
+            originalLog.apply(console, args);
+        };
+
+        const originalError = console.error;
+        console.error = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('RotaFinal')) {
+                addLog(args.join(' '), 'error');
+            }
+            originalError.apply(console, args);
+        };
+
+        // Funções de teste
+        function updateStatus(elementId, text, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = text;
+            el.className = 'status ' + type;
+        }
+
+        function testConversion() {
+            if (window.RotaFinal) {
+                window.RotaFinal.convert(100, { test: true, source: 'manual' });
+                addLog('✅ Conversão enviada: R$ 100,00', 'success');
+                alert('Conversão enviada com sucesso!');
+            } else {
+                addLog('❌ SDK não disponível', 'error');
+                alert('SDK não disponível. Verifique se o código foi carregado.');
+            }
+        }
+
+        function testCustomEvent() {
+            if (window.RotaFinal) {
+                window.RotaFinal.track('custom_event', { 
+                    action: 'button_click',
+                    element: 'test_button',
+                    timestamp: new Date().toISOString()
+                });
+                addLog('✅ Evento customizado enviado', 'success');
+                alert('Evento customizado enviado!');
+            } else {
+                addLog('❌ SDK não disponível', 'error');
+                alert('SDK não disponível.');
+            }
+        }
+
+        function showVariantInfo() {
+            if (window.RotaFinal) {
+                const variant = window.RotaFinal.getVariant();
+                if (variant) {
+                    alert(`Variante Atual:\n\nNome: ${variant.name}\nID: ${variant.id}\nControle: ${variant.is_control ? 'Sim' : 'Não'}\nTráfego: ${variant.traffic_percentage}%`);
+                    addLog('ℹ️ Informações da variante exibidas', 'info');
+                } else {
+                    alert('Nenhuma variante atribuída ainda.');
+                    addLog('⚠️ Nenhuma variante disponível', 'warning');
+                }
+            }
+        }
+
+        function clearAndReload() {
+            if (confirm('Isso vai limpar todo o cache do RotaFinal e recarregar a página. Você será tratado como um novo visitante. Continuar?')) {
+                localStorage.removeItem('rf_user_id');
+                localStorage.removeItem('rf_debug');
+                addLog('🔄 Cache limpo. Recarregando...', 'warning');
+                setTimeout(() => location.reload(), 1000);
+            }
+        }
+
+        function updateChecklist() {
+            const checks = [
+                { name: 'SDK Carregado', check: () => !!window.RotaFinal, icon: '🔌' },
+                { name: 'User ID Gerado', check: () => !!window.RotaFinal?.getUserId(), icon: '👤' },
+                { name: 'Variante Atribuída', check: () => !!window.RotaFinal?.getVariant(), icon: '🎯' },
+                { name: 'Atributos HTML Definidos', check: () => document.documentElement.hasAttribute('data-rf-ready'), icon: '📝' },
+                { name: 'Anti-Flicker Removido', check: () => !document.querySelector('style[data-rf-antiflicker]'), icon: '✨' },
+                { name: 'API Key Configurada', check: () => {
+                    const scripts = Array.from(document.scripts);
+                    const sdkScript = scripts.find(s => s.textContent.includes('experimentId'));
+                    return sdkScript && !sdkScript.textContent.includes('apiKey=""');
+                }, icon: '🔑' }
+            ];
+
+            const checklistDiv = document.getElementById('checklist');
+            checklistDiv.innerHTML = checks.map(item => {
+                const passed = item.check();
+                const status = passed ? '✅' : '❌';
+                const color = passed ? '#10b981' : '#ef4444';
+                return `<div style="color: ${color}; margin: 10px 0;">${status} ${item.icon} ${item.name}</div>`;
+            }).join('');
+        }
+
+        // Monitorar quando o SDK estiver pronto
+        const checkReady = setInterval(() => {
+            if (document.documentElement.hasAttribute('data-rf-ready')) {
+                clearInterval(checkReady);
+                
+                addLog('✅ SDK inicializado e pronto!', 'success');
+                updateStatus('sdk-status', '✅ SDK Pronto', 'success');
+
+                if (window.RotaFinal) {
+                    const userId = window.RotaFinal.getUserId();
+                    updateStatus('user-status', `✅ User ID: ${userId.substring(0, 15)}...`, 'success');
+                    
+                    const variant = window.RotaFinal.getVariant();
+                    if (variant) {
+                        updateStatus('variant-status', `✅ Variante: ${variant.name}`, 'success');
+                        
+                        // Mostrar informações detalhadas da variante
+                        document.getElementById('variant-display').style.display = 'block';
+                        document.getElementById('variant-name').textContent = `🎯 Variante: ${variant.name}`;
+                        document.getElementById('user-id-display').textContent = userId.substring(0, 20) + '...';
+                        document.getElementById('experiment-id-display').textContent = document.documentElement.getAttribute('data-rf-experiment').substring(0, 8) + '...';
+                        
+                        // Buscar informações adicionais dos atributos HTML
+                        const assignmentType = variant.is_control ? 'Controle' : 'Variante';
+                        document.getElementById('assignment-type').textContent = assignmentType;
+                        document.getElementById('algorithm-display').textContent = 'Hash Determinístico';
+                        
+                        addLog(`✅ Variante atribuída: ${variant.name}`, 'success');
+                        addLog(`ℹ️ Redirect URL: ${variant.redirect_url || 'N/A'}`, 'info');
+                        addLog(`ℹ️ Tráfego: ${variant.traffic_percentage}%`, 'info');
+                    } else {
+                        updateStatus('variant-status', '⚠️ Nenhuma variante atribuída', 'warning');
+                        addLog('⚠️ Nenhuma variante atribuída', 'warning');
+                    }
+                }
+
+                updateChecklist();
+                
+                // Atualizar checklist a cada 2 segundos
+                setInterval(updateChecklist, 2000);
+            }
+        }, 100);
+
+        // Timeout de segurança
+        setTimeout(() => {
+            if (!document.documentElement.hasAttribute('data-rf-ready')) {
+                addLog('❌ Timeout: SDK não inicializou em 10 segundos', 'error');
+                updateStatus('sdk-status', '❌ Erro ao carregar SDK', 'error');
+                updateStatus('variant-status', '❌ Timeout', 'error');
+                
+                // Mostrar ajuda de debug
+                addLog('💡 Dica: Verifique se a API key está correta no código', 'warning');
+                addLog('💡 Dica: Verifique se o experimento está com status "running"', 'warning');
+                addLog('💡 Dica: Abra o console e procure por erros HTTP', 'warning');
+            }
+        }, 10000);
+
+        addLog('🚀 Página carregada. Aguardando SDK...', 'info');
+    </script>
+
+    <!-- 
+    COLE SEU CÓDIGO DO EXPERIMENTO AQUI
+    Copie o código gerado do dashboard e cole abaixo:
+    -->
+    
+    <!-- EXEMPLO: Substitua pelo código real do seu experimento -->
+    <!-- 
+    <style data-rf-antiflicker>
+    html:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}
+    html[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:opacity 150ms ease-in-out!important}
+    </style>
+    
+    <script>
+    // COLE O CÓDIGO DO SEU EXPERIMENTO AQUI
+    </script>
+    -->
+
+</body>
+</html>
+

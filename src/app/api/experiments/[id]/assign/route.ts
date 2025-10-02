@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { selectVariant as selectVariantMAB, MABAlgorithms } from '@/lib/mab-algorithms'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +42,7 @@ export async function POST(
     // 1. Verificar se o experimento existe e está rodando
     const { data: experiment, error: experimentError } = await supabase
       .from('experiments')
-      .select('id, name, status, traffic_allocation, type, project_id')
+      .select('id, name, status, traffic_allocation, type, project_id, algorithm')
       .eq('id', experimentId)
       .single()
 
@@ -61,7 +62,8 @@ export async function POST(
       })
     }
 
-    console.log('✅ [DEBUG] Experiment found:', experiment.name, 'Status:', experiment.status)
+    const algorithmType = experiment.algorithm || 'uniform'
+    console.log('✅ [DEBUG] Experiment found:', experiment.name, 'Status:', experiment.status, 'Algorithm:', algorithmType)
 
     // 2. Verificar se já existe uma atribuição para este visitante
     const { data: existingAssignment, error: assignmentError } = await supabase
@@ -120,8 +122,98 @@ export async function POST(
 
     console.log('✅ [DEBUG] Found', variants.length, 'active variants')
 
-    // 4. Selecionar variante baseado em traffic_percentage usando hash determinístico
-    const selectedVariant = selectVariantByHash(visitorId, experimentId, variants)
+    // 4. Buscar estatísticas das variantes para algoritmos MAB
+    const { data: variantStats, error: statsError } = await supabase
+      .from('variant_stats')
+      .select('variant_id, visitors, conversions, revenue')
+      .eq('experiment_id', experimentId)
+
+    const statsMap = new Map<string, { visitors: number; conversions: number; revenue: number }>()
+    if (variantStats && !statsError) {
+      variantStats.forEach((stat: any) => {
+        statsMap.set(stat.variant_id, {
+          visitors: stat.visitors || 0,
+          conversions: stat.conversions || 0,
+          revenue: stat.revenue || 0
+        })
+      })
+    }
+
+    // 5. Selecionar variante usando algoritmo apropriado
+    let selectedVariant: any
+    let algorithmUsed: string
+
+    // Se há dados suficientes e algoritmo MAB, usar algoritmo inteligente
+    const totalVisitors = Array.from(statsMap.values()).reduce((sum, s) => sum + s.visitors, 0)
+    const useMAB = algorithmType !== 'uniform' && totalVisitors >= 100 // Mínimo de 100 visitantes para MAB
+
+    if (useMAB) {
+      console.log('🧠 [DEBUG] Using MAB algorithm:', algorithmType, 'Total visitors:', totalVisitors)
+      
+      // Preparar dados para algoritmo MAB
+      const variantStatsArray = variants.map(v => {
+        const stats = statsMap.get(v.id) || { visitors: 0, conversions: 0, revenue: 0 }
+        return {
+          id: v.id,
+          key: v.name,
+          name: v.name,
+          visitors: stats.visitors,
+          conversions: stats.conversions,
+          revenue: stats.revenue,
+          weight: parseFloat(v.traffic_percentage || '50'),
+          is_control: v.is_control
+        }
+      })
+
+      // Selecionar usando algoritmo MAB, mas mantendo consistência por usuário
+      const hash = hashCode(visitorId + experimentId)
+      const userSeed = hash % 1000000 / 1000000 // 0-1
+      
+      // Usar algoritmo MAB para obter probabilidades, mas manter determinismo
+      const mabResult = selectVariantMAB(variantStatsArray, algorithmType)
+      
+      // Se algoritmo é determinístico (uniform), usar hash
+      // Se algoritmo é estocástico (thompson, ucb1, epsilon), usar resultado MAB mas com seed do usuário
+      if (algorithmType === 'uniform') {
+        selectedVariant = selectVariantByHash(visitorId, experimentId, variants)
+        algorithmUsed = 'uniform_hash'
+      } else {
+        // Para MAB, usar resultado do algoritmo, mas garantir consistência
+        // Cada usuário tem um seed fixo, então sempre vê a mesma variante
+        const variantIndex = Math.floor(userSeed * variants.length)
+        
+        // Ajustar baseado nas probabilidades do MAB
+        // Variantes com melhor performance têm maior probabilidade
+        const variantProbabilities = variantStatsArray.map(v => {
+          const variantResult = selectVariantMAB([v], algorithmType)
+          return variantResult.score
+        })
+        
+        const totalScore = variantProbabilities.reduce((sum, p) => sum + p, 0)
+        const normalizedProbabilities = variantProbabilities.map(p => p / totalScore)
+        
+        // Selecionar baseado em probabilidades e seed do usuário
+        let cumulative = 0
+        let selectedIndex = 0
+        for (let i = 0; i < normalizedProbabilities.length; i++) {
+          cumulative += normalizedProbabilities[i]
+          if (userSeed < cumulative) {
+            selectedIndex = i
+            break
+          }
+        }
+        
+        selectedVariant = variants[selectedIndex]
+        algorithmUsed = algorithmType
+      }
+      
+      console.log('✅ [DEBUG] MAB selected variant:', selectedVariant.name, 'using', algorithmUsed)
+    } else {
+      // Usar distribuição uniforme baseada em hash (A/B clássico)
+      console.log('🎲 [DEBUG] Using hash-based distribution (classic A/B)')
+      selectedVariant = selectVariantByHash(visitorId, experimentId, variants)
+      algorithmUsed = 'uniform_hash'
+    }
     
     if (!selectedVariant) {
       console.log('❌ [ERROR] Failed to select variant')
@@ -131,7 +223,7 @@ export async function POST(
       })
     }
     
-    console.log('✅ [DEBUG] Selected variant:', selectedVariant.name)
+    console.log('✅ [DEBUG] Selected variant:', selectedVariant.name, 'Algorithm:', algorithmUsed)
 
     // 5. Criar atribuição no banco de dados
     const { data: newAssignment, error: insertError } = await supabase
@@ -178,11 +270,24 @@ export async function POST(
       // Não falhar a requisição se houver erro ao registrar evento
     }
 
-    // 7. Retornar variante selecionada
+    // 7. Atualizar estatísticas da variante
+    try {
+      // Incrementar contador de visitantes
+      await supabase.rpc('increment_variant_visitors', {
+        p_variant_id: selectedVariant.id,
+        p_experiment_id: experimentId
+      })
+    } catch (statsUpdateError) {
+      console.error('⚠️ [WARNING] Error updating variant stats:', statsUpdateError)
+    }
+
+    // 8. Retornar variante selecionada
     return NextResponse.json({
       variant: selectedVariant,
       assignment: 'new',
-      algorithm: 'deterministic_hash'
+      algorithm: algorithmUsed,
+      mab_enabled: useMAB,
+      total_experiment_visitors: totalVisitors
     }, {
       headers: corsHeaders
     })

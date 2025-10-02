@@ -291,7 +291,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     const baseUrl = config.baseUrl
     const experimentType = experiment.type || 'redirect'
     // ✅ Usar SEMPRE a API key do experimento (cada experimento tem sua própria)
-    const experimentApiKey = experiment.api_key || ''
+    const experimentApiKey = experiment.api_key || projectData?.api_key || ''
 
     // Buscar configuração de conversão das variantes
     const conversionConfig = variantData.find(v => v.changes?.conversion)?.changes?.conversion
@@ -300,16 +300,25 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     // Buscar valor de conversão do experimento
     const conversionValue = experiment.conversionValue || 0
 
-    // Código base comum - versão corrigida e funcional COM API KEY DO EXPERIMENTO
-    const baseCode = `!function(){"use strict";var experimentId="${experimentId}",baseUrl="${baseUrl}",apiKey="${experimentApiKey}",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","Authorization":"Bearer "+apiKey,"X-RF-Version":"2.0.0"};return fetch(url,Object.assign({headers:headers},options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){self.cachedVariant=response.variant}return response})},applyVariant:function(variant){if(!variant)return;this.cachedVariant=variant;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url`
+    // Gerar código de aplicação de CSS/JS changes para experimentos de elemento
+    let applyChangesCode = ''
+    if (experimentType === 'element') {
+      applyChangesCode = `
+;if(variant.css_changes){var style=document.createElement("style");style.textContent=variant.css_changes;style.setAttribute("data-rf-css","");document.head.appendChild(style)}
+;if(variant.js_changes){try{eval(variant.js_changes)}catch(e){console.error("RotaFinal: Error executing JS changes",e)}}
+;if(variant.changes&&variant.changes.elements){variant.changes.elements.forEach(function(el){var target=document.querySelector(el.selector);if(target){if(el.html)target.innerHTML=el.html;if(el.text)target.textContent=el.text;if(el.attributes){Object.keys(el.attributes).forEach(function(key){target.setAttribute(key,el.attributes[key])})}if(el.style){Object.keys(el.style).forEach(function(key){target.style[key]=el.style[key]})}}})}
+`
+    }
+
+    // Código base comum - VERSÃO COMPLETA E CORRIGIDA COM API KEY E DEBUG
+    const baseCode = `!function(){"use strict";var experimentId="${experimentId}",baseUrl="${baseUrl}",apiKey="${experimentApiKey}",debugMode=${experimentType === 'element' ? 'true' : 'false'},log=function(msg,data){if(debugMode||window.localStorage.getItem("rf_debug")){console.log("[RotaFinal] "+msg,data||"")}},getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","Authorization":"Bearer "+apiKey,"X-RF-Version":"2.0.0"};log("API Call",{url:url,hasApiKey:!!apiKey});return fetch(url,Object.assign({headers:headers},options)).then(function(response){log("API Response",{status:response.status,ok:response.ok});if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()}).then(function(data){log("API Data",data);return data})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){self.cachedVariant=response.variant;log("Variant assigned",response.variant.name)}return response})},applyVariant:function(variant){if(!variant){log("No variant to apply");return}this.cachedVariant=variant;log("Applying variant",{name:variant.name,hasRedirect:!!variant.redirect_url,hasCss:!!variant.css_changes,hasJs:!!variant.js_changes});document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url){log("Redirecting to",variant.redirect_url);window.location.href=variant.redirect_url;return}${applyChangesCode}}}`
 
     // Código específico por tipo
-    let typeSpecificCode = ''
     let usageInstructions = ''
 
     switch (experimentType) {
       case 'redirect':
-        typeSpecificCode = `` // Código já incluído no baseCode
+      case 'split_url':
         if (hasConversionTracking) {
           usageInstructions = `<!-- Experimento de Redirecionamento com Tracking Automático -->
 <!-- Este código redireciona automaticamente os visitantes para diferentes URLs -->
@@ -324,39 +333,26 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         break
 
       case 'element':
-        typeSpecificCode = `` // Para experimentos de elemento, não é necessário código adicional aqui
         if (hasConversionTracking) {
-          usageInstructions = `<!-- Experimento de Elemento com Tracking Automático -->
-<!-- Este código modifica elementos específicos da página -->
+          usageInstructions = `<!-- Experimento de Elemento com Tracking e Aplicação Automáticos -->
+<!-- Este código modifica elementos específicos da página AUTOMATICAMENTE -->
+<!-- CSS, JS e mudanças de elementos são aplicados sem código adicional -->
 <!-- O tracking de conversão é automático - não é necessário código adicional -->
-<!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->`
+<!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->
+<!-- Debug: Abra o console do navegador para ver logs de aplicação das variantes -->`
         } else {
-          usageInstructions = `<!-- Experimento de Elemento -->
-<!-- Este código modifica elementos específicos da página -->
+          usageInstructions = `<!-- Experimento de Elemento com Aplicação Automática -->
+<!-- Este código modifica elementos específicos da página AUTOMATICAMENTE -->
+<!-- CSS, JS e mudanças de elementos são aplicados sem código adicional -->
 <!-- Para rastrear conversões: -->
 <!-- RotaFinal.convert(${conversionValue}, { product: 'produto-x' }); -->
 <!-- Para rastrear cliques em elementos modificados: -->
-<!-- <button data-rf-track="cta_click" data-rf-button="signup">Inscrever-se</button> -->`
-        }
-        break
-
-      case 'split_url':
-        typeSpecificCode = `` // Código já incluído no baseCode
-        if (hasConversionTracking) {
-          usageInstructions = `<!-- Experimento de Split URL com Tracking Automático -->
-<!-- Este código redireciona para diferentes versões da mesma página -->
-<!-- O tracking de conversão é automático - não é necessário código adicional -->
-<!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->`
-        } else {
-          usageInstructions = `<!-- Experimento de Split URL -->
-<!-- Este código redireciona para diferentes versões da mesma página -->
-<!-- Para rastrear conversões na página de destino: -->
-<!-- RotaFinal.convert(${conversionValue}, { product: 'produto-x' }); -->`
+<!-- <button data-rf-track="cta_click" data-rf-button="signup">Inscrever-se</button> -->
+<!-- Debug: Abra o console do navegador para ver logs de aplicação das variantes -->`
         }
         break
 
       case 'mab':
-        typeSpecificCode = `` // Código já incluído no baseCode
         if (hasConversionTracking) {
           usageInstructions = `<!-- Experimento Multi-Armed Bandit com Tracking Automático -->
 <!-- Este código usa IA para otimizar automaticamente as variantes -->
@@ -373,14 +369,13 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         break
 
       default:
-        typeSpecificCode = `` // Código já incluído no baseCode
         if (hasConversionTracking) {
-          usageInstructions = `<!-- Experimento de Redirecionamento com Tracking Automático -->
+          usageInstructions = `<!-- Experimento com Tracking Automático -->
 <!-- O tracking de conversão é automático - não é necessário código adicional -->
 <!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->`
         } else {
-          usageInstructions = `<!-- Experimento de Redirecionamento -->
-<!-- Para rastrear conversões na página de destino: -->
+          usageInstructions = `<!-- Experimento de Teste A/B -->
+<!-- Para rastrear conversões: -->
 <!-- RotaFinal.convert(${conversionValue}, { product: 'produto-x' }); -->`
         }
     }
@@ -390,22 +385,22 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     if (hasConversionTracking) {
       if (conversionConfig.type === 'page_view' && conversionConfig.url) {
         // Tracking automático por URL
-        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.url}";if(window.location.href.includes(e)||window.location.pathname.includes(e)){this.track("conversion",{url:window.location.href,type:"page_view",experiment_id:e})}}`
+        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.url}";if(window.location.href.includes(e)||window.location.pathname.includes(e)){tracking.track("conversion",{url:window.location.href,type:"page_view",value:${conversionValue}})}}`
       } else if (conversionConfig.selector) {
         // Tracking automático por seletor
-        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.selector}";document.addEventListener("click",function(t){var n=t.target.closest(e);if(n){i.track("conversion",{selector:e,element:n.tagName.toLowerCase(),text:(n.textContent||"").trim().substr(0,100),experiment_id:e})}})}}`
+        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.selector}";document.addEventListener("click",function(t){var n=t.target.closest(e);if(n){tracking.track("conversion",{selector:e,element:n.tagName.toLowerCase(),text:(n.textContent||"").trim().substr(0,100),value:${conversionValue}})}})}`
       } else if (conversionConfig.event) {
         // Tracking automático por evento
-        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.event}";document.addEventListener(e,function(t){i.track("conversion",{event:e,experiment_id:e})})}`
+        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.event}";document.addEventListener(e,function(t){tracking.track("conversion",{event:e,value:${conversionValue}})})}`
       }
     }
 
-    // Código de tracking e inicialização - versão corrigida e funcional
-    const trackingCode = `},tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(){tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}}${conversionTrackingCode},init=function(){if(isBot())return;apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){experiment.cachedVariant=response.variant;experiment.applyVariant(response.variant)}}).catch(function(error){console.error("RotaFinal: Error loading variant",error)}).finally(function(){document.documentElement.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100)})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value||0},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();`
+    // Código de tracking e inicialização - VERSÃO COMPLETA E FUNCIONAL
+    const trackingCode = `,tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};log("Tracking event",{eventName:eventName,properties:properties});apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(err){log("Track error, queuing",err.message);tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}${conversionTrackingCode}},init=function(){if(isBot()){log("Bot detected, skipping");return}log("Initializing experiment",{experimentId:experimentId,type:"${experimentType}"});apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){log("Assignment response",response);if(response&&response.variant){experiment.cachedVariant=response.variant;experiment.applyVariant(response.variant);${hasConversionTracking ? 'if(tracking.setupConversionTracking)tracking.setupConversionTracking();' : ''}tracking.trackPageview()}}).catch(function(error){console.error("RotaFinal: Error loading variant",error)}).finally(function(){document.documentElement.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100);log("Initialization complete")})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value||0},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){if(enabled){window.localStorage.setItem("rf_debug","1")}else{window.localStorage.removeItem("rf_debug")}}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();`
 
     return `<!-- Rota Final SDK - Experimento: ${experiment.name} (${experimentType}) -->
 <script>
-${baseCode}}${trackingCode}
+${baseCode}${trackingCode}
 </script>
 
 <!-- CSS Anti-Flicker (adicionar no <head> antes do script) -->

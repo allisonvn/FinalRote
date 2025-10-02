@@ -116,6 +116,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Se for conversão, atualizar variant_stats
+    if (data.event_type === 'conversion') {
+      console.log('📊 [CONVERSION] Registrando conversão', {
+        experiment: experimentId,
+        visitor: data.visitor_id,
+        variant: data.variant,
+        value: eventData.value
+      })
+
+      try {
+        // Buscar variante pelo nome
+        const { data: variant } = await supabase
+          .from('variants')
+          .select('id')
+          .eq('experiment_id', experimentId)
+          .eq('name', data.variant)
+          .single()
+
+        if (variant) {
+          // Atualizar estatísticas da variante
+          await supabase.rpc('increment_variant_conversions', {
+            p_variant_id: variant.id,
+            p_experiment_id: experimentId,
+            p_revenue: eventData.value || 0
+          })
+
+          console.log('✅ [CONVERSION] Estatísticas atualizadas para variante:', variant.id)
+        }
+      } catch (conversionError) {
+        console.error('⚠️ [WARNING] Erro ao atualizar estatísticas de conversão:', conversionError)
+        // Não falhar a requisição
+      }
+    }
+
     // Criar ou atualizar sessão do visitante com UTMs
     const sessionId = `${data.visitor_id}_${new Date().toISOString().split('T')[0]}`
     
