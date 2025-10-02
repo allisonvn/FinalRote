@@ -2,32 +2,41 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { config } from '@/lib/config'
 
+// CORS headers para todas as respostas
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version',
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { events } = body
 
     if (!Array.isArray(events) || events.length === 0) {
-      return NextResponse.json({ error: 'Events array required' }, { status: 400 })
+      return NextResponse.json({ error: 'Events array required' }, { status: 400, headers: corsHeaders })
     }
 
-    // Validar API key
+    // ✅ ENDPOINT PÚBLICO: API key é opcional (não obrigatória)
+    // Isso permite que o código gerado funcione sem autenticação
     const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key required' }, { status: 401 })
-    }
+    let project = null
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
-    // Verificar API key
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('api_key', apiKey)
-      .single()
+    // Verificar API key se fornecida (opcional)
+    if (apiKey) {
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('api_key', apiKey)
+        .single()
 
-    if (projectError || !project) {
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+      // ✅ Se API key é inválida, apenas ignora (não retorna erro 401)
+      if (!projectError && projectData) {
+        project = projectData
+      }
     }
 
     const results = []
@@ -93,7 +102,7 @@ export async function POST(request: NextRequest) {
 
       if (insertError) {
         console.error('Batch insert error:', insertError)
-        return NextResponse.json({ error: 'Failed to insert events' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to insert events' }, { status: 500, headers: corsHeaders })
       }
 
       // Atualizar métricas para conversões
@@ -113,13 +122,15 @@ export async function POST(request: NextRequest) {
       processed: results.length,
       inserted: eventsToInsert.length,
       results
+    }, {
+      headers: corsHeaders
     })
 
   } catch (error) {
     console.error('Batch tracking error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
@@ -188,14 +199,9 @@ async function updateConversionMetrics(
   }
 }
 
-// CORS headers
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version',
-    },
+    headers: corsHeaders,
   })
 }

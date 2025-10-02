@@ -26,25 +26,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar API key se fornecida
+    // ✅ ENDPOINT PÚBLICO: API key é opcional (não obrigatória)
+    // Isso permite que o código gerado funcione sem autenticação
     const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
     let project = null
 
+    const supabase = await createClient()
+
     if (apiKey) {
-      const supabase = createClient()
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select('*')
         .eq('api_key', apiKey)
         .single()
 
-      if (projectError || !projectData) {
-        return NextResponse.json({ error: 'Invalid API key' }, { status: 401, headers: corsHeaders })
+      // ✅ Se API key é inválida, apenas ignora (não retorna erro 401)
+      if (!projectError && projectData) {
+        project = projectData
       }
-      project = projectData
     }
-
-    const supabase = createClient()
 
     // Extrair UTMs das propriedades
     const utmParams = {
