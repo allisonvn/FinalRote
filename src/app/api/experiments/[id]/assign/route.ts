@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServiceClient } from '@/lib/supabase/server'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,19 +35,8 @@ export async function POST(
       })
     }
 
-    // Criar cliente Supabase com service role key para acessar dados
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('❌ [ERROR] Supabase credentials not configured')
-      return NextResponse.json({ error: 'Server configuration error' }, { 
-        status: 500,
-        headers: corsHeaders 
-      })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    // ✅ Usar service client que tem permissões para acessar dados sem autenticação
+    const supabase = createServiceClient()
 
     // 1. Verificar se o experimento existe e está rodando
     const { data: experiment, error: experimentError } = await supabase
