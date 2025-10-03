@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Modal URLs - RotaFinal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .logs {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Teste Modal URLs - RotaFinal</h1>
+        
+        <div class="status info">
+            <strong>Instruções:</strong> Este teste verifica se as URLs estão aparecendo corretamente no modal "Detalhes do Experimento".
+        </div>
+
+        <h2>Passos para Testar:</h2>
+        <ol>
+            <li>Abra o dashboard do RotaFinal</li>
+            <li>Clique em "Detalhes" em qualquer experimento</li>
+            <li>Vá para a aba "URLs e Configurações"</li>
+            <li>Verifique se as URLs das variantes estão sendo exibidas</li>
+            <li>Abra o console do navegador (F12) para ver os logs de debug</li>
+        </ol>
+
+        <h2>Logs de Debug Esperados:</h2>
+        <div class="logs" id="expected-logs">
+🔍 Buscando dados das variantes para experimento: [experiment-id]
+📊 Variantes encontradas: [array com variantes]
+📋 Variante Controle processada: {id, name, redirect_url, ...}
+📋 Variante Variante A processada: {id, name, redirect_url, ...}
+✅ Dados das variantes processados: [array processado]
+🔄 Definindo dados das variantes no estado: [array final]
+🎨 Renderizando URLs com dados: [array de variantes]
+🔗 URLs encontradas: [{name: "Controle", url: "..."}, {name: "Variante A", url: "..."}]
+        </div>
+
+        <h2>Possíveis Problemas e Soluções:</h2>
+        
+        <div class="status warning">
+            <strong>Problema 1:</strong> Modal não abre ou não carrega dados<br>
+            <strong>Solução:</strong> Verifique se o experimento tem um project_id válido
+        </div>
+
+        <div class="status warning">
+            <strong>Problema 2:</strong> Variantes não são encontradas<br>
+            <strong>Solução:</strong> Verifique se as variantes foram criadas corretamente no banco
+        </div>
+
+        <div class="status warning">
+            <strong>Problema 3:</strong> URLs são null ou vazias<br>
+            <strong>Solução:</strong> As variantes podem não ter URLs configuradas ainda
+        </div>
+
+        <div class="status success">
+            <strong>✅ Correções Aplicadas:</strong>
+            <ul>
+                <li>Adicionados logs de debug para rastrear o carregamento das variantes</li>
+                <li>Corrigido o select na API para incluir redirect_url</li>
+                <li>Adicionada validação para experimentos sem project_id</li>
+                <li>Melhorada a exibição das URLs no modal</li>
+            </ul>
+        </div>
+
+        <h2>Como Verificar se Funcionou:</h2>
+        <ol>
+            <li>Abra o console do navegador (F12)</li>
+            <li>Navegue para o modal de detalhes do experimento</li>
+            <li>Procure pelos logs que começam com 🔍, 📊, 📋, ✅, 🔄, 🎨, 🔗</li>
+            <li>Verifique se as URLs estão sendo exibidas na aba "URLs e Configurações"</li>
+        </ol>
+
+        <div class="status info">
+            <strong>Nota:</strong> Se as URLs ainda não aparecerem, verifique se as variantes foram criadas com URLs válidas no banco de dados.
+        </div>
+    </div>
+
+    <script>
+        console.log('🧪 Arquivo de teste carregado - RotaFinal Modal URLs Debug');
+        console.log('📋 Use este arquivo para verificar se as correções funcionaram');
+        console.log('🔍 Abra o dashboard e verifique os logs no console');
+    </script>
+</body>
+</html>

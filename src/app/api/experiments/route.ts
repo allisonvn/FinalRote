@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
           const { data: variants, error: variantsError } = await (userClient as any)
             .from('variants')
             .insert(defaultVariants)
-            .select('id, name, description, is_control, traffic_percentage, visitors, conversions, conversion_rate')
+            .select('id, name, description, is_control, traffic_percentage, redirect_url, visitors, conversions, conversion_rate')
 
           if (variantsError) {
             logger.database('insert', 'variants', null, variantsError)

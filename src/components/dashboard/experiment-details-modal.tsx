@@ -130,11 +130,15 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
   // Função para buscar dados das variantes
   const fetchVariantData = async (experimentId: string) => {
     try {
+      console.log('🔍 Buscando dados das variantes para experimento:', experimentId)
+      
       const { data: variants } = await supabase
         .from('variants')
         .select('*')
         .eq('experiment_id', experimentId)
         .order('is_control', { ascending: false })
+
+      console.log('📊 Variantes encontradas:', variants)
 
       const variantMetrics = await Promise.all(
         (variants || []).map(async (variant) => {
@@ -158,7 +162,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
           const variantConversionRate = visitorCount > 0 ? (conversionCount / visitorCount) * 100 : 0
           const totalValue = conversions?.reduce((sum, conv) => sum + (conv.value || 0), 0) || 0
 
-          return {
+          const variantData = {
             id: variant.id,
             name: variant.name,
             is_control: variant.is_control,
@@ -174,9 +178,13 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
             confidence: calculateConfidence(visitorCount, conversionCount),
             color: variant.is_control ? '#f59e0b' : '#10b981'
           }
+          
+          console.log(`📋 Variante ${variant.name} processada:`, variantData)
+          return variantData
         })
       )
 
+      console.log('✅ Dados das variantes processados:', variantMetrics)
       return variantMetrics
       } catch (error) {
       console.error('Erro ao buscar dados das variantes:', error)
@@ -249,10 +257,14 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
   // Buscar dados do projeto e API key
   useEffect(() => {
     const fetchProjectData = async () => {
-      if (!experiment?.project_id) return
+      if (!experiment?.project_id) {
+        console.log('⚠️ Experimento sem project_id, pulando busca de dados do projeto')
+        return
+      }
 
       try {
         setLoading(true)
+        console.log('🔍 Buscando dados do projeto para experimento:', experiment.id, 'project_id:', experiment.project_id)
         
         const { data: project } = await supabase
           .from('projects')
@@ -269,6 +281,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
         // Buscar dados das variantes
         const variants = await fetchVariantData(experiment.id)
+        console.log('🔄 Definindo dados das variantes no estado:', variants)
         setVariantData(variants)
 
         // Buscar dados da timeline
@@ -282,8 +295,13 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
       }
     }
 
+    console.log('🔄 useEffect executado - isOpen:', isOpen, 'experiment:', !!experiment, 'experiment.id:', experiment?.id)
+    
     if (isOpen && experiment) {
+      console.log('✅ Condições atendidas, executando fetchProjectData')
       fetchProjectData()
+    } else {
+      console.log('❌ Condições não atendidas para fetchProjectData')
     }
   }, [isOpen, experiment, supabase])
 
@@ -1155,7 +1173,11 @@ ${usageInstructions}`
     </div>
   )
 
-  const renderUrls = () => (
+  const renderUrls = () => {
+    console.log('🎨 Renderizando URLs com dados:', variantData)
+    console.log('🔗 URLs encontradas:', variantData.map(v => ({ name: v.name, url: v.redirect_url })))
+    
+    return (
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold text-slate-900">URLs e Configurações</h3>
@@ -1493,7 +1515,8 @@ ${usageInstructions}`
         ))}
       </div>
     </div>
-  )
+    )
+  }
 
   const renderTimeline = () => (
     <div className="space-y-6">
