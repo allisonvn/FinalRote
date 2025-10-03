@@ -289,6 +289,70 @@ export function useSupabaseExperiments() {
     }
   }, [supabase])
 
+  // Atualizar variante (incluindo URL)
+  const updateVariant = useCallback(async (variantId: string, updates: Partial<Variant>) => {
+    try {
+      const { error } = await supabase
+        .from('variants')
+        .update(updates)
+        .eq('id', variantId)
+
+      if (error) throw error
+
+      // Atualizar localmente
+      setExperiments(prev =>
+        prev.map(exp => ({
+          ...exp,
+          variants: exp.variants?.map(variant =>
+            variant.id === variantId ? { ...variant, ...updates } : variant
+          )
+        }))
+      )
+
+      toast.success('Variante atualizada!')
+    } catch (err) {
+      console.error('Erro ao atualizar variante:', err)
+      toast.error('Erro ao atualizar variante')
+      throw err
+    }
+  }, [supabase])
+
+  // Atualizar múltiplas variantes de uma vez
+  const updateVariants = useCallback(async (experimentId: string, variants: Partial<Variant>[]) => {
+    try {
+      // Atualizar cada variante individualmente
+      const updatePromises = variants.map(variant => {
+        if (variant.id) {
+          return supabase
+            .from('variants')
+            .update({
+              name: variant.name,
+              description: variant.description,
+              redirect_url: variant.redirect_url,
+              traffic_percentage: variant.traffic_percentage,
+              changes: variant.changes,
+              css_changes: variant.css_changes,
+              js_changes: variant.js_changes,
+              is_active: variant.is_active
+            })
+            .eq('id', variant.id)
+        }
+        return Promise.resolve()
+      })
+
+      await Promise.all(updatePromises)
+
+      // Recarregar experimentos para garantir sincronização
+      await loadExperiments()
+
+      toast.success('Variantes atualizadas!')
+    } catch (err) {
+      console.error('Erro ao atualizar variantes:', err)
+      toast.error('Erro ao atualizar variantes')
+      throw err
+    }
+  }, [supabase, loadExperiments])
+
   // Iniciar experimento
   const startExperiment = useCallback(async (id: string) => {
     try {
@@ -465,6 +529,8 @@ export function useSupabaseExperiments() {
     updateSort,
     createExperiment,
     updateExperiment,
+    updateVariant,
+    updateVariants,
     deleteExperiment,
     duplicateExperiment,
     startExperiment,

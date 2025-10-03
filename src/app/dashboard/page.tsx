@@ -17,6 +17,7 @@ import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
 import { RealtimeActivity } from '@/components/dashboard/realtime-activity'
 import { createClient } from '@/lib/supabase/client'
+import { useSupabaseExperiments } from '@/hooks/useSupabaseExperiments'
 import { useApp } from '@/providers/app-provider'
 import { toast } from 'sonner'
 import { useRealtimeAnalytics } from '@/hooks/useRealtimeAnalytics'
@@ -24,7 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { EmptyState } from '@/components/empty-state'
 import { safeTrafficAllocation } from '@/lib/numeric-utils'
 
-interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; description?: string; config?: any; weight?: number }
+interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; redirect_url?: string; description?: string; config?: any; weight?: number }
 interface Experiment {
   id: string
   name: string
@@ -56,6 +57,7 @@ interface Stats {
 
 export default function Dashboard() {
   const [experiments, setExperiments] = useState<Experiment[]>([])
+  const { updateVariant: updateVariantInDB, updateVariants } = useSupabaseExperiments()
   // Projetos removidos
   const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'draft' | 'paused' | 'completed'>('all')
   const [query, setQuery] = useState('')
@@ -3217,7 +3219,7 @@ ${baseCode}
                     {exp.test_type === 'split_url' && (
                       <div className="mb-2">
                         <Button size="sm" variant="outline" onClick={() => {
-                          const urls = (exp.variants||[]).map(v => v.url).filter(Boolean) as string[]
+                          const urls = (exp.variants||[]).map(v => v.redirect_url).filter(Boolean) as string[]
                           if (urls.length === 0) { toast.error('Nenhuma URL definida para as variantes'); return }
                           urls.forEach(u => window.open(u, '_blank'))
                         }}>Abrir todas as URLs</Button>
@@ -3227,26 +3229,36 @@ ${baseCode}
                       <div key={v.id+"-url"} className="flex items-center gap-2">
                         <span className="text-xs w-16 shrink-0 {v.is_control ? 'text-primary' : ''}">{v.is_control ? 'Controle' : 'Variante'}</span>
                         <Input
-                          value={v.url || ''}
-                          onChange={(e) => {
+                          value={v.redirect_url || ''}
+                          onChange={async (e) => {
                             const url = e.target.value
+                            
+                            // Atualizar estado local imediatamente
                             setSelectedExperiment(se => {
                               if (!se || !se.variants) return se
-                              const updated = se.variants.map((vv, i) => i === idx ? { ...vv, url } : vv)
+                              const updated = se.variants.map((vv, i) => i === idx ? { ...vv, redirect_url: url } : vv)
                               return { ...se, variants: updated }
                             })
                             setExperiments(prev => prev.map(ex => {
                               if (ex.id !== exp.id || !ex.variants) return ex
-                              const updated = ex.variants.map((vv, i) => i === idx ? { ...vv, url } : vv)
+                              const updated = ex.variants.map((vv, i) => i === idx ? { ...vv, redirect_url: url } : vv)
                               return { ...ex, variants: updated }
                             }))
+                            
+                            // Salvar no Supabase
+                            try {
+                              await updateVariantInDB(v.id, { redirect_url: url })
+                            } catch (error) {
+                              console.error('Erro ao salvar URL:', error)
+                              toast.error('Erro ao salvar URL da variante')
+                            }
                           }}
                           placeholder={exp.test_type === 'split_url' ? (v.is_control ? exp.target_url || 'https://seusite.com/pagina-original' : 'https://seusite.com/variante') : 'N/A'}
                           disabled={exp.test_type !== 'split_url' || v.is_control}
                           className="h-8 text-sm"
                         />
-                        {v.url && (
-                          <a href={v.url} target="_blank" className="text-xs text-primary underline">
+                        {v.redirect_url && (
+                          <a href={v.redirect_url} target="_blank" className="text-xs text-primary underline">
                             Abrir
                           </a>
                         )}

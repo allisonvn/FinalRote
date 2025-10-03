@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { config } from '@/lib/config'
 import { createClient } from '@/lib/supabase/client'
+import { useSupabaseExperiments } from '@/hooks/useSupabaseExperiments'
 import {
   X, Target, Users, TrendingUp, BarChart3, Calendar, Globe,
   Crown, Brain, Zap, Play, Pause, StopCircle, Eye, Settings,
@@ -48,6 +49,7 @@ const COLORS = ['#f59e0b', '#10b981', '#8b5cf6', '#f97316', '#06b6d4']
 export function ExperimentDetailsModal({ experiment, isOpen, onClose }: ExperimentDetailsModalProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const [apiKey, setApiKey] = useState('')
+  const { updateVariant, updateVariants } = useSupabaseExperiments()
   const [isEditing, setIsEditing] = useState(false)
   const [editedExperiment, setEditedExperiment] = useState(experiment)
   const [saving, setSaving] = useState(false)
@@ -464,28 +466,18 @@ ${usageInstructions}`
   const handleSaveVariants = async () => {
     setSaving(true)
     try {
-      // Atualizar cada variante
-      const updatePromises = variantData.map(variant => 
-        supabase
-          .from('variants')
-          .update({
-            name: variant.name,
-            redirect_url: variant.redirect_url,
-            traffic_percentage: variant.traffic_percentage,
-            css_changes: variant.css_changes,
-            js_changes: variant.js_changes,
-            changes: variant.changes
-          })
-          .eq('id', variant.id)
-      )
-
-      await Promise.all(updatePromises)
+      // Usar a nova função do hook para atualizar múltiplas variantes
+      await updateVariants(experiment.id, variantData)
+      
+      // Atualizar o estado local
+      setEditedExperiment(prev => ({
+        ...prev,
+        variants: variantData
+      }))
       
       setIsEditing(false)
-      alert('Variantes atualizadas com sucesso!')
     } catch (error) {
       console.error('Erro ao salvar variantes:', error)
-      alert('Erro ao salvar alterações das variantes. Tente novamente.')
     } finally {
       setSaving(false)
     }
