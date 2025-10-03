@@ -245,7 +245,7 @@ export function ExperimentCard({
                     : 'bg-muted text-muted-foreground'
                 )}
               >
-                {variant.key}: {variant.name}
+                {variant.name}
               </div>
             ))}
           </div>

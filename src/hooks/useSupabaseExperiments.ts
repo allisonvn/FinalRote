@@ -6,10 +6,17 @@ import { safeTrafficAllocation } from '@/lib/numeric-utils'
 type Variant = {
   id: string
   name: string
-  key: string
+  description?: string
   is_control: boolean
-  weight?: number
-  config?: any
+  traffic_percentage?: number
+  redirect_url?: string
+  changes?: any
+  css_changes?: string
+  js_changes?: string
+  visitors?: number
+  conversions?: number
+  conversion_rate?: number
+  is_active?: boolean
 }
 
 type Experiment = {
@@ -77,10 +84,17 @@ export function useSupabaseExperiments() {
           variants (
             id,
             name,
-            key,
+            description,
             is_control,
-            weight,
-            config
+            traffic_percentage,
+            redirect_url,
+            changes,
+            css_changes,
+            js_changes,
+            visitors,
+            conversions,
+            conversion_rate,
+            is_active
           )
         `)
 
@@ -108,7 +122,7 @@ export function useSupabaseExperiments() {
 
       // Carregar métricas para experimentos ativos
       const experimentsWithMetrics = await Promise.all(
-        (data || []).map(async (exp) => {
+        (data || []).map(async (exp: any) => {
           if (exp.status === 'running' || exp.status === 'completed') {
             // Buscar métricas do cache
             const { data: metricsData } = await supabase
@@ -152,6 +166,11 @@ export function useSupabaseExperiments() {
     project_id?: string | null
     algorithm?: string
     traffic_allocation?: number
+    target_url?: string
+    conversion_type?: string
+    conversion_url?: string
+    conversion_value?: number
+    conversion_selector?: string
   }) => {
     try {
       // Gerar API key única para o experimento
@@ -164,7 +183,7 @@ export function useSupabaseExperiments() {
 
       const experimentApiKey = generateApiKey()
 
-      // Inserir experimento COM API key
+      // Inserir experimento COM API key e target_url
       const { data: newExp, error: insertError } = await supabase
         .from('experiments')
         .insert({
@@ -174,28 +193,56 @@ export function useSupabaseExperiments() {
           algorithm: (data.algorithm || 'thompson_sampling') as any,
           traffic_allocation: safeTrafficAllocation(data.traffic_allocation, 100),
           status: 'draft',
-          api_key: experimentApiKey  // ✅ API key única para o experimento
+          api_key: experimentApiKey,  // ✅ API key única para o experimento
+          target_url: data.target_url?.trim() || null  // ✅ Salvar URL da página original
         })
         .select()
         .single()
 
       if (insertError) throw insertError
 
+      // Preparar configuração de conversão para todas as variantes
+      const conversionConfig = data.conversion_type ? {
+        conversion: {
+          type: data.conversion_type,
+          url: data.conversion_url || null,
+          selector: data.conversion_selector || null,
+          value: data.conversion_value || 0
+        }
+      } : {}
+
       // Criar variantes padrão
+      // ✅ CORREÇÃO: Variante de controle usa a URL da página configurada na etapa 01
       const variants = [
         { 
           experiment_id: newExp.id, 
           name: 'Controle', 
-          key: 'control', 
+          description: 'Versão original - URL da página configurada no setup',
           is_control: true,
-          weight: 50
+          traffic_percentage: 50.00,
+          redirect_url: data.target_url?.trim() || null,  // ✅ Usar URL da etapa 01 como controle
+          changes: conversionConfig,  // ✅ Adicionar config de conversão
+          css_changes: null,
+          js_changes: null,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0.0000,
+          is_active: true
         },
         { 
           experiment_id: newExp.id, 
-          name: 'Variante B', 
-          key: 'variant_b', 
+          name: 'Variante A', 
+          description: 'Versão alternativa - configurar URL na próxima etapa',
           is_control: false,
-          weight: 50
+          traffic_percentage: 50.00,
+          redirect_url: null,  // ✅ Usuário configura manualmente na etapa de variantes
+          changes: conversionConfig,  // ✅ Adicionar config de conversão
+          css_changes: null,
+          js_changes: null,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0.0000,
+          is_active: true
         }
       ]
 
@@ -348,13 +395,20 @@ export function useSupabaseExperiments() {
 
       // Copiar variantes
       if (original.variants) {
-        const newVariants = original.variants.map(v => ({
+        const newVariants = original.variants.map((v: any) => ({
           experiment_id: newExp.id,
           name: v.name,
-          key: v.key,
+          description: v.description,
           is_control: v.is_control,
-          weight: v.weight,
-          config: v.config
+          traffic_percentage: v.traffic_percentage,
+          redirect_url: v.redirect_url,
+          changes: v.changes,
+          css_changes: v.css_changes,
+          js_changes: v.js_changes,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0.0000,
+          is_active: true
         }))
 
         const { error: variantsError } = await supabase

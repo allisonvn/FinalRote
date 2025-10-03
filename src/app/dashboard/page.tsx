@@ -607,7 +607,7 @@ export default function Dashboard() {
         return
       }
       
-      // Carregar experimentos com consulta otimizada (sem variants inicialmente)
+      // Carregar experimentos com variantes
       const projectIds = projects.map(p => p.id)
       let query = supabase
         .from('experiments')
@@ -620,7 +620,22 @@ export default function Dashboard() {
           traffic_allocation,
           created_at,
           updated_at,
-          project_id
+          project_id,
+          variants (
+            id,
+            name,
+            description,
+            is_control,
+            traffic_percentage,
+            redirect_url,
+            changes,
+            css_changes,
+            js_changes,
+            visitors,
+            conversions,
+            conversion_rate,
+            is_active
+          )
         `)
         .order('created_at', { ascending: false })
         .limit(50) // Limitar para melhor performance
@@ -639,8 +654,8 @@ export default function Dashboard() {
 
       console.log('✅ Experimentos carregados para o usuário:', experimentsData?.length || 0)
       
-      // Transformar dados para o formato esperado (sem variants inicialmente para melhor performance)
-      const formattedExperiments = (experimentsData || []).map(exp => ({
+      // Transformar dados para o formato esperado (com variants)
+      const formattedExperiments = (experimentsData || []).map((exp: any) => ({
         id: exp.id,
         name: exp.name,
         description: exp.description,
@@ -651,7 +666,7 @@ export default function Dashboard() {
         project_id: exp.project_id,
         algorithm: 'thompson_sampling', // Valor padrão
         traffic_allocation: exp.traffic_allocation,
-        variants: [] // Carregar variants sob demanda para melhor performance
+        variants: exp.variants || [] // Incluir variantes carregadas
       }))
 
       setExperiments(formattedExperiments)
@@ -747,13 +762,13 @@ export default function Dashboard() {
   const generateInstallCodeForExperiment = (exp: Experiment) => {
     const experimentId = `exp_${exp.id}`
     const name = exp.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const variants = (exp.variants || []).map(v => ({
+    const variants = (exp.variants || []).map((v: any) => ({
       name: v.name,
-      key: v.key || v.name.toLowerCase(),
-      url: v.url ?? (v as any).target_url ?? v.config?.url ?? v.config?.target_url ?? null,
+      key: v.name.toLowerCase(),
+      url: v.redirect_url ?? null,
       isControl: v.is_control,
       traffic_percentage: v.traffic_percentage || 50,
-      description: v.description ?? (typeof v.config?.rules === 'string' ? v.config.rules : (v.config?.rules ? JSON.stringify(v.config.rules) : null))
+      description: v.description ?? null
     }))
     const goal = (exp as any).goal_value || (exp as any).goal_type || 'conversion'
     const goalType = (exp as any).goal_type || 'page_view'
@@ -1295,7 +1310,7 @@ ${baseCode}
         project_id: newExperiment.project_id,
         algorithm: newExperiment.mab_config?.algorithm || 'thompson_sampling',
         traffic_allocation: newExperiment.traffic_allocation,
-        variants: (variants || []).map((v: any) => ({
+        variants: (newExperiment.variants || []).map((v: any) => ({
           id: v.id,
           name: v.name,
           key: v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
@@ -3441,20 +3456,20 @@ ${baseCode}
           <Globe className="w-8 h-8 text-blue-500" />
         </div>
         <h3 className="text-2xl font-bold mb-2">Configuração do Teste</h3>
-        <p className="text-muted-foreground">Configure onde e como o teste será executado</p>
+        <p className="text-muted-foreground">Configure a URL da página original (variante de controle)</p>
       </div>
 
           <div className="space-y-4">
             <div>
-          <label className="text-sm font-medium text-foreground">URL de Destino *</label>
+          <label className="text-sm font-medium text-foreground">URL da Página Original (Controle) *</label>
               <Input 
             ref={step2UrlRef}
             value={experimentForm.targetUrl}
             onChange={(e) => setExperimentForm(prev => ({ ...prev, targetUrl: e.target.value }))}
-            placeholder="https://seusite.com/pagina"
+            placeholder="https://seusite.com/pagina-original"
             className="mt-1.5"
           />
-          <p className="text-xs text-muted-foreground mt-1">Página onde o teste será executado</p>
+          <p className="text-xs text-muted-foreground mt-1">⚠️ Esta é a URL da versão ORIGINAL que será testada contra as variantes. Ela será automaticamente configurada como variante de controle.</p>
             </div>
             
             <div>
@@ -3555,8 +3570,8 @@ ${baseCode}
         <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-green-500/20">
           <Shuffle className="w-8 h-8 text-green-500" />
         </div>
-        <h3 className="text-2xl font-bold mb-2">Variantes do Teste</h3>
-        <p className="text-muted-foreground">Configure as diferentes versões que serão testadas</p>
+        <h3 className="text-2xl font-bold mb-2">Variantes Alternativas</h3>
+        <p className="text-muted-foreground">Configure as versões ALTERNATIVAS que vão concorrer com a página original</p>
       </div>
 
       <div className="space-y-4">
@@ -3690,8 +3705,11 @@ ${baseCode}
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
           <h4 className="font-semibold text-green-900 mb-4 flex items-center gap-2">
             <Flag className="w-5 h-5" />
-            Como Medir a Conversão
+            Como Medir a Conversão (Página de Sucesso)
           </h4>
+          <p className="text-sm text-green-700 mb-4">
+            ✅ Configure quando e como registrar uma conversão. O sistema salvará automaticamente de qual variante veio cada conversão.
+          </p>
           
           <div className="space-y-4">
             <div>
@@ -3746,14 +3764,19 @@ ${baseCode}
 
             {experimentForm.conversionType === 'page_view' && (
               <div>
-                <label className="text-sm font-medium text-green-900">URL da Página de Conversão *</label>
+                <label className="text-sm font-medium text-green-900">URL da Página de Sucesso *</label>
                 <Input 
                   value={experimentForm.conversionUrl}
                   onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionUrl: e.target.value }))}
                   placeholder="https://seusite.com/obrigado"
                   className="mt-2 border-green-200 focus:border-green-500"
                 />
-                <p className="text-xs text-green-700 mt-1">URL da página que indica sucesso (ex: página de agradecimento)</p>
+                <p className="text-xs text-green-700 mt-1">
+                  🎯 Quando esta página for acessada, o sistema registrará automaticamente: 
+                  <br/>• Que houve uma conversão
+                  <br/>• De qual variante (página) veio a conversão
+                  <br/>• O valor da conversão configurado abaixo
+                </p>
               </div>
             )}
 
@@ -3822,7 +3845,7 @@ ${baseCode}
             </div>
 
             <div>
-              <label className="text-sm font-medium text-purple-900">Algoritmo de Otimização</label>
+              <label className="text-sm font-medium text-purple-900">Algoritmo de Teste A/B</label>
               <Select 
                 value={experimentForm.algorithm} 
                 onValueChange={(value) => setExperimentForm(prev => ({ ...prev, algorithm: value as any }))}
@@ -3834,23 +3857,26 @@ ${baseCode}
                   <SelectItem value="thompson_sampling">
                     <div>
                       <div className="font-medium">Thompson Sampling</div>
-                      <div className="text-xs text-muted-foreground">Otimização inteligente (recomendado)</div>
+                      <div className="text-xs text-muted-foreground">Teste A/B com otimização inteligente (recomendado)</div>
                     </div>
                   </SelectItem>
                   <SelectItem value="ucb1">
                     <div>
                       <div className="font-medium">UCB1</div>
-                      <div className="text-xs text-muted-foreground">Limite Superior de Confiança</div>
+                      <div className="text-xs text-muted-foreground">Teste A/B com limite superior de confiança</div>
                     </div>
                   </SelectItem>
                   <SelectItem value="uniform">
                     <div>
                       <div className="font-medium">Distribuição Uniforme</div>
-                      <div className="text-xs text-muted-foreground">Tráfego igual para todas as variantes</div>
+                      <div className="text-xs text-muted-foreground">Teste A/B com tráfego igual (50/50)</div>
                     </div>
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-purple-600 mt-2">
+                ℹ️ Todos os algoritmos fazem teste A/B entre as páginas. A diferença está em COMO distribuir o tráfego.
+              </p>
             </div>
           </div>
         </div>

@@ -16,7 +16,7 @@ import {
   ArrowDownRight, Percent, DollarSign, MousePointer, Share2,
   Download, RefreshCw, Edit3, Copy, ExternalLink, Info,
   Shield, Rocket, Star, Trophy, FlaskConical, Layers, Code,
-  Check
+  Check, Plus
 } from 'lucide-react'
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, PieChart as RechartsPieChart, Cell } from 'recharts'
 
@@ -1252,7 +1252,31 @@ ${usageInstructions}`
                   </div>
                 ) : (
                   <div className="p-4 bg-slate-100 rounded-lg border border-dashed">
-                    <p className="text-sm text-slate-500 text-center">Nenhuma URL configurada</p>
+                    <p className="text-sm text-slate-500 text-center mb-3">Nenhuma URL configurada</p>
+                    {isEditing ? (
+                      <input
+                        type="url"
+                        value={variant.redirect_url || ''}
+                        onChange={(e) => {
+                          const updatedVariants = variantData.map(v => 
+                            v.id === variant.id ? {...v, redirect_url: e.target.value} : v
+                          )
+                          setVariantData(updatedVariants)
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        placeholder="https://exemplo.com"
+                      />
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsEditing(true)}
+                        className="text-xs"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Configurar URL
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -1300,7 +1324,7 @@ ${usageInstructions}`
                     </div>
                   </div>
 
-                  {variant.changes?.conversion && (
+                  {variant.changes?.conversion ? (
                     <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="text-sm font-medium text-green-700 mb-2">Configuração de Conversão</div>
                       <div className="space-y-1 text-sm text-green-600">
@@ -1312,6 +1336,69 @@ ${usageInstructions}`
                           <div><strong>Evento:</strong> <code className="bg-green-100 px-1 rounded">{variant.changes.conversion.event}</code></div>
                         )}
                       </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-100 rounded-lg border border-dashed">
+                      <p className="text-sm text-slate-500 text-center mb-3">Configuração padrão de conversão</p>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <select
+                            value={variant.changes?.conversion?.type || 'page_view'}
+                            onChange={(e) => {
+                              const updatedVariants = variantData.map(v => 
+                                v.id === variant.id ? {
+                                  ...v, 
+                                  changes: {
+                                    ...v.changes,
+                                    conversion: {
+                                      ...v.changes?.conversion,
+                                      type: e.target.value
+                                    }
+                                  }
+                                } : v
+                              )
+                              setVariantData(updatedVariants)
+                            }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          >
+                            <option value="page_view">Visualização de Página</option>
+                            <option value="click">Clique em Elemento</option>
+                            <option value="form_submit">Envio de Formulário</option>
+                            <option value="custom">Evento Customizado</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={variant.changes?.conversion?.selector || ''}
+                            onChange={(e) => {
+                              const updatedVariants = variantData.map(v => 
+                                v.id === variant.id ? {
+                                  ...v, 
+                                  changes: {
+                                    ...v.changes,
+                                    conversion: {
+                                      ...v.changes?.conversion,
+                                      selector: e.target.value
+                                    }
+                                  }
+                                } : v
+                              )
+                              setVariantData(updatedVariants)
+                            }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            placeholder="Seletor CSS (ex: #botao-comprar)"
+                          />
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsEditing(true)}
+                          className="text-xs"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Configurar Conversão
+                        </Button>
+                      )}
                     </div>
                   )}
 
@@ -1330,7 +1417,7 @@ ${usageInstructions}`
             </div>
 
             {/* Código personalizado */}
-            {(variant.css_changes || variant.js_changes) && (
+            {(variant.css_changes || variant.js_changes) ? (
               <div className="mt-6 pt-6 border-t border-slate-200">
                 <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
                   <Code className="w-4 h-4" />
@@ -1352,6 +1439,60 @@ ${usageInstructions}`
                         {variant.js_changes}
                       </pre>
                     </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <Code className="w-4 h-4" />
+                  Código Personalizado
+                </h5>
+                <div className="p-4 bg-slate-100 rounded-lg border border-dashed">
+                  <p className="text-sm text-slate-500 text-center mb-3">Nenhum código personalizado configurado</p>
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">CSS Personalizado</label>
+                        <textarea
+                          value={variant.css_changes || ''}
+                          onChange={(e) => {
+                            const updatedVariants = variantData.map(v => 
+                              v.id === variant.id ? {...v, css_changes: e.target.value} : v
+                            )
+                            setVariantData(updatedVariants)
+                          }}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono"
+                          rows={3}
+                          placeholder="/* CSS personalizado */"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">JavaScript Personalizado</label>
+                        <textarea
+                          value={variant.js_changes || ''}
+                          onChange={(e) => {
+                            const updatedVariants = variantData.map(v => 
+                              v.id === variant.id ? {...v, js_changes: e.target.value} : v
+                            )
+                            setVariantData(updatedVariants)
+                          }}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono"
+                          rows={3}
+                          placeholder="// JavaScript personalizado"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsEditing(true)}
+                      className="text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Adicionar Código
+                    </Button>
                   )}
                 </div>
               </div>

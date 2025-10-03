@@ -89,12 +89,11 @@ export async function POST(request: NextRequest) {
 
     // Preparar dados do evento
     const eventData = {
-      project_id: experiment.project_id,
       experiment_id: experimentId,
       visitor_id: data.visitor_id,
       event_type: data.event_type,
       event_name: data.event_type,
-      properties: {
+      event_data: {
         variant: data.variant,
         url: data.url,
         ...data.properties
