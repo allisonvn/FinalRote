@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 type ExperimentStatus = 'draft' | 'running' | 'paused' | 'completed'
 
-interface Variant { id: string; name: string; key: string; is_control: boolean; weight?: number; url?: string; description?: string; config?: any }
+interface Variant { id: string; name: string; key: string; is_control: boolean; weight?: number; redirect_url?: string; traffic_percentage?: number; css_changes?: string; js_changes?: string; changes?: any; description?: string; config?: any }
 
 interface Experiment {
   id: string
@@ -144,7 +144,11 @@ export default function EnhancedExperimentsPage() {
             key: v.key || v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
             is_control: !!v.is_control,
             weight: v.weight || v.traffic_percentage || 50,
-            url: v.url || v.target_url || v.config?.url || undefined,
+            redirect_url: v.redirect_url || v.url || v.target_url || v.config?.url || undefined,
+            traffic_percentage: v.traffic_percentage,
+            css_changes: v.css_changes,
+            js_changes: v.js_changes,
+            changes: v.changes,
             description: v.description || undefined,
             config: v.config || {}
           })),

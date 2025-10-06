@@ -73,54 +73,64 @@
 }
 
 .dark {
-  /* Dark Mode Colors - Enhanced for better contrast */
-  --background: 220 27% 4%;
-  --foreground: 210 20% 98%;
-  --card: 220 27% 6%;
-  --card-foreground: 210 20% 98%;
-  --popover: 220 27% 6%;
-  --popover-foreground: 210 20% 98%;
+  /* Dark Mode Colors - Modern Analytics Design (Deep Blue-Gray Base) */
+  --background: 222 47% 7%;        /* Rich dark blue-gray - mais profundo e moderno */
+  --foreground: 210 40% 98%;        /* Texto ultra claro com tint azulado */
+  --card: 222 44% 10%;              /* Cards com contraste sutil mas visível */
+  --card-foreground: 210 40% 98%;
+  --popover: 222 44% 10%;
+  --popover-foreground: 210 40% 98%;
 
-  /* Dark Brand Colors */
-  --primary: 221 83% 63%;
-  --primary-foreground: 220 27% 4%;
-  --primary-light: 221 83% 73%;
-  --primary-dark: 221 83% 53%;
+  /* Dark Brand Colors - Cores vibrantes para analytics */
+  --primary: 217 91% 60%;           /* Azul elétrico vibrante */
+  --primary-foreground: 222 47% 7%;
+  --primary-light: 217 91% 70%;
+  --primary-dark: 217 91% 50%;
 
-  /* Dark Semantic Colors */
-  --success: 142 76% 46%;
-  --success-foreground: 220 27% 4%;
-  --success-light: 142 76% 56%;
-  --warning: 38 92% 60%;
-  --warning-foreground: 220 27% 4%;
-  --warning-light: 38 92% 70%;
-  --danger: 0 72% 61%;
-  --danger-foreground: 220 27% 4%;
-  --danger-light: 0 72% 71%;
-  --info: 199 89% 58%;
-  --info-foreground: 220 27% 4%;
-  --info-light: 199 89% 68%;
+  /* Dark Semantic Colors - Vibrantes e neon-inspired */
+  --success: 158 64% 52%;           /* Verde esmeralda vibrante */
+  --success-foreground: 222 47% 7%;
+  --success-light: 158 64% 62%;
+  --warning: 43 96% 56%;            /* Laranja/amarelo neon */
+  --warning-foreground: 222 47% 7%;
+  --warning-light: 43 96% 66%;
+  --danger: 0 84% 60%;              /* Vermelho coral vibrante */
+  --danger-foreground: 222 47% 7%;
+  --danger-light: 0 84% 70%;
+  --info: 199 95% 55%;              /* Ciano elétrico */
+  --info-foreground: 222 47% 7%;
+  --info-light: 199 95% 65%;
 
-  /* Dark UI Colors - Better hierarchy */
-  --secondary: 220 27% 12%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 220 27% 10%;
-  --muted-foreground: 215 16% 67%;
-  --accent: 221 83% 63%;
-  --accent-foreground: 220 27% 4%;
-  --destructive: 0 72% 61%;
-  --destructive-foreground: 220 27% 4%;
+  /* Dark UI Colors - Camadas bem definidas */
+  --secondary: 222 40% 15%;         /* Camada intermediária visível */
+  --secondary-foreground: 210 40% 98%;
+  --muted: 222 35% 12%;             /* Sutil mas presente */
+  --muted-foreground: 217 20% 70%;  /* Texto secundário legível */
+  --accent: 280 65% 60%;            /* Roxo vibrante para destaques */
+  --accent-foreground: 222 47% 7%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 222 47% 7%;
 
-  /* Dark Borders & Inputs - More visible */
-  --border: 220 27% 18%;
-  --input: 220 27% 18%;
-  --ring: 221 83% 63%;
-  
-  /* Dark Shadows */
-  --shadow-soft: 0 1px 3px 0 hsl(0 0% 0% / 0.3), 0 1px 2px 0 hsl(0 0% 0% / 0.2);
-  --shadow-medium: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -1px hsl(0 0% 0% / 0.2);
-  --shadow-large: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -2px hsl(0 0% 0% / 0.2);
-  --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 10px 10px -5px hsl(0 0% 0% / 0.2);
+  /* Dark Borders & Inputs - Contraste moderno */
+  --border: 222 32% 22%;            /* Bordas bem visíveis */
+  --input: 222 32% 22%;
+  --ring: 217 91% 60%;              /* Focus ring vibrante */
+
+  /* Dark Shadows - Com glow sutil */
+  --shadow-soft: 0 1px 3px 0 hsl(217 91% 30% / 0.2), 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+  --shadow-medium: 0 4px 6px -1px hsl(217 91% 30% / 0.25), 0 2px 4px -1px hsl(0 0% 0% / 0.4);
+  --shadow-large: 0 10px 15px -3px hsl(217 91% 30% / 0.3), 0 4px 6px -2px hsl(0 0% 0% / 0.5);
+  --shadow-xl: 0 20px 25px -5px hsl(217 91% 30% / 0.4), 0 10px 10px -5px hsl(0 0% 0% / 0.5);
+
+  /* Analytics Chart Colors - Gradientes vibrantes */
+  --chart-1: 217 91% 60%;   /* Azul elétrico */
+  --chart-2: 158 64% 52%;   /* Verde esmeralda */
+  --chart-3: 280 65% 60%;   /* Roxo vibrante */
+  --chart-4: 43 96% 56%;    /* Laranja neon */
+  --chart-5: 199 95% 55%;   /* Ciano elétrico */
+  --chart-6: 0 84% 60%;     /* Vermelho coral */
+  --chart-7: 340 82% 65%;   /* Rosa neon */
+  --chart-8: 120 75% 55%;   /* Verde limão */
 }
 
 /* Enhanced utility mappings */
@@ -154,6 +164,24 @@
 .text-danger { color: hsl(var(--danger)); }
 .text-danger-foreground { color: hsl(var(--danger-foreground)); }
 
+/* Chart Colors for Analytics */
+.chart-color-1 { color: hsl(var(--chart-1)); }
+.chart-bg-1 { background-color: hsl(var(--chart-1)); }
+.chart-color-2 { color: hsl(var(--chart-2)); }
+.chart-bg-2 { background-color: hsl(var(--chart-2)); }
+.chart-color-3 { color: hsl(var(--chart-3)); }
+.chart-bg-3 { background-color: hsl(var(--chart-3)); }
+.chart-color-4 { color: hsl(var(--chart-4)); }
+.chart-bg-4 { background-color: hsl(var(--chart-4)); }
+.chart-color-5 { color: hsl(var(--chart-5)); }
+.chart-bg-5 { background-color: hsl(var(--chart-5)); }
+.chart-color-6 { color: hsl(var(--chart-6)); }
+.chart-bg-6 { background-color: hsl(var(--chart-6)); }
+.chart-color-7 { color: hsl(var(--chart-7)); }
+.chart-bg-7 { background-color: hsl(var(--chart-7)); }
+.chart-color-8 { color: hsl(var(--chart-8)); }
+.chart-bg-8 { background-color: hsl(var(--chart-8)); }
+
 /* Gradient utilities */
 .bg-gradient-primary { background: var(--gradient-primary); }
 .bg-gradient-success { background: var(--gradient-success); }
@@ -186,16 +214,27 @@
 }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* Subtle glass card surface */
+/* Subtle glass card surface - Enhanced for dark mode */
 .card-glass {
   background-color: hsl(var(--card) / 0.6);
-  backdrop-filter: saturate(120%) blur(8px);
-  -webkit-backdrop-filter: saturate(120%) blur(8px);
-  border: 1px solid hsl(var(--border) / 0.6);
+  backdrop-filter: saturate(120%) blur(12px);
+  -webkit-backdrop-filter: saturate(120%) blur(12px);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+.dark .card-glass {
+  background: linear-gradient(135deg, hsl(var(--card) / 0.5) 0%, hsl(var(--card) / 0.3) 100%);
+  border: 1px solid hsl(var(--border) / 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 .card-glass-hover:hover {
-  background-color: hsl(var(--card) / 0.7);
+  background-color: hsl(var(--card) / 0.75);
   box-shadow: var(--shadow-large);
+}
+.dark .card-glass-hover:hover {
+  background: linear-gradient(135deg, hsl(var(--card) / 0.65) 0%, hsl(var(--card) / 0.45) 100%);
+  border: 1px solid hsl(var(--primary) / 0.3);
+  box-shadow: 0 8px 32px 0 hsl(var(--primary) / 0.2),
+              0 0 0 1px hsl(var(--primary) / 0.1);
 }
 
 /* Lift on hover with crisp transform */
@@ -235,19 +274,70 @@ body { font-feature-settings: "rlig" 1, "calt" 1; }
                     linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+.dark .bg-grid-slate {
+  background-image: linear-gradient(to right, hsl(var(--primary) / 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, hsl(var(--primary) / 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
 
 .spotlight {
   position: absolute;
   width: 60rem;
   height: 60rem;
   border-radius: 9999px;
-  filter: blur(60px);
-  opacity: 0.35;
+  filter: blur(80px);
+  opacity: 0.25;
   background: radial-gradient(closest-side, rgba(59,130,246,0.6), rgba(99,102,241,0.5), rgba(168,85,247,0.4), transparent 70%);
   animation: float 16s ease-in-out infinite;
+}
+.dark .spotlight {
+  filter: blur(100px);
+  opacity: 0.15;
+  background: radial-gradient(closest-side, hsl(var(--chart-1) / 0.4), hsl(var(--chart-3) / 0.35), hsl(var(--chart-2) / 0.3), transparent 70%);
 }
 
 @keyframes float {
   0%, 100% { transform: translate(-10%, -6%) scale(1); }
   50% { transform: translate(8%, 4%) scale(1.05); }
+}
+
+/* Glow effects para analytics */
+.glow-primary {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.3),
+              0 0 40px hsl(var(--primary) / 0.2);
+}
+.glow-success {
+  box-shadow: 0 0 20px hsl(var(--success) / 0.3),
+              0 0 40px hsl(var(--success) / 0.2);
+}
+.glow-chart-1 {
+  box-shadow: 0 0 20px hsl(var(--chart-1) / 0.4);
+}
+.glow-chart-2 {
+  box-shadow: 0 0 20px hsl(var(--chart-2) / 0.4);
+}
+
+/* Gradient text para títulos modernos */
+.gradient-text-primary {
+  background: linear-gradient(135deg, hsl(var(--chart-1)), hsl(var(--chart-3)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.gradient-text-success {
+  background: linear-gradient(135deg, hsl(var(--chart-2)), hsl(var(--chart-8)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Chart gradient backgrounds */
+.chart-gradient-1 {
+  background: linear-gradient(135deg, hsl(var(--chart-1) / 0.2), hsl(var(--chart-1) / 0.05));
+}
+.chart-gradient-2 {
+  background: linear-gradient(135deg, hsl(var(--chart-2) / 0.2), hsl(var(--chart-2) / 0.05));
+}
+.chart-gradient-3 {
+  background: linear-gradient(135deg, hsl(var(--chart-3) / 0.2), hsl(var(--chart-3) / 0.05));
 }

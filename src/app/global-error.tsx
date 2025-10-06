@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
+import { logError, isChunkLoadError, handleChunkLoadError } from '@/lib/error-handler'
 
 export default function GlobalError({
   error,
@@ -11,8 +12,15 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error('Global Error:', error)
+    // Log the error using our error handler
+    logError(error, {
+      errorBoundary: 'global-error',
+    })
+
+    // Handle chunk load errors specifically
+    if (isChunkLoadError(error)) {
+      handleChunkLoadError(error)
+    }
   }, [error])
 
   return (

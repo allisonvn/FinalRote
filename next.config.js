@@ -1,38 +1,83 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typedRoutes: true,
   typescript: {
     tsconfigPath: './tsconfig.json',
-    // Em produção, ignorar erros de types para não travar deployment
     ignoreBuildErrors: true,
   },
   eslint: {
     dirs: ['src'],
-    // Em produção, não falhar o build por erros de lint
     ignoreDuringBuilds: true,
   },
   images: {
     domains: ['localhost'],
   },
-  async headers() {
-    const headers = [
-      {
-        source: '/(.*)',
-        headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
-          // Em dev, evite "nosniff" para não interferir com chunks
-          // Será aplicado em produção pelo provedor de edge
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-        ],
+  // Configurações para resolver problemas de chunk loading
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      // Configuração otimizada para desenvolvimento
+      config.optimization = {
+        ...config.optimization,
+        runtimeChunk: false,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: {
+              minChunks: 1,
+              priority: -20,
+              reuseExistingChunk: true,
+            },
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              priority: -10,
+              chunks: 'all',
+            },
+          },
+        },
+      }
+      
+      // Configuração de timeout mais generosa
+      config.devServer = {
+        ...config.devServer,
+        hot: true,
+        liveReload: true,
+        client: {
+          overlay: {
+            errors: true,
+            warnings: false,
+          },
+        },
+      }
+    }
+
+    config.resolve = {
+      ...config.resolve,
+      fallback: {
+        ...config.resolve?.fallback,
+        fs: false,
+        net: false,
+        tls: false,
       },
-      {
-        source: '/_next/static/(.*)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
-    ]
-    return headers
+    }
+
+    // Configuração para melhor handling de chunks
+    config.output = {
+      ...config.output,
+      chunkLoadingGlobal: 'webpackChunkRotaFinal',
+    }
+
+    return config
+  },
+  // Configurações experimentais otimizadas
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts'],
+    // Melhorar estabilidade do desenvolvimento
+    webpackBuildWorker: false,
+  },
+  // Configurações de desenvolvimento
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-right',
   },
 }
 

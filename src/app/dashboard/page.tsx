@@ -663,6 +663,7 @@ export default function Dashboard() {
         description: exp.description,
         status: exp.status,
         type: exp.type,
+        test_type: exp.type || 'split_url', // ✅ CORREÇÃO: Mapear type para test_type
         created_at: exp.created_at,
         updated_at: exp.updated_at,
         project_id: exp.project_id,
@@ -1211,31 +1212,6 @@ ${baseCode}
         return
       }
 
-      // Utilitário simples para gerar chave slug
-      const toKey = (text: string) =>
-        (text || '')
-          .toLowerCase()
-          .trim()
-          .replace(/[^a-z0-9]+/g, '_')
-          .replace(/^_+|_+$/g, '')
-
-      // Obter projeto para vincular o experimento (obrigatório)
-      let projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
-      
-      // Se não há projeto, usar o projeto padrão conhecido
-      if (!projectId) {
-        projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Projeto Principal
-        console.warn('⚠️ Usando projeto padrão para o experimento:', projectId)
-      } else {
-        console.log('📋 Usando projeto selecionado:', projectId)
-      }
-      
-      // Validar se o projeto existe
-      if (projectId !== 'b302fac6-3255-4923-833b-5e71a11d5bfe') {
-        console.warn('⚠️ Projeto inválido detectado, usando projeto padrão')
-        projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe'
-      }
-
       // Verificar status de autenticação
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -1243,99 +1219,107 @@ ${baseCode}
         setSaving(false)
         return
       }
-      
-      console.log('👤 Usuário autenticado para criação:', user.id, user.email)
 
-      // Construir o objeto de inserção de forma limpa e direta
-      const experimentData = {
-        name: String(experimentForm.name || '').trim(),
-        project_id: String(projectId),
-        description: experimentForm.description || null,
-        type: 'redirect', // Tipo padrão
-        status: 'draft',
-        traffic_allocation: 100,
-        created_by: user.id
+      // Obter projeto para vincular o experimento (obrigatório)
+      let projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
+      
+      // Se não há projeto, usar o projeto padrão conhecido
+      if (!projectId) {
+        projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Projeto Principal
       }
 
-      // Validar dados antes de enviar
-      if (!experimentData.name || experimentData.name.length < 2) {
-        toast.error('Nome do experimento é obrigatório e deve ter pelo menos 2 caracteres')
-        setSaving(false)
-        return
-      }
-
-      console.log('=== DEBUG EXPERIMENT CREATION ===')
-      console.log('Dados para envio:', experimentData)
-      console.log('=== FIM DEBUG ===')
-      
-      // Criar experimento via API route
-      console.log('🚀 Criando experimento via API...')
-      
-      const response = await fetch('/api/experiments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(experimentData),
-        credentials: 'include'
+      console.log('🚀 Criando experimento com nova lógica...')
+      console.log('📋 Dados do formulário:', {
+        name: experimentForm.name,
+        targetUrl: experimentForm.targetUrl,
+        variants: experimentForm.variants,
+        conversionUrl: experimentForm.conversionUrl,
+        conversionValue: experimentForm.conversionValue
       })
 
-      const result = await response.json()
+      // ============================
+      // NOVA LÓGICA: Usar hook useSupabaseExperiments
+      // ============================
+      const experimentData = {
+        name: String(experimentForm.name || '').trim(),
+        description: experimentForm.description || undefined,
+        project_id: String(projectId),
+        algorithm: experimentForm.algorithm || 'thompson_sampling',
+        traffic_allocation: experimentForm.trafficAllocation || 100,
+        target_url: experimentForm.targetUrl?.trim(), // ✅ URL da Página 1 (original)
+        conversion_type: experimentForm.conversionType || 'page_view',
+        conversion_url: experimentForm.conversionUrl?.trim(),
+        conversion_value: experimentForm.conversionValue || 0,
+        conversion_selector: experimentForm.conversionSelector?.trim()
+      }
 
-      if (!response.ok) {
-        console.error('❌ Erro ao criar experimento:', result)
-        toast.error('Erro ao criar experimento: ' + result.error)
+      console.log('📤 Chamando createExperiment via hook...')
+      const newExperiment = await createExperiment(experimentData)
+
+      if (!newExperiment) {
+        toast.error('Erro ao criar experimento')
         setSaving(false)
         return
       }
 
-      const newExperiment = result.experiment
-      console.log('✅ Experimento criado via API:', newExperiment)
+      console.log('✅ Experimento criado:', newExperiment)
+
+      // ============================
+      // ATUALIZAR VARIANTES COM AS URLs CONFIGURADAS
+      // ============================
+      console.log('📝 Atualizando variantes com URLs configuradas...')
       
-      // Criar variantes padrão
-      const defaultVariants = [
-        { name: 'Controle', key: 'A', is_control: true, traffic_percentage: 50 },
-        { name: 'Variante B', key: 'B', is_control: false, traffic_percentage: 50 }
-      ]
+      // Buscar as variantes criadas automaticamente pelo hook
+      const { data: createdVariants, error: variantsError } = await supabase
+        .from('variants')
+        .select('*')
+        .eq('experiment_id', newExperiment.id)
+        .order('is_control', { ascending: false }) // Controle primeiro
 
-      // Criar variantes padrão via API (por enquanto, vamos pular isso)
-      // TODO: Criar API para variantes
-      console.log('📝 Variantes padrão serão criadas:', defaultVariants)
+      if (variantsError) {
+        console.error('❌ Erro ao buscar variantes:', variantsError)
+      } else {
+        console.log('📋 Variantes encontradas:', createdVariants)
 
-      // Formatar experimento para o frontend
-      const formattedExperiment = {
-        id: newExperiment.id,
-        name: newExperiment.name,
-        description: newExperiment.description,
-        status: newExperiment.status,
-        created_at: newExperiment.created_at,
-        project_id: newExperiment.project_id,
-        algorithm: newExperiment.mab_config?.algorithm || 'thompson_sampling',
-        traffic_allocation: newExperiment.traffic_allocation,
-        variants: (newExperiment.variants || []).map((v: any) => ({
-          id: v.id,
-          name: v.name,
-          key: v.name?.toLowerCase().replace(/\s+/g, '-') || 'variant',
-          is_control: v.is_control,
-          traffic_percentage: v.traffic_percentage || 50
-        }))
+        // Atualizar cada variante com os dados do formulário
+        for (let i = 0; i < createdVariants.length && i < experimentForm.variants.length; i++) {
+          const dbVariant = createdVariants[i]
+          const formVariant = experimentForm.variants[i]
+
+          const updateData = {
+            name: formVariant.name || dbVariant.name,
+            description: formVariant.description || dbVariant.description,
+            redirect_url: formVariant.isControl 
+              ? experimentForm.targetUrl?.trim() // ✅ Controle usa a URL da Etapa 1
+              : formVariant.url?.trim() // ✅ Outras variantes usam suas próprias URLs
+          }
+
+          console.log(`📝 Atualizando variante ${dbVariant.id}:`, updateData)
+
+          const { error: updateError } = await supabase
+            .from('variants')
+            .update(updateData)
+            .eq('id', dbVariant.id)
+
+          if (updateError) {
+            console.error(`❌ Erro ao atualizar variante ${dbVariant.id}:`, updateError)
+          } else {
+            console.log(`✅ Variante ${dbVariant.id} atualizada com sucesso`)
+          }
+        }
       }
 
-      // Adicionar à lista de experimentos no frontend
-      setExperiments(prev => [formattedExperiment, ...prev])
-      
-      toast.success(`Experimento "${newExperiment.name}" criado com sucesso!`)
+      toast.success(`✅ Experimento "${newExperiment.name}" criado com sucesso!`)
       setShowNew(false)
       setExperimentStep(1)
-      // Abrir o painel já na aba de código para facilitar a instalação no site
-      setSelectedExperiment(formattedExperiment as any)
-      setDrawerTab('code')
-      setDrawerOpen(true)
       
-      console.log('🎉 Experimento criado e adicionado à lista!')
+      // Recarregar lista de experimentos
+      await loadExperiments()
+      
+      console.log('🎉 Experimento criado e salvo no Supabase!')
       
     } catch (error) {
-      console.error('Erro geral ao criar experimento:', error)
+      console.error('❌ Erro geral ao criar experimento:', error)
       toast.error('Erro inesperado ao criar experimento')
     } finally {
       setSaving(false)
@@ -3467,13 +3451,13 @@ ${baseCode}
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
           <Globe className="w-8 h-8 text-blue-500" />
         </div>
-        <h3 className="text-2xl font-bold mb-2">Configuração do Teste</h3>
-        <p className="text-muted-foreground">Configure a URL da página original (variante de controle)</p>
+        <h3 className="text-2xl font-bold mb-2">Etapa 1: Página Original</h3>
+        <p className="text-muted-foreground">Configure a URL da página que receberá o tráfego (esta será a Página 1 do teste)</p>
       </div>
 
           <div className="space-y-4">
             <div>
-          <label className="text-sm font-medium text-foreground">URL da Página Original (Controle) *</label>
+          <label className="text-sm font-medium text-foreground">URL da Página Original (Página 1) *</label>
               <Input 
             ref={step2UrlRef}
             value={experimentForm.targetUrl}
@@ -3481,7 +3465,7 @@ ${baseCode}
             placeholder="https://seusite.com/pagina-original"
             className="mt-1.5"
           />
-          <p className="text-xs text-muted-foreground mt-1">⚠️ Esta é a URL da versão ORIGINAL que será testada contra as variantes. Ela será automaticamente configurada como variante de controle.</p>
+          <p className="text-xs text-muted-foreground mt-1">🎯 Esta é a <strong>Página 1</strong> do seu teste A/B. Ela competirá com as outras variantes que você configurar na próxima etapa.</p>
             </div>
             
             <div>
@@ -3582,8 +3566,8 @@ ${baseCode}
         <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-green-500/20">
           <Shuffle className="w-8 h-8 text-green-500" />
         </div>
-        <h3 className="text-2xl font-bold mb-2">Variantes Alternativas</h3>
-        <p className="text-muted-foreground">Configure as versões ALTERNATIVAS que vão concorrer com a página original</p>
+        <h3 className="text-2xl font-bold mb-2">Etapa 2: Outras Variantes</h3>
+        <p className="text-muted-foreground">Configure os links das OUTRAS páginas que vão competir com a página configurada na Etapa 1</p>
       </div>
 
       <div className="space-y-4">
@@ -3645,13 +3629,20 @@ ${baseCode}
             />
 
             {experimentForm.testType === 'split_url' && (
-              <Input
-                value={variant.url}
-                onChange={(e) => updateVariant(index, 'url', e.target.value)}
-                placeholder={variant.isControl ? experimentForm.targetUrl : "https://seusite.com/variante-a"}
-                className="text-sm"
-                disabled={variant.isControl}
-              />
+              <div>
+                <Input
+                  value={variant.isControl ? experimentForm.targetUrl : variant.url}
+                  onChange={(e) => updateVariant(index, 'url', e.target.value)}
+                  placeholder={variant.isControl ? experimentForm.targetUrl : "https://seusite.com/variante-b"}
+                  className="text-sm"
+                  disabled={variant.isControl}
+                />
+                {variant.isControl && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ✅ Esta é a Página 1 (configurada na Etapa 1). Ela competirá com as outras variantes.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         ))}
@@ -3668,13 +3659,16 @@ ${baseCode}
           </Button>
         )}
 
-        <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
+        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-green-500 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-green-600 mt-0.5" />
             <div>
-              <p className="text-sm font-medium mb-1">Configuração das Variantes</p>
-              <p className="text-xs text-muted-foreground">
-                A variante de controle representa a versão atual. As outras variantes serão as novas versões a testar. O tráfego será distribuído igualmente entre todas as variantes.
+              <p className="text-sm font-medium text-green-900 mb-1">Como funciona</p>
+              <p className="text-xs text-green-700">
+                ✅ <strong>Página 1</strong> (da Etapa 1) competirá com todas as variantes cadastradas aqui.<br/>
+                ✅ Cada variante deve ter uma URL diferente.<br/>
+                ✅ O tráfego será distribuído automaticamente entre TODAS as páginas (incluindo a Página 1).<br/>
+                ✅ O sistema rastreará qual página gerou cada conversão.
               </p>
             </div>
           </div>
@@ -3689,8 +3683,8 @@ ${baseCode}
         <div className="w-16 h-16 bg-gradient-to-br from-orange-500/20 to-orange-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-orange-500/20">
           <TrendingUp className="w-8 h-8 text-orange-500" />
         </div>
-        <h3 className="text-2xl font-bold mb-2">Metas & Conversão</h3>
-        <p className="text-muted-foreground">Configure o objetivo do teste e como medir o sucesso</p>
+        <h3 className="text-2xl font-bold mb-2">Etapa 3: Página de Sucesso</h3>
+        <p className="text-muted-foreground">Configure a URL da página de sucesso e o valor da conversão</p>
       </div>
 
       <div className="space-y-6">
@@ -3717,10 +3711,11 @@ ${baseCode}
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
           <h4 className="font-semibold text-green-900 mb-4 flex items-center gap-2">
             <Flag className="w-5 h-5" />
-            Como Medir a Conversão (Página de Sucesso)
+            URL da Página de Sucesso
           </h4>
           <p className="text-sm text-green-700 mb-4">
-            ✅ Configure quando e como registrar uma conversão. O sistema salvará automaticamente de qual variante veio cada conversão.
+            ✅ Sempre que houver uma visita nesta página, o sistema contará uma conversão para a página que originou o acesso.<br/>
+            ✅ Tudo será registrado automaticamente no Supabase, incluindo qual variante gerou a conversão.
           </p>
           
           <div className="space-y-4">
@@ -3784,10 +3779,11 @@ ${baseCode}
                   className="mt-2 border-green-200 focus:border-green-500"
                 />
                 <p className="text-xs text-green-700 mt-1">
-                  🎯 Quando esta página for acessada, o sistema registrará automaticamente: 
-                  <br/>• Que houve uma conversão
-                  <br/>• De qual variante (página) veio a conversão
-                  <br/>• O valor da conversão configurado abaixo
+                  🎯 <strong>Rastreamento Inteligente de Conversões:</strong>
+                  <br/>• Toda visita nesta página contará como conversão
+                  <br/>• O sistema registrará automaticamente qual página (variante) originou a conversão
+                  <br/>• O valor da conversão (configurado abaixo) será associado à variante vencedora
+                  <br/>• Tudo fica salvo no Supabase para análise posterior
                 </p>
               </div>
             )}

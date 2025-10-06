@@ -183,7 +183,7 @@ export function useSupabaseExperiments() {
 
       const experimentApiKey = generateApiKey()
 
-      // Inserir experimento COM API key e target_url
+      // Inserir experimento COM API key, target_url, conversão e tipo
       const { data: newExp, error: insertError } = await supabase
         .from('experiments')
         .insert({
@@ -194,7 +194,11 @@ export function useSupabaseExperiments() {
           traffic_allocation: safeTrafficAllocation(data.traffic_allocation, 100),
           status: 'draft',
           api_key: experimentApiKey,  // ✅ API key única para o experimento
-          target_url: data.target_url?.trim() || null  // ✅ Salvar URL da página original
+          target_url: data.target_url?.trim() || null,  // ✅ Salvar URL da página original
+          conversion_url: data.conversion_url?.trim() || null,  // ✅ Salvar URL da página de sucesso
+          conversion_value: data.conversion_value || 0,  // ✅ Salvar valor da conversão
+          conversion_type: data.conversion_type || 'page_view',  // ✅ Salvar tipo de conversão
+          type: 'split_url'  // ✅ CORREÇÃO: Definir tipo como split_url para permitir configuração de URLs
         })
         .select()
         .single()

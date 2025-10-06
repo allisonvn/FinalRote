@@ -3,8 +3,7 @@ import type { ReactNode } from 'react'
 import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
-import { AppProvider } from '@/providers/app-provider'
-import { ToastContainer } from '@/components/ui/toast'
+import { ClientWrapper } from '@/components/client-wrapper'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,7 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
-        <AppProvider>
+        <ClientWrapper>
           {/* Background layers */}
           <div className="fixed inset-0 -z-10">
             <div className="absolute inset-0 bg-grid-slate [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
@@ -29,8 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
           {/* Global UI helpers */}
           <Toaster richColors position="top-right" />
-          <ToastContainer />
-        </AppProvider>
+        </ClientWrapper>
       </body>
     </html>
   )
