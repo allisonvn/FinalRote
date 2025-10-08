@@ -11,6 +11,10 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  // Desabilitar todo o cache
+  generateBuildId: async () => {
+    return Date.now().toString()
+  },
   // Configurações para resolver problemas de chunk loading
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {
