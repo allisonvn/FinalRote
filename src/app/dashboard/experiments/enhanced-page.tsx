@@ -124,7 +124,7 @@ export default function EnhancedExperimentsPage() {
         const { data, error } = await supabase
           .from('experiments')
           .select('*, variants:variants(*)')
-          .eq('created_by', user.id)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
         if (error) throw error
 

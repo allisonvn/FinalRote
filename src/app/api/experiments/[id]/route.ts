@@ -136,6 +136,7 @@ export async function PATCH(
       .select(`
         id, 
         user_id, 
+        status,
         project_id,
         projects(
           id,
@@ -173,10 +174,26 @@ export async function PATCH(
       )
     }
 
+    // Preparar dados de atualização com lógica de started_at e ended_at
+    const updateData: any = { ...data }
+    
+    // Se está mudando o status para 'running' e o experimento não estava rodando
+    if (data.status === 'running' && experiment.status !== 'running') {
+      updateData.started_at = new Date().toISOString()
+    }
+    
+    // Se está pausando ou completando um experimento que estava rodando
+    if ((data.status === 'paused' || data.status === 'completed') && experiment.status === 'running') {
+      updateData.ended_at = new Date().toISOString()
+    }
+    
+    // Sempre atualizar updated_at
+    updateData.updated_at = new Date().toISOString()
+
     // Atualizar experimento usando o client do usuário autenticado
     const { data: updatedExperiment, error: updateError } = await supabase
       .from('experiments')
-      .update(data)
+      .update(updateData)
       .eq('id', experimentId)
       .select()
       .single()

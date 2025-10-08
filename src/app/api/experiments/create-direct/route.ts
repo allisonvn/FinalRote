@@ -38,6 +38,13 @@ export async function POST(request: NextRequest) {
     const trafficAllocation = safeTrafficAllocation(data.traffic_allocation, 100)
     const createdBy = user.id
     const userId = user.id
+    
+    // Processar novos campos
+    const algorithm = data.algorithm || 'uniform'
+    const targetUrl = data.target_url || null
+    const conversionUrl = data.conversion_url || null
+    const conversionValue = data.conversion_value ? Math.max(Number(data.conversion_value) || 0, 0) : 0
+    const conversionType = data.conversion_type || 'page_view'
 
     console.log('Tentando inserir experimento via SQL direto:', {
       experimentName,
@@ -47,18 +54,32 @@ export async function POST(request: NextRequest) {
       status,
       trafficAllocation,
       createdBy,
-      userId
+      userId,
+      algorithm,
+      targetUrl,
+      conversionUrl,
+      conversionValue,
+      conversionType
     })
 
-    // Tentar insert simples apenas com campos básicos que sabemos que funcionam
+    // Inserir com todos os campos de uma vez
     const { data: experimentResult, error: experimentError } = await (userClient as any)
       .from('experiments')
       .insert({
         name: experimentName,
         project_id: projectId,
-        description: description
+        description: description,
+        type: experimentType,
+        status: status,
+        traffic_allocation: trafficAllocation,
+        user_id: userId,
+        algorithm: algorithm,
+        target_url: targetUrl,
+        conversion_url: conversionUrl,
+        conversion_value: conversionValue,
+        conversion_type: conversionType
       })
-      .select('id, name, project_id, description, created_at')
+      .select('id, name, project_id, description, type, status, traffic_allocation, user_id, algorithm, target_url, conversion_url, conversion_value, conversion_type, created_at')
       .single()
 
     if (experimentError) {
@@ -69,38 +90,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Agora tentar atualizar com os outros campos (evitando problemas de cache na inserção)
-    let updatedExperiment = experimentResult
-    
-    try {
-      const { data: updateResult, error: updateError } = await (userClient as any)
-        .from('experiments')
-        .update({
-          created_by: createdBy,
-          user_id: userId,
-          traffic_allocation: trafficAllocation
-        })
-        .eq('id', experimentResult.id)
-        .select('id, name, project_id, description, created_at, created_by, user_id, traffic_allocation')
-        .single()
-
-      if (!updateError && updateResult) {
-        updatedExperiment = updateResult
-      } else {
-        console.log('Update falhou, usando dados básicos:', updateError?.message)
-      }
-    } catch (updateErr) {
-      console.log('Erro no update, continuando com dados básicos:', updateErr)
-    }
-
-    // Construir resposta com valores padrão
+    // Usar resultado direto sem necessidade de update
     const experiment = {
-      ...updatedExperiment,
-      type: experimentType,
-      status: status,
-      traffic_allocation: updatedExperiment.traffic_allocation || trafficAllocation,
-      created_by: updatedExperiment.created_by || createdBy,
-      user_id: updatedExperiment.user_id || userId,
+      ...experimentResult,
       updated_at: new Date().toISOString()
     }
 
@@ -128,7 +120,7 @@ export async function POST(request: NextRequest) {
             changes: {},
             css_changes: null,
             js_changes: null,
-            created_by: createdBy,
+            user_id: createdBy,
             visitors: 0,
             conversions: 0,
             conversion_rate: 0.0000,
@@ -144,7 +136,7 @@ export async function POST(request: NextRequest) {
             changes: {},
             css_changes: null,
             js_changes: null,
-            created_by: createdBy,
+            user_id: createdBy,
             visitors: 0,
             conversions: 0,
             conversion_rate: 0.0000,

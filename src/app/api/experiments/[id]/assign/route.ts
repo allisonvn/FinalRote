@@ -93,8 +93,16 @@ export async function POST(
         ? existingAssignment.variant[0] 
         : existingAssignment.variant
       console.log('✅ [DEBUG] Returning existing assignment:', variantData?.name)
+      
+      // Selecionar URL específica se tem múltiplas páginas
+      const finalUrl = selectPageForVariant(variantData, visitorId)
+      
       return NextResponse.json({
-        variant: existingAssignment.variant,
+        variant: {
+          ...variantData,
+          final_url: finalUrl,
+          has_multiple_pages: !!variantData.changes?.multipage
+        },
         assignment: 'existing',
         assigned_at: existingAssignment.assigned_at
       }, {
@@ -281,9 +289,16 @@ export async function POST(
       console.error('⚠️ [WARNING] Error updating variant stats:', statsUpdateError)
     }
 
-    // 8. Retornar variante selecionada
+    // 8. Selecionar URL específica se variante tem múltiplas páginas
+    const finalUrl = selectPageForVariant(selectedVariant, visitorId)
+    
+    // 9. Retornar variante selecionada com URL final
     return NextResponse.json({
-      variant: selectedVariant,
+      variant: {
+        ...selectedVariant,
+        final_url: finalUrl, // URL final selecionada (pode ser diferente de redirect_url se multipage)
+        has_multiple_pages: !!selectedVariant.changes?.multipage
+      },
       assignment: 'new',
       algorithm: algorithmUsed,
       mab_enabled: useMAB,
@@ -355,4 +370,71 @@ function hashCode(str: string): number {
     hash = hash & hash // Convert to 32bit integer
   }
   return Math.abs(hash)
+}
+
+/**
+ * Seleciona uma página específica quando a variante tem múltiplas URLs
+ * Suporta diferentes modos de seleção: random, weighted, sequential
+ */
+function selectPageForVariant(
+  variant: {
+    redirect_url: string | null
+    changes: any
+  },
+  visitorId: string
+): string {
+  // Se não tem múltiplas páginas, retornar redirect_url padrão
+  if (!variant.changes?.multipage || !variant.changes?.pages || variant.changes.pages.length === 0) {
+    return variant.redirect_url || ''
+  }
+
+  const pages = variant.changes.pages.filter((p: any) => p.active !== false)
+  
+  if (pages.length === 0) {
+    return variant.redirect_url || ''
+  }
+
+  if (pages.length === 1) {
+    return pages[0].url
+  }
+
+  const mode = variant.changes.selection_mode || 'random'
+
+  // Modo Random: Seleção aleatória determinística (baseada em hash do visitor_id)
+  if (mode === 'random') {
+    const hash = hashCode(visitorId + 'page_selection')
+    const index = hash % pages.length
+    console.log('🎲 [DEBUG] Random page selection - Index:', index, 'of', pages.length)
+    return pages[index].url
+  }
+
+  // Modo Weighted: Seleção ponderada por peso
+  if (mode === 'weighted') {
+    const totalWeight = pages.reduce((sum: number, p: any) => sum + (p.weight || 1), 0)
+    const hash = hashCode(visitorId + 'page_selection')
+    let random = (hash % 10000) / 10000 * totalWeight // 0 a totalWeight
+    
+    for (const page of pages) {
+      random -= (page.weight || 1)
+      if (random <= 0) {
+        console.log('⚖️ [DEBUG] Weighted page selection:', page.url, 'Weight:', page.weight)
+        return page.url
+      }
+    }
+    
+    // Fallback
+    return pages[0].url
+  }
+
+  // Modo Sequential: Retorna páginas em sequência baseado em hash
+  if (mode === 'sequential') {
+    const hash = hashCode(visitorId + 'page_selection')
+    const index = hash % pages.length
+    console.log('📊 [DEBUG] Sequential page selection - Index:', index)
+    return pages[index].url
+  }
+
+  // Fallback padrão
+  console.log('⚠️ [WARNING] Unknown selection mode:', mode, '- using first page')
+  return pages[0].url
 }

@@ -1149,12 +1149,12 @@ ${baseCode}
   }
   
   const addVariant = () => {
-    if (experimentForm.variants.length >= 5) {
-      toast.error('Máximo de 5 variantes permitidas')
-      return
-    }
+    // Removida limitação de máximo de variantes - agora aceita quantas o usuário quiser
+    const variantIndex = experimentForm.variants.length - 1
+    const letter = variantIndex < 26 
+      ? String.fromCharCode(65 + variantIndex) 
+      : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
     
-    const letter = String.fromCharCode(65 + experimentForm.variants.length - 1)
     const newVariant = {
       name: `Variante ${letter}`,
       description: '',
@@ -1365,16 +1365,22 @@ ${baseCode}
           .replace(/[^a-z0-9]+/g, '_')
           .replace(/^_+|_+$/g, '')
 
-      // Prepare experiment data (aligned with DB schema)
+      // Prepare experiment data (aligned with DB schema) - TODOS OS CAMPOS DO MODAL
       const experimentData = {
         name: String(formData.name || '').trim(),
         project_id: String(projectId),
         description: formData.description || null,
         status: 'draft' as const,
-        traffic_allocation: safeTrafficAllocation(formData.trafficAllocation, 100)
+        type: formData.testType === 'split_url' ? 'split_url' : 'element',
+        traffic_allocation: safeTrafficAllocation(formData.trafficAllocation, 100),
+        algorithm: formData.algorithm || 'thompson_sampling',
+        target_url: formData.targetUrl || null,
+        conversion_url: formData.goalValue || null,
+        conversion_value: formData.conversionValue || 0,
+        conversion_type: formData.goalType || 'page_view'
       }
 
-      console.log('📋 Creating experiment with data:', experimentData)
+      console.log('📋 Creating experiment with ALL FIELDS from modal:', experimentData)
 
       // Validate data types
       console.log('🔍 Data validation:', {
@@ -1383,10 +1389,15 @@ ${baseCode}
         traffic_allocation_type: typeof experimentData.traffic_allocation,
         traffic_allocation_value: experimentData.traffic_allocation,
         algorithm_type: typeof experimentData.algorithm,
-        algorithm_value: experimentData.algorithm
+        algorithm_value: experimentData.algorithm,
+        type: experimentData.type,
+        target_url: experimentData.target_url,
+        conversion_url: experimentData.conversion_url,
+        conversion_value: experimentData.conversion_value,
+        conversion_type: experimentData.conversion_type
       })
 
-      // Create experiment via API (server handles validation and schema)
+      // Create experiment via API (server handles validation and schema) - ENVIANDO TODOS OS CAMPOS
       const apiResponse = await fetch('/api/experiments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1394,7 +1405,14 @@ ${baseCode}
           name: experimentData.name,
           project_id: experimentData.project_id,
           description: experimentData.description,
-          traffic_allocation: experimentData.traffic_allocation
+          type: experimentData.type,
+          traffic_allocation: experimentData.traffic_allocation,
+          algorithm: experimentData.algorithm,
+          target_url: experimentData.target_url,
+          conversion_url: experimentData.conversion_url,
+          conversion_value: experimentData.conversion_value,
+          conversion_type: experimentData.conversion_type,
+          status: experimentData.status
         }),
         credentials: 'include'
       })
@@ -1408,8 +1426,50 @@ ${baseCode}
       const experiment = apiResult.experiment
       console.log('✅ Experiment created:', experiment.id)
 
-      // As variantes já foram criadas pela API do servidor
-      console.log('✅ Variants already created by server API for experiment:', experiment.id)
+      // Deletar variantes padrão criadas pela API e criar as variantes do modal
+      if (formData.variants && formData.variants.length > 0) {
+        console.log('🔄 Deleting default variants and creating custom variants from modal...')
+        
+        // Deletar variantes padrão
+        const { error: deleteError } = await supabase
+          .from('variants')
+          .delete()
+          .eq('experiment_id', experiment.id)
+        
+        if (deleteError) {
+          console.error('⚠️ Error deleting default variants:', deleteError)
+        }
+
+        // Criar variantes customizadas do modal
+        const variantsToCreate = formData.variants.map((variant: any, index: number) => ({
+          experiment_id: experiment.id,
+          name: variant.name || `Variante ${index}`,
+          description: variant.description || null,
+          is_control: variant.isControl || false,
+          traffic_percentage: 100 / formData.variants.length, // Distribuir igualmente
+          redirect_url: variant.url || (variant.isControl ? formData.targetUrl : null),
+          changes: {},
+          css_changes: null,
+          js_changes: null,
+          user_id: user.id,
+          visitors: 0,
+          conversions: 0,
+          conversion_rate: 0,
+          is_active: true
+        }))
+
+        const { data: createdVariants, error: variantsError } = await supabase
+          .from('variants')
+          .insert(variantsToCreate)
+          .select()
+
+        if (variantsError) {
+          console.error('❌ Error creating variants:', variantsError)
+          toast.error('Erro ao criar variantes')
+        } else {
+          console.log('✅ Custom variants created:', createdVariants?.length)
+        }
+      }
 
       // Create goal (aligned with schema)
       if (formData.primaryGoal) {
@@ -1664,8 +1724,8 @@ ${baseCode}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Variantes</label>
-                  <input type="number" min={1} max={5} className="mt-1 w-full h-10 rounded-md border bg-background px-3 text-sm" value={newForm.variants} onChange={(e) => setNewForm(f => ({ ...f, variants: Number(e.target.value) }))} />
-                  <p className="text-xs text-muted-foreground mt-1">A primeira variante será o controle</p>
+                  <input type="number" min={1} className="mt-1 w-full h-10 rounded-md border bg-background px-3 text-sm" value={newForm.variants} onChange={(e) => setNewForm(f => ({ ...f, variants: Number(e.target.value) }))} />
+                  <p className="text-xs text-muted-foreground mt-1">Adicione quantas variantes quiser. A primeira será o controle</p>
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-2">
@@ -3182,16 +3242,24 @@ ${baseCode}
                       setSelectedExperiment(se => {
                         if (!se) return se
                         const count = se.variants?.length || 0
-                        if (count >= 6) { toast.error('Máximo de 6 variantes'); return se }
-                        const nextName = `Variante ${String.fromCharCode(65 + count - 1)}`
+                        // Removida limitação - agora aceita quantas variantes o usuário quiser
+                        const variantIndex = count - 1
+                        const nextLetter = variantIndex < 26 
+                          ? String.fromCharCode(65 + variantIndex)
+                          : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
+                        const nextName = `Variante ${nextLetter}`
                         const newVar: Variant = { id: `v-${Date.now()}`, name: nextName, key: nextName.toLowerCase().replace(/\s+/g, '-'), is_control: false, url: '' }
                         return { ...se, variants: [...(se.variants||[]), newVar] }
                       })
                       setExperiments(prev => prev.map(ex => {
                         if (ex.id !== exp.id) return ex
                         const count = ex.variants?.length || 0
-                        if (count >= 6) return ex
-                        const nextName = `Variante ${String.fromCharCode(65 + count - 1)}`
+                        // Removida limitação - agora aceita quantas variantes o usuário quiser
+                        const variantIndex = count - 1
+                        const nextLetter = variantIndex < 26 
+                          ? String.fromCharCode(65 + variantIndex)
+                          : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
+                        const nextName = `Variante ${nextLetter}`
                         const newVar: Variant = { id: `v-${Date.now()}`, name: nextName, key: nextName.toLowerCase().replace(/\s+/g, '-'), is_control: false, url: '' }
                         return { ...ex, variants: [...(ex.variants||[]), newVar] }
                       }))

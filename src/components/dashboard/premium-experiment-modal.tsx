@@ -171,9 +171,12 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
   }
 
   const addVariant = () => {
-    if (formData.variants.length >= 4) return
-
-    const letter = String.fromCharCode(65 + formData.variants.length - 1)
+    // Removida limitação - agora aceita quantas variantes o usuário quiser
+    const variantIndex = formData.variants.length - 1
+    const letter = variantIndex < 26 
+      ? String.fromCharCode(65 + variantIndex)
+      : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
+    
     const newVariant = {
       name: `Variante ${letter}`,
       description: '',
@@ -593,10 +596,10 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
                 </div>
               ))}
 
-              {formData.variants.length < 4 && (
-                <button
-                  type="button"
-                  onClick={addVariant}
+              {/* Removida limitação de 4 variantes */}
+              <button
+                type="button"
+                onClick={addVariant}
                   className="w-full p-6 border-2 border-dashed border-purple-300 rounded-3xl hover:border-purple-400 hover:bg-purple-50 text-purple-600 transition-all duration-300 hover:scale-[1.01] group"
                 >
                   <div className="flex items-center justify-center gap-3">
@@ -605,11 +608,10 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
                     </div>
                     <div className="text-left">
                       <h4 className="font-bold text-lg">Adicionar Variante</h4>
-                      <p className="text-sm text-purple-500">Teste até 4 versões diferentes</p>
+                      <p className="text-sm text-purple-500">Adicione quantas variantes quiser</p>
                     </div>
                   </div>
                 </button>
-              )}
             </div>
 
             {formData.testType === 'split_url' && (

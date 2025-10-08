@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste - Sistema de Múltiplas URLs</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      background: #f5f5f5;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1a1a1a;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+    .section {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: #f9f9f9;
+      border-radius: 6px;
+      border-left: 4px solid #3b82f6;
+    }
+    .section h2 {
+      color: #1a1a1a;
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #1a1a1a;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.95rem;
+    }
+    textarea {
+      font-family: monospace;
+      min-height: 120px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .result pre {
+      background: #f1f5f9;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+    }
+    .success {
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+    .error {
+      background: #fee2e2;
+      border-color: #fca5a5;
+    }
+    .url-list {
+      margin-top: 0.5rem;
+    }
+    .url-item {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      align-items: center;
+    }
+    .url-item input {
+      flex: 1;
+    }
+    .url-item button {
+      padding: 0.5rem 1rem;
+      background: #ef4444;
+    }
+    .add-url {
+      background: #10b981;
+      margin-top: 0.5rem;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .stat-card {
+      padding: 1rem;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #e5e7eb;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #3b82f6;
+    }
+    .stat-label {
+      color: #666;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Teste - Sistema de Múltiplas URLs</h1>
+    <p class="subtitle">Teste o suporte para múltiplas URLs em variantes de testes A/B</p>
+
+    <!-- Seção 1: Criar Variante com Múltiplas URLs -->
+    <div class="section">
+      <h2>1️⃣ Criar Variante com Múltiplas URLs</h2>
+      
+      <div class="form-group">
+        <label>ID do Experimento:</label>
+        <input type="text" id="experimentId" placeholder="cole o ID do experimento aqui">
+      </div>
+
+      <div class="form-group">
+        <label>Nome da Variante:</label>
+        <input type="text" id="variantName" value="Teste Múltiplas URLs">
+      </div>
+
+      <div class="form-group">
+        <label>Modo de Seleção:</label>
+        <select id="selectionMode">
+          <option value="random">🎲 Aleatório (Distribuição uniforme)</option>
+          <option value="weighted">⚖️ Ponderado (Baseado em pesos)</option>
+          <option value="sequential">📊 Sequencial (Rotação)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>URLs (uma por linha):</label>
+        <textarea id="urlsList" placeholder="https://exemplo.com/pagina-1&#10;https://exemplo.com/pagina-2&#10;https://exemplo.com/pagina-3"></textarea>
+      </div>
+
+      <button onclick="createVariant()">Criar Variante</button>
+      
+      <div id="createResult" class="result" style="display:none;">
+        <strong>Resultado:</strong>
+        <pre id="createOutput"></pre>
+      </div>
+    </div>
+
+    <!-- Seção 2: Atribuir Visitante e Ver URL -->
+    <div class="section">
+      <h2>2️⃣ Atribuir Visitante e Obter URL Final</h2>
+      
+      <div class="form-group">
+        <label>ID do Experimento:</label>
+        <input type="text" id="assignExperimentId" placeholder="mesmo ID usado acima">
+      </div>
+
+      <div class="form-group">
+        <label>Visitor ID:</label>
+        <input type="text" id="visitorId" value="test_visitor_123">
+      </div>
+
+      <button onclick="assignVisitor()">Atribuir Visitante</button>
+      
+      <div id="assignResult" class="result" style="display:none;">
+        <strong>Variante Atribuída:</strong>
+        <pre id="assignOutput"></pre>
+      </div>
+    </div>
+
+    <!-- Seção 3: Teste de Consistência -->
+    <div class="section">
+      <h2>3️⃣ Teste de Consistência (5 Atribuições)</h2>
+      
+      <p style="margin-bottom: 1rem; color: #666;">
+        Testa se o mesmo visitante sempre recebe a mesma URL
+      </p>
+
+      <button onclick="testConsistency()">Executar Teste de Consistência</button>
+      
+      <div id="consistencyResult" class="result" style="display:none;">
+        <strong>Resultados:</strong>
+        <pre id="consistencyOutput"></pre>
+      </div>
+    </div>
+
+    <!-- Seção 4: Teste de Distribuição -->
+    <div class="section">
+      <h2>4️⃣ Teste de Distribuição (100 Visitantes)</h2>
+      
+      <p style="margin-bottom: 1rem; color: #666;">
+        Simula 100 visitantes diferentes e mostra a distribuição de URLs
+      </p>
+
+      <button onclick="testDistribution()">Executar Teste de Distribuição</button>
+      
+      <div id="distributionStats" class="stats" style="display:none;"></div>
+      
+      <div id="distributionResult" class="result" style="display:none;">
+        <strong>Detalhes:</strong>
+        <pre id="distributionOutput"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin
+
+    async function createVariant() {
+      const experimentId = document.getElementById('experimentId').value
+      const variantName = document.getElementById('variantName').value
+      const selectionMode = document.getElementById('selectionMode').value
+      const urlsText = document.getElementById('urlsList').value
+      
+      if (!experimentId || !urlsText) {
+        alert('Preencha todos os campos!')
+        return
+      }
+
+      const urls = urlsText.split('\n').filter(u => u.trim()).map(u => u.trim())
+      
+      if (urls.length === 0) {
+        alert('Adicione pelo menos uma URL!')
+        return
+      }
+
+      const resultDiv = document.getElementById('createResult')
+      const outputPre = document.getElementById('createOutput')
+      
+      try {
+        outputPre.textContent = 'Criando variante...'
+        resultDiv.style.display = 'block'
+        resultDiv.className = 'result'
+
+        const response = await fetch(`${API_BASE}/api/experiments/${experimentId}/variants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            variants: [{
+              name: variantName,
+              description: `Teste com ${urls.length} URLs`,
+              is_control: false,
+              traffic_percentage: 100,
+              urls: urls,
+              selection_mode: selectionMode
+            }]
+          })
+        })
+
+        const data = await response.json()
+        
+        if (response.ok) {
+          resultDiv.className = 'result success'
+          outputPre.textContent = JSON.stringify(data, null, 2)
+        } else {
+          resultDiv.className = 'result error'
+          outputPre.textContent = `Erro: ${JSON.stringify(data, null, 2)}`
+        }
+      } catch (error) {
+        resultDiv.className = 'result error'
+        outputPre.textContent = `Erro: ${error.message}`
+      }
+    }
+
+    async function assignVisitor() {
+      const experimentId = document.getElementById('assignExperimentId').value
+      const visitorId = document.getElementById('visitorId').value
+      
+      if (!experimentId || !visitorId) {
+        alert('Preencha todos os campos!')
+        return
+      }
+
+      const resultDiv = document.getElementById('assignResult')
+      const outputPre = document.getElementById('assignOutput')
+      
+      try {
+        outputPre.textContent = 'Atribuindo visitante...'
+        resultDiv.style.display = 'block'
+        resultDiv.className = 'result'
+
+        const response = await fetch(`${API_BASE}/api/experiments/${experimentId}/assign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitor_id: visitorId
+          })
+        })
+
+        const data = await response.json()
+        
+        if (response.ok) {
+          resultDiv.className = 'result success'
+          
+          const summary = {
+            variante: data.variant.name,
+            url_final: data.variant.final_url || data.variant.redirect_url,
+            tem_multiplas_paginas: data.variant.has_multiple_pages,
+            tipo_atribuicao: data.assignment,
+            algoritmo: data.algorithm
+          }
+          
+          outputPre.textContent = JSON.stringify(summary, null, 2)
+        } else {
+          resultDiv.className = 'result error'
+          outputPre.textContent = `Erro: ${JSON.stringify(data, null, 2)}`
+        }
+      } catch (error) {
+        resultDiv.className = 'result error'
+        outputPre.textContent = `Erro: ${error.message}`
+      }
+    }
+
+    async function testConsistency() {
+      const experimentId = document.getElementById('assignExperimentId').value
+      const visitorId = document.getElementById('visitorId').value
+      
+      if (!experimentId || !visitorId) {
+        alert('Preencha o ID do experimento e Visitor ID!')
+        return
+      }
+
+      const resultDiv = document.getElementById('consistencyResult')
+      const outputPre = document.getElementById('consistencyOutput')
+      
+      try {
+        outputPre.textContent = 'Executando 5 atribuições...'
+        resultDiv.style.display = 'block'
+        resultDiv.className = 'result'
+
+        const results = []
+        
+        for (let i = 0; i < 5; i++) {
+          const response = await fetch(`${API_BASE}/api/experiments/${experimentId}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ visitor_id: visitorId })
+          })
+          
+          const data = await response.json()
+          results.push({
+            tentativa: i + 1,
+            url: data.variant.final_url || data.variant.redirect_url,
+            assignment: data.assignment
+          })
+        }
+
+        // Verificar consistência
+        const uniqueUrls = new Set(results.map(r => r.url))
+        const isConsistent = uniqueUrls.size === 1
+        
+        resultDiv.className = isConsistent ? 'result success' : 'result error'
+        
+        outputPre.textContent = JSON.stringify({
+          consistente: isConsistent,
+          url_recebida: Array.from(uniqueUrls)[0],
+          total_tentativas: results.length,
+          resultados: results
+        }, null, 2)
+        
+      } catch (error) {
+        resultDiv.className = 'result error'
+        outputPre.textContent = `Erro: ${error.message}`
+      }
+    }
+
+    async function testDistribution() {
+      const experimentId = document.getElementById('assignExperimentId').value
+      
+      if (!experimentId) {
+        alert('Preencha o ID do experimento!')
+        return
+      }
+
+      const statsDiv = document.getElementById('distributionStats')
+      const resultDiv = document.getElementById('distributionResult')
+      const outputPre = document.getElementById('distributionOutput')
+      
+      try {
+        outputPre.textContent = 'Executando 100 atribuições...'
+        resultDiv.style.display = 'block'
+        statsDiv.style.display = 'none'
+        resultDiv.className = 'result'
+
+        const urlCounts = {}
+        
+        for (let i = 0; i < 100; i++) {
+          const visitorId = `test_visitor_${i}`
+          const response = await fetch(`${API_BASE}/api/experiments/${experimentId}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ visitor_id: visitorId })
+          })
+          
+          const data = await response.json()
+          const url = data.variant.final_url || data.variant.redirect_url
+          
+          urlCounts[url] = (urlCounts[url] || 0) + 1
+        }
+
+        // Mostrar estatísticas
+        statsDiv.innerHTML = ''
+        Object.entries(urlCounts).forEach(([url, count]) => {
+          const card = document.createElement('div')
+          card.className = 'stat-card'
+          card.innerHTML = `
+            <div class="stat-value">${count}%</div>
+            <div class="stat-label">${url}</div>
+          `
+          statsDiv.appendChild(card)
+        })
+        
+        statsDiv.style.display = 'grid'
+        resultDiv.className = 'result success'
+        
+        outputPre.textContent = JSON.stringify({
+          total_visitantes: 100,
+          urls_distintas: Object.keys(urlCounts).length,
+          distribuicao: urlCounts
+        }, null, 2)
+        
+      } catch (error) {
+        resultDiv.className = 'result error'
+        outputPre.textContent = `Erro: ${error.message}`
+      }
+    }
+  </script>
+</body>
+</html>
+

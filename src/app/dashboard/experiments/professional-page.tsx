@@ -178,9 +178,9 @@ export default function ProfessionalExperimentsPage() {
           .select(`
             *,
             variants:variants(*),
-            project:projects(name, domain)
+            project:projects(name)
           `)
-          .eq('created_by', user.id)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
 
         if (error) throw error
@@ -536,7 +536,7 @@ function ProfessionalExperimentCard({
           description: experiment.description,
           status: 'draft',
           project_id: experiment.project_id,
-          created_by: user.id,
+          user_id: user.id,
           mab_config: { algorithm: experiment.algorithm },
           traffic_allocation: experiment.traffic_allocation,
           tags: experiment.tags

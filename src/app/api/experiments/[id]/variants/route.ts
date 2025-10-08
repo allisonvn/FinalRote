@@ -58,11 +58,52 @@ export async function POST(
       }
     ]
 
+    // Processar cada variante para suportar múltiplas URLs
+    const processedVariants = variantsToCreate.map(variant => {
+      let changesData = variant.changes || {}
+      
+      // Se múltiplas URLs foram fornecidas, armazenar no campo changes
+      if (variant.urls && Array.isArray(variant.urls) && variant.urls.length > 1) {
+        const validUrls = variant.urls.filter((url: string) => url && url.trim())
+        
+        changesData = {
+          ...changesData,
+          multipage: true,
+          pages: validUrls.map((url: string, index: number) => ({
+            id: index + 1,
+            url: url.trim(),
+            weight: variant.weights?.[index] || (100 / validUrls.length),
+            description: variant.page_descriptions?.[index] || `Página ${index + 1}`,
+            active: true
+          })),
+          total_pages: validUrls.length,
+          selection_mode: variant.selection_mode || 'random' // random, weighted, sequential
+        }
+        
+        // Usar primeira URL como redirect_url principal
+        variant.redirect_url = validUrls[0]
+      } else if (variant.urls && variant.urls.length === 1) {
+        // Uma única URL
+        variant.redirect_url = variant.urls[0]
+      }
+      
+      return {
+        name: variant.name,
+        description: variant.description,
+        is_control: variant.is_control,
+        traffic_percentage: variant.traffic_percentage,
+        redirect_url: variant.redirect_url,
+        changes: changesData,
+        css_changes: variant.css_changes,
+        js_changes: variant.js_changes
+      }
+    })
+
     // Adicionar experiment_id a cada variante
-    const variantsWithExpId = variantsToCreate.map(variant => ({
+    const variantsWithExpId = processedVariants.map(variant => ({
       ...variant,
       experiment_id: experimentId,
-      created_by: user.id
+      user_id: user.id
     }))
 
     console.log('Criando variantes para experimento:', experimentId, variantsWithExpId)

@@ -145,6 +145,11 @@ export async function POST(request: NextRequest) {
     logger.debug('safeTrafficValue é número?', !isNaN(safeTrafficValue))
     logger.debug('safeTrafficValue valor exato:', safeTrafficValue)
     
+    // Processar conversion_value com segurança
+    const conversionValue = rawData.conversion_value 
+      ? Math.max(Number(rawData.conversion_value) || 0, 0) 
+      : 0
+    
     const experimentData = {
       name: String(rawData.name).trim(),
       project_id: projectId as string, // Garantido acima
@@ -152,13 +157,18 @@ export async function POST(request: NextRequest) {
       type: (rawData.type || 'redirect') as 'redirect' | 'element' | 'split_url' | 'mab',
       traffic_allocation: Number(safeTrafficValue), // Forçar tipo numérico
       status: (rawData.status || 'draft') as 'draft' | 'running' | 'paused' | 'completed' | 'archived',
-      created_by: user.id,
-      user_id: user.id
+      user_id: user.id,
+      // Novos campos adicionados
+      algorithm: rawData.algorithm || 'uniform',
+      target_url: rawData.target_url || null,
+      conversion_url: rawData.conversion_url || null,
+      conversion_value: conversionValue,
+      conversion_type: rawData.conversion_type || 'page_view'
     }
 
     logger.validation('Dados do experimento validados', experimentData)
 
-    // Dados para inserir - apenas campos obrigatórios e seguros
+    // Dados para inserir - todos os campos disponíveis
     const insertData = {
       name: experimentData.name,
       project_id: experimentData.project_id,
@@ -166,8 +176,12 @@ export async function POST(request: NextRequest) {
       type: experimentData.type,
       traffic_allocation: safeTrafficValue,
       status: experimentData.status,
-      user_id: experimentData.user_id
-      // Removendo campos que podem causar problemas de cache do schema
+      user_id: experimentData.user_id,
+      algorithm: experimentData.algorithm,
+      target_url: experimentData.target_url,
+      conversion_url: experimentData.conversion_url,
+      conversion_value: experimentData.conversion_value,
+      conversion_type: experimentData.conversion_type
     }
     
     // Log detalhado dos dados que serão inseridos
@@ -200,7 +214,7 @@ export async function POST(request: NextRequest) {
     // SOLUÇÃO FINAL: Usar inserção direta que contorna cache completamente
     logger.info('🔄 Tentando inserção direta para contornar cache')
     
-    // Criar dados de inserção sem campos problemáticos
+    // Criar dados de inserção com todos os campos
     const directInsertData = {
       name: insertData.name,
       project_id: insertData.project_id,
@@ -208,14 +222,19 @@ export async function POST(request: NextRequest) {
       type: insertData.type,
       traffic_allocation: insertData.traffic_allocation,
       status: insertData.status,
-      user_id: insertData.user_id || null
+      user_id: insertData.user_id || null,
+      algorithm: insertData.algorithm,
+      target_url: insertData.target_url,
+      conversion_url: insertData.conversion_url,
+      conversion_value: insertData.conversion_value,
+      conversion_type: insertData.conversion_type
     }
     
     // Usar inserção direta que sabemos que funciona
     const { data: newExperiment, error } = await (userClient as any)
       .from('experiments')
       .insert(directInsertData)
-      .select('id, name, traffic_allocation, status, created_at')
+      .select('id, name, type, traffic_allocation, status, algorithm, target_url, conversion_url, conversion_value, conversion_type, created_at')
       .single();
     
     if (error) {
@@ -277,7 +296,7 @@ export async function POST(request: NextRequest) {
             conversions: 0,
             conversion_rate: 0.0000,
             is_active: true,
-            created_by: user.id
+            user_id: user.id
           },
           {
             experiment_id: newExperiment.id,
@@ -293,7 +312,7 @@ export async function POST(request: NextRequest) {
             conversions: 0,
             conversion_rate: 0.0000,
             is_active: true,
-            created_by: user.id
+            user_id: user.id
           }
         ]
 
