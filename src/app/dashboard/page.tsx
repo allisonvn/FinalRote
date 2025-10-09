@@ -1450,22 +1450,48 @@ ${baseCode}
         }
 
         // Criar variantes customizadas do modal
-        const variantsToCreate = formData.variants.map((variant: any, index: number) => ({
-          experiment_id: experiment.id,
-          name: variant.name || `Variante ${index}`,
-          description: variant.description || null,
-          is_control: variant.isControl || false,
-          traffic_percentage: 100 / formData.variants.length, // Distribuir igualmente
-          redirect_url: variant.url || (variant.isControl ? formData.targetUrl : null),
-          changes: {},
-          css_changes: null,
-          js_changes: null,
-          user_id: user.id,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0,
-          is_active: true
-        }))
+        const variantsToCreate = formData.variants.map((variant: any, index: number) => {
+          // Determinar a URL da variante
+          let redirectUrl = null
+          if (variant.isControl) {
+            // Controle usa a URL alvo do experimento
+            redirectUrl = formData.targetUrl || null
+          } else {
+            // Outras variantes usam suas próprias URLs
+            redirectUrl = variant.url?.trim() || null
+          }
+
+          // Log para debug
+          console.log(`📝 Criando variante ${index}:`, {
+            name: variant.name,
+            isControl: variant.isControl,
+            variantUrl: variant.url,
+            targetUrl: formData.targetUrl,
+            finalRedirectUrl: redirectUrl
+          })
+
+          // Validação: para split_url, todas as variantes não-controle devem ter URL
+          if (formData.testType === 'split_url' && !variant.isControl && !redirectUrl) {
+            console.warn(`⚠️ AVISO: Variante "${variant.name}" não tem URL configurada!`)
+          }
+
+          return {
+            experiment_id: experiment.id,
+            name: variant.name || `Variante ${index}`,
+            description: variant.description || null,
+            is_control: variant.isControl || false,
+            traffic_percentage: 100 / formData.variants.length, // Distribuir igualmente
+            redirect_url: redirectUrl,
+            changes: {},
+            css_changes: null,
+            js_changes: null,
+            user_id: user.id,
+            visitors: 0,
+            conversions: 0,
+            conversion_rate: 0,
+            is_active: true
+          }
+        })
 
         const { data: createdVariants, error: variantsError } = await supabase
           .from('variants')

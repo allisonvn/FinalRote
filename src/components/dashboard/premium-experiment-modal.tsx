@@ -115,8 +115,18 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
           if (!variant.name.trim()) {
             errors[`variant_${i}_name`] = 'Nome obrigatório'
           }
-          if (formData.testType === 'split_url' && !variant.isControl && !variant.url?.trim()) {
-            errors[`variant_${i}_url`] = 'URL obrigatória'
+          // Para testes split_url, TODAS as variantes não-controle precisam de URL
+          if (formData.testType === 'split_url' && !variant.isControl) {
+            if (!variant.url?.trim()) {
+              errors[`variant_${i}_url`] = 'URL obrigatória para teste Split URL'
+            } else {
+              // Validar se é uma URL válida
+              try {
+                new URL(variant.url)
+              } catch {
+                errors[`variant_${i}_url`] = 'URL inválida'
+              }
+            }
           }
         }
         break
