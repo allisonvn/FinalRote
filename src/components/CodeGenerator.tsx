@@ -38,19 +38,31 @@ export default function CodeGenerator({
     }
   }
 
-  // Código do SDK - v2.1 COM ANTI-FLICKER
-  const sdkCode = `<!-- RotaFinal SDK v2.1 - Anti-Flicker -->
-<!-- IMPORTANTE: Adicione no <head> sem async/defer -->
-<script src="${baseUrl}/rotafinal-sdk.js"></script>
-
+  // Código do SDK - v2.2 ULTRA OTIMIZADO
+  const sdkCode = `<!-- RotaFinal SDK v2.2 - ZERO Flicker -->
+<!-- ⚠️ CRÍTICO: Cole no <head> ANTES de qualquer outro script! -->
 <script>
-  // Inicializar SDK
-  const rf = new RotaFinal({
-    debug: false // true para debug
-  });
+window.rfExperimentId = '${experimentId}';
+</script>
+<script src="${baseUrl}/rotafinal-snippet.js"></script>
 
-  // Executar experimento
-  rf.runExperiment('${experimentId}');
+<!--
+  ✅ Pronto! O teste A/B vai funcionar automaticamente
+  ✅ ZERO flicker garantido
+  ✅ Redirecionamento instantâneo
+-->
+
+<!-- OPCIONAL: Rastrear conversões -->
+<script>
+  // Aguardar SDK carregar (executa automaticamente)
+  window.addEventListener('load', function() {
+    // Exemplo: rastrear clique em botão
+    document.getElementById('seu-botao')?.addEventListener('click', function() {
+      if (window.RotaFinal) {
+        window.RotaFinal.conversion('click', 1);
+      }
+    });
+  });
 </script>`
 
   // Código do experimento - SIMPLIFICADO
@@ -225,16 +237,26 @@ ${variants.map((variant, index) => `<!-- ${variant.name}: ${variant.description 
                         <code>{sdkCode}</code>
                       </pre>
                     </div>
-                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-red-700">
-                        <Lightbulb className="h-4 w-4" />
-                        <span className="font-bold">IMPORTANTE:</span>
+                    <div className="mt-3 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                      <div className="flex items-center gap-2 text-red-800 mb-3">
+                        <Lightbulb className="h-5 w-5" />
+                        <span className="font-bold text-lg">⚠️ CRÍTICO PARA ZERO FLICKER:</span>
                       </div>
-                      <ul className="text-sm text-red-600 mt-2 space-y-1 list-disc list-inside">
-                        <li>Adicione <strong>NO &lt;head&gt;</strong> (não no body)</li>
-                        <li><strong>SEM async ou defer</strong> (síncrono!)</li>
-                        <li>Antes de qualquer outro script</li>
+                      <ul className="text-sm text-red-700 space-y-2 list-decimal list-inside font-medium">
+                        <li>Cole <strong className="text-red-900">NO TOPO DO &lt;head&gt;</strong></li>
+                        <li><strong className="text-red-900">ANTES</strong> de qualquer outro script</li>
+                        <li><strong className="text-red-900">SEM</strong> async ou defer</li>
+                        <li>Se piscar = posição errada do script</li>
                       </ul>
+                      <div className="mt-3 p-2 bg-white rounded border border-red-200">
+                        <code className="text-xs text-red-900">
+                          &lt;head&gt;<br/>
+                          &nbsp;&nbsp;&lt;!-- ✅ AQUI (primeira linha) --&gt;<br/>
+                          &nbsp;&nbsp;&lt;script&gt;window.rfExperimentId=...&lt;/script&gt;<br/>
+                          &nbsp;&nbsp;...<br/>
+                          &lt;/head&gt;
+                        </code>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
