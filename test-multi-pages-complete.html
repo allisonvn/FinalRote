@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste A/B Múltiplas Páginas - RotaFinal SDK v2.0</title>
+    
+    <!-- RotaFinal SDK -->
+    <script src="https://rotafinal.com.br/rotafinal-sdk.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .version {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .info-box strong {
+            color: #667eea;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .status.pending {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #dc3545;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px 10px 10px 0;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .button-outline {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .console-line {
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+        
+        .console-line.info {
+            color: #4fc3f7;
+        }
+        
+        .console-line.success {
+            color: #81c784;
+        }
+        
+        .console-line.warning {
+            color: #ffb74d;
+        }
+        
+        .console-line.error {
+            color: #e57373;
+        }
+        
+        .variant-info {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .variant-info h3 {
+            color: #2e7d32;
+            margin-bottom: 15px;
+        }
+        
+        .variant-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #c8e6c9;
+        }
+        
+        .variant-detail:last-child {
+            border-bottom: none;
+        }
+        
+        .variant-detail strong {
+            color: #2e7d32;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .badge.control {
+            background: #bbdefb;
+            color: #0d47a1;
+        }
+        
+        .badge.variant {
+            background: #f8bbd0;
+            color: #880e4f;
+        }
+        
+        .badge.multipage {
+            background: #b2dfdb;
+            color: #004d40;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Teste A/B Múltiplas Páginas</h1>
+        <span class="version">SDK v2.0</span>
+        
+        <div class="info-box">
+            <strong>📋 O que este teste demonstra:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Inicialização do SDK RotaFinal v2.0</li>
+                <li>Atribuição de variante com suporte a múltiplas páginas</li>
+                <li>Seleção automática de URL final</li>
+                <li>Rastreamento de eventos e conversões</li>
+                <li>Logs detalhados de debug</li>
+            </ul>
+        </div>
+        
+        <div id="status" class="status pending">
+            ⏳ Aguardando inicialização...
+        </div>
+        
+        <div style="margin: 30px 0;">
+            <button class="button" onclick="runExperimentTest()">
+                🎯 Executar Teste de Experimento
+            </button>
+            
+            <button class="button button-outline" onclick="trackCustomEvent()">
+                📊 Rastrear Evento
+            </button>
+            
+            <button class="button button-outline" onclick="trackConversion()">
+                ✅ Rastrear Conversão
+            </button>
+            
+            <button class="button button-outline" onclick="clearConsole()">
+                🗑️ Limpar Console
+            </button>
+        </div>
+        
+        <div id="variantInfo"></div>
+        
+        <h3 style="margin-top: 30px; color: #667eea;">📝 Console de Debug:</h3>
+        <div id="console" class="console">
+            <div class="console-line info">🎉 SDK RotaFinal v2.0 carregado!</div>
+            <div class="console-line info">👉 Clique em "Executar Teste de Experimento" para começar</div>
+        </div>
+        
+        <div class="info-box" style="margin-top: 30px;">
+            <strong>💡 Para usar em produção:</strong>
+            <div class="code">
+&lt;!-- Adicione ao seu HTML --&gt;
+&lt;script src="https://rotafinal.com.br/rotafinal-sdk.js"&gt;&lt;/script&gt;
+
+&lt;script&gt;
+  // Inicializar SDK
+  const rf = new RotaFinal({
+    debug: true // false em produção
+  });
+  
+  // Executar experimento (substitua pelo seu ID)
+  rf.runExperiment('SEU_EXPERIMENT_ID_AQUI', {
+    autoRedirect: true, // Redireciona automaticamente
+    onVariant: (variant) => {
+      console.log('Variante:', variant.name);
+      console.log('URL Final:', variant.finalUrl);
+      console.log('Múltiplas páginas:', variant.hasMultiplePages);
+    }
+  });
+  
+  // Rastrear conversão
+  document.getElementById('botao-compra').addEventListener('click', () => {
+    rf.conversion('purchase', 99.90);
+  });
+&lt;/script&gt;
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ===== Inicializar SDK =====
+        let rf;
+        let experimentId = '77e40c26-5e59-49ec-b7f2-2b52349950e3'; // ID de exemplo
+        
+        try {
+            rf = new RotaFinal({
+                debug: true
+            });
+            logToConsole('✅ SDK inicializado com sucesso!', 'success');
+            logToConsole(`👤 Visitor ID: ${rf.userId}`, 'info');
+            
+            updateStatus('✅ SDK RotaFinal v2.0 inicializado e pronto!', 'success');
+        } catch (error) {
+            logToConsole('❌ Erro ao inicializar SDK: ' + error.message, 'error');
+            updateStatus('❌ Erro ao inicializar SDK', 'error');
+        }
+        
+        // ===== Funções de Teste =====
+        
+        async function runExperimentTest() {
+            logToConsole('🚀 Iniciando teste de experimento...', 'info');
+            logToConsole(`📋 Experiment ID: ${experimentId}`, 'info');
+            
+            updateStatus('⏳ Executando experimento...', 'pending');
+            
+            try {
+                const variant = await rf.runExperiment(experimentId, {
+                    autoRedirect: false, // Não redirecionar no teste
+                    onVariant: (v) => {
+                        logToConsole('✅ Variante atribuída via callback!', 'success');
+                        displayVariantInfo(v);
+                    }
+                });
+                
+                if (variant) {
+                    logToConsole('✅ Experimento executado com sucesso!', 'success');
+                    logToConsole(`📊 Variante: ${variant.name}`, 'info');
+                    logToConsole(`🔗 Redirect URL: ${variant.redirectUrl || 'N/A'}`, 'info');
+                    logToConsole(`🎯 Final URL: ${variant.finalUrl || 'N/A'}`, 'info');
+                    logToConsole(`📄 Múltiplas páginas: ${variant.hasMultiplePages ? 'Sim' : 'Não'}`, 'info');
+                    logToConsole(`🤖 Algoritmo: ${variant.algorithm || 'N/A'}`, 'info');
+                    
+                    if (variant.hasMultiplePages) {
+                        logToConsole('⚡ Sistema selecionou automaticamente uma página da lista!', 'success');
+                    }
+                    
+                    updateStatus('✅ Experimento executado! Veja os detalhes acima.', 'success');
+                } else {
+                    logToConsole('⚠️ Nenhuma variante retornada', 'warning');
+                    updateStatus('⚠️ Experimento não retornou variante', 'error');
+                }
+            } catch (error) {
+                logToConsole('❌ Erro ao executar experimento: ' + error.message, 'error');
+                updateStatus('❌ Erro ao executar experimento', 'error');
+            }
+        }
+        
+        async function trackCustomEvent() {
+            logToConsole('📊 Rastreando evento personalizado...', 'info');
+            
+            try {
+                const result = await rf.track('button_click', {
+                    button_name: 'test_button',
+                    page: 'test_page',
+                    timestamp: new Date().toISOString()
+                });
+                
+                if (result) {
+                    logToConsole('✅ Evento rastreado com sucesso!', 'success');
+                    logToConsole(`📈 Resultado: ${JSON.stringify(result)}`, 'info');
+                } else {
+                    logToConsole('⚠️ Evento rastreado mas sem resposta', 'warning');
+                }
+            } catch (error) {
+                logToConsole('❌ Erro ao rastrear evento: ' + error.message, 'error');
+            }
+        }
+        
+        async function trackConversion() {
+            logToConsole('✅ Rastreando conversão...', 'info');
+            
+            try {
+                const result = await rf.conversion('test_conversion', 99.90, {
+                    product: 'Produto Teste',
+                    category: 'Teste'
+                });
+                
+                if (result) {
+                    logToConsole('✅ Conversão rastreada com sucesso!', 'success');
+                    logToConsole(`💰 Valor: R$ 99,90`, 'info');
+                    logToConsole(`📈 Resultado: ${JSON.stringify(result)}`, 'info');
+                } else {
+                    logToConsole('⚠️ Conversão rastreada mas sem resposta', 'warning');
+                }
+            } catch (error) {
+                logToConsole('❌ Erro ao rastrear conversão: ' + error.message, 'error');
+            }
+        }
+        
+        function displayVariantInfo(variant) {
+            const info = document.getElementById('variantInfo');
+            
+            const isControl = variant.isControl;
+            const hasMultiplePages = variant.hasMultiplePages;
+            
+            info.innerHTML = `
+                <div class="variant-info">
+                    <h3>📊 Informações da Variante</h3>
+                    
+                    <div class="variant-detail">
+                        <strong>Nome:</strong>
+                        <span>
+                            ${variant.name}
+                            <span class="badge ${isControl ? 'control' : 'variant'}">
+                                ${isControl ? 'Controle' : 'Variante'}
+                            </span>
+                        </span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>ID:</strong>
+                        <span style="font-family: monospace; font-size: 0.9rem;">${variant.id || 'N/A'}</span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>Descrição:</strong>
+                        <span>${variant.description || 'Sem descrição'}</span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>URL de Redirecionamento:</strong>
+                        <span style="word-break: break-all;">${variant.redirectUrl || 'Nenhuma'}</span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>URL Final Selecionada:</strong>
+                        <span style="word-break: break-all; color: #2e7d32; font-weight: 600;">
+                            ${variant.finalUrl || 'Nenhuma'}
+                        </span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>Múltiplas Páginas:</strong>
+                        <span>
+                            ${hasMultiplePages ? 'Sim' : 'Não'}
+                            ${hasMultiplePages ? '<span class="badge multipage">Multipage Ativo</span>' : ''}
+                        </span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>Assignment:</strong>
+                        <span>${variant.assignment || 'N/A'}</span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>Algoritmo:</strong>
+                        <span>${variant.algorithm || 'N/A'}</span>
+                    </div>
+                    
+                    <div class="variant-detail">
+                        <strong>MAB Ativo:</strong>
+                        <span>${variant.mabEnabled ? 'Sim' : 'Não'}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function logToConsole(message, type = 'info') {
+            const consoleDiv = document.getElementById('console');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        function updateStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+            logToConsole('🗑️ Console limpo', 'info');
+        }
+        
+        // Log inicial
+        logToConsole('🎉 Página de teste carregada!', 'success');
+        logToConsole('📘 Guia: https://rotafinal.com.br/GUIA_COMPLETO_MULTI_PAGINAS.md', 'info');
+    </script>
+</body>
+</html>
+

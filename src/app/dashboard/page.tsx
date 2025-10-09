@@ -1464,18 +1464,45 @@ ${baseCode}
             redirectUrl = variant.url?.trim() || null
           }
 
+          // Construir campo changes para múltiplas páginas
+          let changes: any = {}
+
+          if (variant.multipage && variant.pages && variant.pages.length > 0) {
+            // Modo múltiplas páginas ativado
+            changes = {
+              multipage: true,
+              total_pages: variant.pages.length,
+              selection_mode: variant.selectionMode || 'weighted',
+              pages: variant.pages.map((page: any) => ({
+                id: page.id,
+                url: page.url,
+                weight: page.weight || 10,
+                description: page.description || '',
+                active: page.active !== false
+              }))
+            }
+            console.log(`📄 Variante "${variant.name}" configurada com ${variant.pages.length} páginas (modo: ${variant.selectionMode})`)
+          } else {
+            // Modo página única (tradicional)
+            changes = {}
+          }
+
           // Log para debug
           console.log(`📝 Criando variante ${index}:`, {
             name: variant.name,
             isControl: variant.isControl,
             variantUrl: variant.url,
             targetUrl: formData.targetUrl,
-            finalRedirectUrl: redirectUrl
+            finalRedirectUrl: redirectUrl,
+            multipage: variant.multipage,
+            pagesCount: variant.pages?.length || 0
           })
 
-          // Validação: para split_url, todas as variantes não-controle devem ter URL
-          if (formData.testType === 'split_url' && !variant.isControl && !redirectUrl) {
-            console.warn(`⚠️ AVISO: Variante "${variant.name}" não tem URL configurada!`)
+          // Validação: para split_url, todas as variantes não-controle devem ter URL OU múltiplas páginas
+          if (formData.testType === 'split_url' && !variant.isControl) {
+            if (!redirectUrl && (!variant.multipage || variant.pages.length === 0)) {
+              console.warn(`⚠️ AVISO: Variante "${variant.name}" não tem URL configurada!`)
+            }
           }
 
           return {
@@ -1485,7 +1512,7 @@ ${baseCode}
             is_control: variant.isControl || false,
             traffic_percentage: 100 / formData.variants.length, // Distribuir igualmente
             redirect_url: redirectUrl,
-            changes: {},
+            changes: changes,
             css_changes: null,
             js_changes: null
             // user_id, visitors, conversions, conversion_rate, is_active são gerenciados automaticamente pelo banco

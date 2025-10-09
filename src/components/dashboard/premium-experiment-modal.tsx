@@ -20,6 +20,14 @@ interface PremiumExperimentModalProps {
   saving?: boolean
 }
 
+interface PageConfig {
+  id: number
+  url: string
+  weight: number
+  description: string
+  active: boolean
+}
+
 interface ExperimentFormData {
   name: string
   description: string
@@ -31,6 +39,9 @@ interface ExperimentFormData {
     description: string
     url: string
     isControl: boolean
+    multipage: boolean
+    pages: PageConfig[]
+    selectionMode: 'random' | 'weighted' | 'sequential'
   }>
   goalType: 'page_view' | 'click' | 'form_submit'
   goalValue: string
@@ -46,8 +57,24 @@ const INITIAL_FORM_DATA: ExperimentFormData = {
   testType: 'split_url',
   trafficAllocation: 100,
   variants: [
-    { name: 'Original', description: 'Versão atual', url: '', isControl: true },
-    { name: 'Variante A', description: 'Nova versão', url: '', isControl: false }
+    {
+      name: 'Original',
+      description: 'Versão atual',
+      url: '',
+      isControl: true,
+      multipage: false,
+      pages: [],
+      selectionMode: 'weighted'
+    },
+    {
+      name: 'Variante A',
+      description: 'Nova versão',
+      url: '',
+      isControl: false,
+      multipage: false,
+      pages: [],
+      selectionMode: 'weighted'
+    }
   ],
   goalType: 'page_view',
   goalValue: '',
@@ -183,15 +210,18 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
   const addVariant = () => {
     // Removida limitação - agora aceita quantas variantes o usuário quiser
     const variantIndex = formData.variants.length - 1
-    const letter = variantIndex < 26 
+    const letter = variantIndex < 26
       ? String.fromCharCode(65 + variantIndex)
       : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
-    
+
     const newVariant = {
       name: `Variante ${letter}`,
       description: '',
       url: '',
-      isControl: false
+      isControl: false,
+      multipage: false,
+      pages: [],
+      selectionMode: 'weighted' as const
     }
 
     updateFormData({
@@ -221,6 +251,80 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
         ...variant,
         isControl: i === index
       }))
+    })
+  }
+
+  const toggleMultipage = (variantIndex: number) => {
+    updateFormData({
+      variants: formData.variants.map((variant, i) =>
+        i === variantIndex
+          ? {
+              ...variant,
+              multipage: !variant.multipage,
+              pages: !variant.multipage && variant.pages.length === 0
+                ? [{ id: 1, url: '', weight: 10, description: '', active: true }]
+                : variant.pages
+            }
+          : variant
+      )
+    })
+  }
+
+  const addPage = (variantIndex: number) => {
+    updateFormData({
+      variants: formData.variants.map((variant, i) =>
+        i === variantIndex
+          ? {
+              ...variant,
+              pages: [
+                ...variant.pages,
+                {
+                  id: variant.pages.length + 1,
+                  url: '',
+                  weight: 10,
+                  description: '',
+                  active: true
+                }
+              ]
+            }
+          : variant
+      )
+    })
+  }
+
+  const removePage = (variantIndex: number, pageId: number) => {
+    updateFormData({
+      variants: formData.variants.map((variant, i) =>
+        i === variantIndex
+          ? {
+              ...variant,
+              pages: variant.pages.filter(p => p.id !== pageId)
+            }
+          : variant
+      )
+    })
+  }
+
+  const updatePage = (variantIndex: number, pageId: number, field: keyof PageConfig, value: any) => {
+    updateFormData({
+      variants: formData.variants.map((variant, i) =>
+        i === variantIndex
+          ? {
+              ...variant,
+              pages: variant.pages.map(p =>
+                p.id === pageId ? { ...p, [field]: value } : p
+              )
+            }
+          : variant
+      )
+    })
+  }
+
+  const updateVariantField = (variantIndex: number, field: string, value: any) => {
+    updateFormData({
+      variants: formData.variants.map((variant, i) =>
+        i === variantIndex ? { ...variant, [field]: value } : variant
+      )
     })
   }
 
@@ -590,6 +694,106 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
                       className="min-h-[80px] border-2 border-slate-200 rounded-xl transition-all duration-300 resize-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20"
                       rows={3}
                     />
+
+                    {/* Opção de múltiplas páginas para split_url */}
+                    {formData.testType === 'split_url' && !variant.isControl && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-200">
+                          <div className="flex items-center gap-3">
+                            <Globe className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <h5 className="font-bold text-blue-900">Múltiplas Páginas</h5>
+                              <p className="text-sm text-blue-700">Testar várias URLs aleatoriamente</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleMultipage(index)}
+                            className={cn(
+                              "w-12 h-6 rounded-full transition-all duration-300 relative",
+                              variant.multipage ? "bg-blue-600" : "bg-slate-300"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all duration-300",
+                              variant.multipage ? "left-6" : "left-0.5"
+                            )} />
+                          </button>
+                        </div>
+
+                        {variant.multipage && (
+                          <div className="space-y-3 pl-4 border-l-4 border-blue-300">
+                            <div className="flex items-center gap-2 mb-3">
+                              <label className="text-sm font-semibold text-slate-900">Modo de Seleção:</label>
+                              <Select
+                                value={variant.selectionMode}
+                                onValueChange={(value) => updateVariantField(index, 'selectionMode', value)}
+                              >
+                                <SelectTrigger className="h-10 w-48 border-2 border-slate-200 rounded-xl">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="random">Aleatório</SelectItem>
+                                  <SelectItem value="weighted">Ponderado (com pesos)</SelectItem>
+                                  <SelectItem value="sequential">Sequencial</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {variant.pages.map((page) => (
+                              <div key={page.id} className="p-4 bg-white rounded-xl border-2 border-slate-200 space-y-2">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-bold text-sm text-slate-700">Página {page.id}</span>
+                                  {variant.pages.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removePage(index, page.id)}
+                                      className="text-red-600 hover:bg-red-100 p-1 rounded transition-all"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                                <Input
+                                  value={page.url}
+                                  onChange={(e) => updatePage(index, page.id, 'url', e.target.value)}
+                                  placeholder="https://seusite.com/pagina"
+                                  className="h-10 border-2 border-slate-200 rounded-lg"
+                                />
+                                {variant.selectionMode === 'weighted' && (
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs text-slate-600">Peso:</label>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="100"
+                                      value={page.weight}
+                                      onChange={(e) => updatePage(index, page.id, 'weight', parseInt(e.target.value) || 10)}
+                                      className="h-8 w-20 border-2 border-slate-200 rounded-lg"
+                                    />
+                                  </div>
+                                )}
+                                <Input
+                                  value={page.description}
+                                  onChange={(e) => updatePage(index, page.id, 'description', e.target.value)}
+                                  placeholder="Descrição da página (opcional)"
+                                  className="h-9 border-2 border-slate-200 rounded-lg text-sm"
+                                />
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={() => addPage(index)}
+                              className="w-full p-3 border-2 border-dashed border-blue-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-blue-600 transition-all duration-300 flex items-center justify-center gap-2"
+                            >
+                              <Plus className="w-5 h-5" />
+                              <span className="font-semibold">Adicionar Página</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {!variant.isControl && (
                       <Button
