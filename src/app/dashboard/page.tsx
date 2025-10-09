@@ -1386,7 +1386,8 @@ ${baseCode}
         target_url: formData.targetUrl || null,
         conversion_url: formData.goalValue || null,
         conversion_value: formData.conversionValue || 0,
-        conversion_type: formData.goalType || 'page_view'
+        conversion_type: formData.goalType || 'page_view',
+        duration_days: formData.duration || 14  // ✅ Duração planejada do experimento
       }
 
       console.log('📋 Creating experiment with ALL FIELDS from modal:', experimentData)
@@ -1403,7 +1404,8 @@ ${baseCode}
         target_url: experimentData.target_url,
         conversion_url: experimentData.conversion_url,
         conversion_value: experimentData.conversion_value,
-        conversion_type: experimentData.conversion_type
+        conversion_type: experimentData.conversion_type,
+        duration_days: experimentData.duration_days  // ✅ Validar duração
       })
 
       // Create experiment via API (server handles validation and schema) - ENVIANDO TODOS OS CAMPOS
@@ -1421,6 +1423,7 @@ ${baseCode}
           conversion_url: experimentData.conversion_url,
           conversion_value: experimentData.conversion_value,
           conversion_type: experimentData.conversion_type,
+          duration_days: experimentData.duration_days,  // ✅ Enviar duração para API
           status: experimentData.status
         }),
         credentials: 'include'
@@ -1484,12 +1487,8 @@ ${baseCode}
             redirect_url: redirectUrl,
             changes: {},
             css_changes: null,
-            js_changes: null,
-            user_id: user.id,
-            visitors: 0,
-            conversions: 0,
-            conversion_rate: 0,
-            is_active: true
+            js_changes: null
+            // user_id, visitors, conversions, conversion_rate, is_active são gerenciados automaticamente pelo banco
           }
         })
 

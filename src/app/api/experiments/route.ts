@@ -227,14 +227,15 @@ export async function POST(request: NextRequest) {
       target_url: insertData.target_url,
       conversion_url: insertData.conversion_url,
       conversion_value: insertData.conversion_value,
-      conversion_type: insertData.conversion_type
+      conversion_type: insertData.conversion_type,
+      duration_days: insertData.duration_days || rawData.duration_days || 14  // ✅ Duração planejada
     }
     
     // Usar inserção direta que sabemos que funciona
     const { data: newExperiment, error } = await (userClient as any)
       .from('experiments')
       .insert(directInsertData)
-      .select('id, name, type, traffic_allocation, status, algorithm, target_url, conversion_url, conversion_value, conversion_type, created_at')
+      .select('id, name, type, traffic_allocation, status, algorithm, target_url, conversion_url, conversion_value, conversion_type, duration_days, created_at')
       .single();
     
     if (error) {
