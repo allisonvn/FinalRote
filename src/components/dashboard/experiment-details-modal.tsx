@@ -415,20 +415,41 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
       }
     }
 
-    // Código de tracking e inicialização - v2.3 COM TIMEOUT ANTI-FLICKER
-    const trackingCode = `,tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};log("Tracking event",{eventName:eventName,properties:properties});apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(err){log("Track error, queuing",err.message);tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}${conversionTrackingCode}},showPage=function(){document.body.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100);log("Page visible")},init=function(){if(isBot()){log("Bot detected, skipping");return}log("Initializing experiment",{experimentId:experimentId,type:"${experimentType}"});var timeoutId=setTimeout(function(){log("Timeout reached, showing page");showPage()},300);apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){clearTimeout(timeoutId);log("Assignment response",response);if(response&&response.variant){experiment.cachedVariant=response.variant;experiment.applyVariant(response.variant);${hasConversionTracking ? 'if(tracking.setupConversionTracking)tracking.setupConversionTracking();' : ''}tracking.trackPageview()}}).catch(function(error){clearTimeout(timeoutId);console.error("RotaFinal: Error loading variant",error)}).finally(function(){showPage();log("Initialization complete")})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value||0},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){if(enabled){window.localStorage.setItem("rf_debug","1")}else{window.localStorage.removeItem("rf_debug")}}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();`
+    // Código de tracking e inicialização - v2.4 ZERO FLICKER EM REDIRECTS
+    const isRedirectType = experimentType === 'redirect' || experimentType === 'split_url'
+    const antiFlickerTimeout = isRedirectType ? '200' : '300'
+
+    const trackingCode = `,tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};log("Tracking event",{eventName:eventName,properties:properties});apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(err){log("Track error, queuing",err.message);tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}${conversionTrackingCode}},showPage=function(){document.body.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100);log("Page visible")},init=function(){if(isBot()){log("Bot detected, skipping");showPage();return}log("Initializing experiment",{experimentId:experimentId,type:"${experimentType}"});var timeoutId=setTimeout(function(){log("Timeout reached, showing page");showPage()},${antiFlickerTimeout});apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){clearTimeout(timeoutId);log("Assignment response",response);if(response&&response.variant){experiment.cachedVariant=response.variant;var willRedirect=!!(response.variant.redirect_url);experiment.applyVariant(response.variant);if(!willRedirect){${hasConversionTracking ? 'if(tracking.setupConversionTracking)tracking.setupConversionTracking();' : ''}tracking.trackPageview();showPage()}}else{showPage()}}).catch(function(error){clearTimeout(timeoutId);console.error("RotaFinal: Error loading variant",error);showPage()})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value||0},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){if(enabled){window.localStorage.setItem("rf_debug","1")}else{window.localStorage.removeItem("rf_debug")}}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();`
+
+    // CSS diferenciado por tipo de experimento
+    const antiFlickerCSS = isRedirectType
+      ? `<!-- CSS Anti-Flicker v2.4 REDIRECT - Bloqueia TUDO até confirmar redirect -->
+<style data-rf-antiflicker>
+body:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}
+body[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:opacity 100ms ease-out!important}
+</style>
+
+<!-- ⚠️ IMPORTANTE: Para experimentos de REDIRECIONAMENTO -->
+<!-- A página fica COMPLETAMENTE oculta até API responder (max 200ms) -->
+<!-- Se for redirecionar: usuário nunca vê esta página -->
+<!-- Se for control: página aparece normalmente após 100-200ms -->`
+      : `<!-- CSS Anti-Flicker v2.4 VISUAL - Fade suave para mudanças visuais -->
+<style data-rf-antiflicker>
+body:not([data-rf-ready]){opacity:0.2!important}
+body[data-rf-ready]{opacity:1!important;transition:opacity 150ms ease-out!important}
+html:not([data-rf-ready]) body{pointer-events:none!important}
+</style>
+
+<!-- ℹ️ Para experimentos VISUAIS (mesma página) -->
+<!-- Conteúdo aparece levemente esmaecido durante carregamento (max 300ms) -->
+<!-- Previne flash de conteúdo não modificado antes de aplicar mudanças -->`
 
     return `<!-- Rota Final SDK - Experimento: ${experiment.name} (${experimentType}) -->
 <script>
 ${baseCode}${trackingCode}
 </script>
 
-<!-- CSS Anti-Flicker v2.3 - Timeout de 300ms (adicionar no <head> antes do script) -->
-<style data-rf-antiflicker>
-body:not([data-rf-ready]){opacity:0.15!important}
-body[data-rf-ready]{opacity:1!important;transition:opacity 80ms ease-out!important}
-html:not([data-rf-ready]) body{pointer-events:none!important}
-</style>
+${antiFlickerCSS}
 
 ${usageInstructions}`
   }
