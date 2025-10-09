@@ -1,6 +1,7 @@
 /**
- * RotaFinal SDK
+ * RotaFinal SDK - v2.0
  * SDK para integração com a plataforma de experimentos A/B
+ * Suporta múltiplas páginas por variante
  */
 
 class RotaFinal {
@@ -15,7 +16,7 @@ class RotaFinal {
     this.initUTMCapture();
     
     if (this.debug) {
-      console.log('RotaFinal SDK initialized:', { userId: this.userId, debug: this.debug });
+      console.log('RotaFinal SDK v2.0 initialized:', { userId: this.userId, debug: this.debug });
     }
   }
 
@@ -32,12 +33,13 @@ class RotaFinal {
   }
 
   /**
-   * Obtém variante de um experimento
+   * Obtém variante de um experimento (ATUALIZADO - v2.0)
+   * Agora suporta experimentos por ID e múltiplas páginas
    */
-  async getVariant(experimentKey, options = {}) {
+  async getVariant(experimentIdOrKey, options = {}) {
     try {
       // Verificar cache primeiro
-      const cacheKey = `${experimentKey}_${this.userId}`;
+      const cacheKey = `${experimentIdOrKey}_${this.userId}`;
       if (this.cache.has(cacheKey)) {
         const cached = this.cache.get(cacheKey);
         if (Date.now() - cached.timestamp < (options.cacheTime || 300000)) { // 5 min default
@@ -46,39 +48,171 @@ class RotaFinal {
         }
       }
 
-      const response = await fetch(`${this.baseUrl}/api/assign-variant`, {
+      // ✅ NOVO: Usar endpoint correto /api/experiments/[id]/assign
+      const response = await fetch(`${this.baseUrl}/api/experiments/${experimentIdOrKey}/assign`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-RF-Version': '2.0'
         },
         body: JSON.stringify({
-          experiment_key: experimentKey,
           visitor_id: this.userId,
-          context: options.context || {}
+          user_agent: navigator.userAgent,
+          url: window.location.href,
+          referrer: document.referrer,
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight
+          },
+          timestamp: new Date().toISOString()
         })
       });
 
       if (!response.ok) {
+        if (this.debug) console.error('RotaFinal: HTTP error', response.status, response.statusText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       
-      // Verificar se a resposta tem a estrutura esperada
-      const variant = data.variant || data.variant_name || data.variant_key || 'control';
+      if (this.debug) {
+        console.log('RotaFinal: Assignment response:', data);
+        console.log('RotaFinal: Has multiple pages:', data.variant?.has_multiple_pages);
+        console.log('RotaFinal: Final URL:', data.variant?.final_url);
+      }
+      
+      // ✅ NOVO: Estrutura completa da variante com suporte a múltiplas páginas
+      const variantData = {
+        id: data.variant.id,
+        name: data.variant.name,
+        description: data.variant.description,
+        isControl: data.variant.is_control,
+        redirectUrl: data.variant.redirect_url,
+        finalUrl: data.variant.final_url, // ✅ URL final selecionada (pode ser diferente se multipage)
+        hasMultiplePages: data.variant.has_multiple_pages || false, // ✅ Indica se tem múltiplas páginas
+        cssChanges: data.variant.css_changes,
+        jsChanges: data.variant.js_changes,
+        changes: data.variant.changes,
+        assignment: data.assignment, // 'new' ou 'existing'
+        algorithm: data.algorithm, // Algoritmo usado
+        mabEnabled: data.mab_enabled // Se MAB está ativo
+      };
       
       // Cachear resultado
       this.cache.set(cacheKey, {
-        variant: variant,
+        variant: variantData,
         timestamp: Date.now()
       });
 
-      if (this.debug) console.log('RotaFinal: Assigned variant', data);
+      if (this.debug) console.log('RotaFinal: Assigned variant', variantData);
       
-      return variant;
+      return variantData;
     } catch (error) {
       if (this.debug) console.error('RotaFinal: Error getting variant', error);
-      return options.defaultVariant || 'control';
+      
+      // Retornar controle padrão em caso de erro
+      return {
+        name: options.defaultVariant || 'control',
+        isControl: true,
+        redirectUrl: null,
+        finalUrl: null,
+        hasMultiplePages: false,
+        error: true
+      };
+    }
+  }
+
+  /**
+   * ✅ NOVO: Executa experimento e aplica redirecionamento automaticamente
+   * Suporta múltiplas páginas por variante
+   */
+  async runExperiment(experimentId, options = {}) {
+    try {
+      const variant = await this.getVariant(experimentId, options);
+      
+      if (this.debug) {
+        console.log('RotaFinal: Running experiment', experimentId);
+        console.log('RotaFinal: Variant data:', variant);
+      }
+
+      // ✅ Aplicar mudanças visuais se houver
+      if (variant.cssChanges && options.applyStyles !== false) {
+        this.applyCSSChanges(variant.cssChanges);
+      }
+
+      if (variant.jsChanges && options.applyScripts !== false) {
+        this.applyJSChanges(variant.jsChanges);
+      }
+
+      // ✅ NOVO: Redirecionamento inteligente para múltiplas páginas
+      if (options.autoRedirect !== false) {
+        const redirectUrl = variant.finalUrl || variant.redirectUrl;
+        
+        if (redirectUrl && redirectUrl !== window.location.href) {
+          // Verificar se não é controle ou se forceRedirect está ativo
+          if (!variant.isControl || options.forceRedirect) {
+            if (this.debug) {
+              console.log('RotaFinal: Redirecting to:', redirectUrl);
+              console.log('RotaFinal: Multiple pages:', variant.hasMultiplePages);
+            }
+            
+            // Salvar info do experimento antes de redirecionar
+            sessionStorage.setItem('rf_current_experiment', experimentId);
+            sessionStorage.setItem('rf_current_variant', variant.id);
+            
+            // Redirecionar
+            window.location.href = redirectUrl;
+            return variant; // Retornar antes do redirect
+          }
+        }
+      }
+
+      // ✅ Callback personalizado
+      if (options.onVariant) {
+        options.onVariant(variant);
+      }
+
+      // ✅ Aplicar seletores DOM se fornecidos
+      if (options.selectors) {
+        this.applyVariant(experimentId, variant.name, options.selectors);
+      }
+
+      return variant;
+    } catch (error) {
+      if (this.debug) console.error('RotaFinal: Error running experiment', error);
+      return null;
+    }
+  }
+
+  /**
+   * ✅ Aplica mudanças CSS
+   */
+  applyCSSChanges(css) {
+    if (!css) return;
+    
+    const style = document.createElement('style');
+    style.setAttribute('data-rf-styles', 'true');
+    style.textContent = css;
+    document.head.appendChild(style);
+    
+    if (this.debug) console.log('RotaFinal: CSS changes applied');
+  }
+
+  /**
+   * ✅ Aplica mudanças JavaScript
+   */
+  applyJSChanges(js) {
+    if (!js) return;
+    
+    try {
+      const script = document.createElement('script');
+      script.setAttribute('data-rf-script', 'true');
+      script.textContent = js;
+      document.body.appendChild(script);
+      
+      if (this.debug) console.log('RotaFinal: JS changes applied');
+    } catch (error) {
+      if (this.debug) console.error('RotaFinal: Error applying JS changes', error);
     }
   }
 
@@ -89,9 +223,16 @@ class RotaFinal {
     try {
       // Incluir dados UTM automaticamente
       const utmData = this.getUTMData ? this.getUTMData() : {};
+      
+      // Incluir experimento atual se houver
+      const currentExperiment = sessionStorage.getItem('rf_current_experiment');
+      const currentVariant = sessionStorage.getItem('rf_current_variant');
+      
       const enrichedProperties = {
         ...properties,
-        ...utmData
+        ...utmData,
+        ...(currentExperiment && { experiment_id: currentExperiment }),
+        ...(currentVariant && { variant_id: currentVariant })
       };
 
       const response = await fetch(`${this.baseUrl}/api/track-event`, {
@@ -130,9 +271,16 @@ class RotaFinal {
     try {
       // Incluir dados UTM automaticamente
       const utmData = this.getUTMData ? this.getUTMData() : {};
+      
+      // Incluir experimento atual se houver
+      const currentExperiment = sessionStorage.getItem('rf_current_experiment');
+      const currentVariant = sessionStorage.getItem('rf_current_variant');
+      
       const enrichedProperties = {
         ...properties,
-        ...utmData
+        ...utmData,
+        ...(currentExperiment && { experiment_id: currentExperiment }),
+        ...(currentVariant && { variant_id: currentVariant })
       };
 
       const response = await fetch(`${this.baseUrl}/api/track-event`, {
@@ -156,11 +304,11 @@ class RotaFinal {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      if (this.debug) console.log('RotaFinal: Event tracked', { eventName, value, properties: enrichedProperties });
+      if (this.debug) console.log('RotaFinal: Conversion tracked', { eventName, value, properties: enrichedProperties });
       
       return await response.json();
     } catch (error) {
-      if (this.debug) console.error('RotaFinal: Error tracking event', error);
+      if (this.debug) console.error('RotaFinal: Error tracking conversion', error);
       return null;
     }
   }
@@ -213,23 +361,6 @@ class RotaFinal {
     });
 
     if (this.debug) console.log('RotaFinal: Applied variant', { experimentKey, variant, selectors });
-  }
-
-  /**
-   * Executa experimento completo
-   */
-  async runExperiment(experimentKey, options = {}) {
-    const variant = await this.getVariant(experimentKey, options);
-    
-    if (options.selectors) {
-      this.applyVariant(experimentKey, variant, options.selectors);
-    }
-
-    if (options.onVariant) {
-      options.onVariant(variant);
-    }
-
-    return variant;
   }
 
   /**
