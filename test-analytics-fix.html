@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Analytics Corrigido - RotaFinal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .container {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #60a5fa;
+      margin-top: 0;
+    }
+    h2 {
+      color: #818cf8;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 8px;
+    }
+    .test-section {
+      margin: 20px 0;
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: inline-block;
+      font-weight: 600;
+    }
+    .status.pending {
+      background: #78350f;
+      color: #fbbf24;
+    }
+    .status.success {
+      background: #064e3b;
+      color: #10b981;
+    }
+    .status.error {
+      background: #7f1d1d;
+      color: #ef4444;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      margin: 8px 8px 8px 0;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      background: #475569;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .result {
+      background: #0f172a;
+      border-left: 4px solid #3b82f6;
+      padding: 16px;
+      margin: 12px 0;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+    .metrics-card {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #334155;
+    }
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+    .metric-label {
+      color: #94a3b8;
+    }
+    .metric-value {
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    .variant-card {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+    .variant-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .variant-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #60a5fa;
+    }
+    .conversion-rate {
+      font-size: 24px;
+      font-weight: 700;
+      color: #10b981;
+    }
+    .improvement {
+      background: #064e3b;
+      color: #10b981;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Teste de Correção do Analytics</h1>
+    <p>Este teste valida que todas as correções aplicadas estão funcionando corretamente.</p>
+  </div>
+
+  <div class="container">
+    <h2>1️⃣ Teste de Conexão</h2>
+    <div class="test-section">
+      <button id="btnTestConnection" onclick="testConnection()">Testar Conexão Supabase</button>
+      <div id="connectionResult"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>2️⃣ Teste de Função RPC</h2>
+    <div class="test-section">
+      <button id="btnTestRPC" onclick="testRPC()">Testar get_experiment_stats</button>
+      <div id="rpcResult"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>3️⃣ Teste de Métricas</h2>
+    <div class="test-section">
+      <button id="btnTestMetrics" onclick="testMetrics()">Testar refresh_experiment_metrics</button>
+      <div id="metricsResult"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>4️⃣ Teste de Dados</h2>
+    <div class="test-section">
+      <button id="btnTestData" onclick="testData()">Verificar Dados de Teste</button>
+      <div id="dataResult"></div>
+    </div>
+  </div>
+
+  <script>
+    // Configuração do Supabase
+    const SUPABASE_URL = 'https://qptaizbqcgproqtvwvet.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwdGFpemJxY2dwcm9xdHZ3dmV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjc4MTI1NTUsImV4cCI6MjA0MzM4ODU1NX0.DJhQmkNSCqQjpTJfC4YkRFRlIcI-bNFbzXWwiFEwZFQ'
+    const EXPERIMENT_ID = 'b1e52249-d84a-4ef6-bb8a-a6dc7e78d5fb'
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    function showResult(elementId, status, message, data = null) {
+      const element = document.getElementById(elementId)
+      const statusClass = status === 'success' ? 'success' : status === 'error' ? 'error' : 'pending'
+      
+      let html = `<div class="status ${statusClass}">${status.toUpperCase()}</div>`
+      html += `<div class="result">${message}`
+      
+      if (data) {
+        html += `\n\n${JSON.stringify(data, null, 2)}`
+      }
+      
+      html += `</div>`
+      element.innerHTML = html
+    }
+
+    async function testConnection() {
+      showResult('connectionResult', 'pending', 'Testando conexão...')
+      
+      try {
+        const { data, error } = await supabase
+          .from('experiments')
+          .select('id, name, status')
+          .limit(1)
+
+        if (error) throw error
+
+        showResult('connectionResult', 'success', 
+          `✅ Conexão bem-sucedida!\nEncontrado ${data.length} experimento(s)`, data)
+      } catch (error) {
+        showResult('connectionResult', 'error', 
+          `❌ Erro na conexão:\n${error.message}`)
+      }
+    }
+
+    async function testRPC() {
+      showResult('rpcResult', 'pending', 'Testando função RPC get_experiment_stats...')
+      
+      try {
+        const { data, error } = await supabase
+          .rpc('get_experiment_stats', { experiment_uuid: EXPERIMENT_ID })
+
+        if (error) throw error
+
+        if (!data || data.length === 0) {
+          showResult('rpcResult', 'error', 
+            '⚠️ Função executou mas não retornou dados')
+          return
+        }
+
+        const stats = data[0]
+        showResult('rpcResult', 'success', 
+          `✅ Função RPC funcionando!\n\nExperimento: ${stats.experiment_name}\nStatus: ${stats.status}\nVisitantes: ${stats.total_visitors}\nConversões: ${stats.total_conversions}`, 
+          stats)
+      } catch (error) {
+        showResult('rpcResult', 'error', 
+          `❌ Erro ao executar RPC:\n${error.message}`)
+      }
+    }
+
+    async function testMetrics() {
+      showResult('metricsResult', 'pending', 'Testando função refresh_experiment_metrics...')
+      
+      try {
+        const { data, error } = await supabase
+          .rpc('refresh_experiment_metrics', { exp_id: EXPERIMENT_ID })
+
+        if (error) throw error
+
+        if (!data || data.length === 0) {
+          showResult('metricsResult', 'error', 
+            '⚠️ Função executou mas não retornou dados')
+          return
+        }
+
+        // Calcular melhoria
+        const control = data.find(v => v.variant_name === 'Original')
+        const variant = data.find(v => v.variant_name === 'Variante A')
+        
+        let html = `<div class="status success">SUCCESS</div>`
+        html += `<div class="result">✅ Métricas calculadas com sucesso!</div>`
+        
+        if (control && variant) {
+          const improvement = ((parseFloat(variant.conversion_rate) - parseFloat(control.conversion_rate)) / parseFloat(control.conversion_rate) * 100).toFixed(1)
+          
+          html += `
+            <div class="variant-card">
+              <div class="variant-header">
+                <span class="variant-name">${control.variant_name}</span>
+                <span class="conversion-rate">${parseFloat(control.conversion_rate).toFixed(2)}%</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Visitantes:</span>
+                <span class="metric-value">${control.visitors}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Conversões:</span>
+                <span class="metric-value">${control.conversions}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Receita:</span>
+                <span class="metric-value">R$ ${parseFloat(control.revenue).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="variant-card">
+              <div class="variant-header">
+                <span class="variant-name">${variant.variant_name}</span>
+                <span class="conversion-rate">${parseFloat(variant.conversion_rate).toFixed(2)}%</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Visitantes:</span>
+                <span class="metric-value">${variant.visitors}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Conversões:</span>
+                <span class="metric-value">${variant.conversions}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Receita:</span>
+                <span class="metric-value">R$ ${parseFloat(variant.revenue).toFixed(2)}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Melhoria:</span>
+                <span class="metric-value improvement">+${improvement}%</span>
+              </div>
+            </div>
+          `
+        }
+        
+        document.getElementById('metricsResult').innerHTML = html
+      } catch (error) {
+        showResult('metricsResult', 'error', 
+          `❌ Erro ao calcular métricas:\n${error.message}`)
+      }
+    }
+
+    async function testData() {
+      showResult('dataResult', 'pending', 'Verificando dados de teste...')
+      
+      try {
+        const { data: assignments } = await supabase
+          .from('assignments')
+          .select('id', { count: 'exact', head: true })
+          .eq('experiment_id', EXPERIMENT_ID)
+
+        const { data: events } = await supabase
+          .from('events')
+          .select('id', { count: 'exact', head: true })
+          .eq('experiment_id', EXPERIMENT_ID)
+
+        const { data: conversions } = await supabase
+          .from('events')
+          .select('id', { count: 'exact', head: true })
+          .eq('experiment_id', EXPERIMENT_ID)
+          .eq('event_type', 'conversion')
+
+        const result = {
+          assignments: assignments || 0,
+          total_events: events || 0,
+          conversions: conversions || 0
+        }
+
+        if (result.assignments > 0 && result.total_events > 0) {
+          showResult('dataResult', 'success', 
+            `✅ Dados de teste presentes!\n\nAssignments: ${result.assignments}\nEventos totais: ${result.total_events}\nConversões: ${result.conversions}`, 
+            result)
+        } else {
+          showResult('dataResult', 'error', 
+            '⚠️ Dados de teste não encontrados\n\nExecute o script de criação de dados de teste.', 
+            result)
+        }
+      } catch (error) {
+        showResult('dataResult', 'error', 
+          `❌ Erro ao verificar dados:\n${error.message}`)
+      }
+    }
+
+    // Executar testes automaticamente ao carregar
+    window.addEventListener('load', () => {
+      console.log('🧪 Página de teste carregada')
+      console.log('Clique nos botões para executar os testes')
+    })
+  </script>
+</body>
+</html>
+

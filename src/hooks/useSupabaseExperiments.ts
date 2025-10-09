@@ -120,29 +120,33 @@ export function useSupabaseExperiments() {
         throw queryError
       }
 
-      // Carregar métricas para experimentos ativos
+      // Carregar métricas para experimentos ativos usando RPC
       const experimentsWithMetrics = await Promise.all(
         (data || []).map(async (exp: any) => {
           if (exp.status === 'running' || exp.status === 'completed') {
-            // Buscar métricas do cache
-            const { data: metricsData } = await supabase
-              .from('metrics_snapshots')
-              .select('*')
-              .eq('experiment_id', exp.id)
-              .order('computed_at', { ascending: false })
-              .limit(1)
+            try {
+              // Usar a função RPC para obter estatísticas (passando o UUID como parâmetro)
+              const { data: statsData, error: statsError } = await supabase
+                .rpc('get_experiment_stats', { experiment_uuid: exp.id })
 
-            if (metricsData && metricsData.length > 0) {
-              const metrics = metricsData[0]
-              return {
-                ...exp,
-                metrics: {
-                  visitors: metrics.count || 0,
-                  conversions: 0, // Será calculado
-                  conversion_rate: metrics.value || 0,
-                  confidence: metrics.confidence_interval?.confidence_level || 0
+              if (statsError) {
+                console.error(`Erro RPC get_experiment_stats para ${exp.id}:`, statsError)
+              } else if (statsData && statsData.length > 0) {
+                const stats = statsData[0]
+                return {
+                  ...exp,
+                  metrics: {
+                    visitors: stats.total_visitors || 0,
+                    conversions: stats.total_conversions || 0,
+                    conversion_rate: stats.total_visitors > 0 
+                      ? (stats.total_conversions / stats.total_visitors) * 100 
+                      : 0,
+                    confidence: 0
+                  }
                 }
               }
+            } catch (error) {
+              console.error(`Erro ao buscar métricas do experimento ${exp.id}:`, error)
             }
           }
           return exp

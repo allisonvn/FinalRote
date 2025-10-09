@@ -50,26 +50,51 @@ export function ExperimentMetrics({
     try {
       setError(null)
       
-      // Buscar métricas via RPC
+      // Buscar métricas via função refresh_experiment_metrics
       const { data, error: metricsError } = await supabase
-        .rpc('get_experiment_metrics', { exp_id: experimentId })
+        .rpc('refresh_experiment_metrics', { exp_id: experimentId })
 
-      if (metricsError) throw metricsError
+      if (metricsError) {
+        console.error('Erro ao buscar métricas:', metricsError)
+        throw metricsError
+      }
+
+      // Se não houver dados, retornar métricas vazias
+      if (!data || data.length === 0) {
+        console.log('⚠️ Nenhuma métrica encontrada para o experimento:', experimentId)
+        setMetrics({
+          variants: [],
+          summary: {
+            totalVisitors: 0,
+            totalConversions: 0,
+            avgConversionRate: 0,
+            totalRevenue: 0
+          }
+        })
+        setLastUpdate(new Date())
+        setLoading(false)
+        return
+      }
 
       // Calcular significância estatística
-      const controlVariant = data?.find((v: any) => v.variant_name === 'Controle' || v.variant_name === 'Control')
+      const controlVariant = data?.find((v: any) => v.variant_name === 'Original' || v.is_control === true)
       
       if (controlVariant && data) {
         for (const variant of data) {
           if (variant.variant_id !== controlVariant.variant_id) {
-            const { data: significance } = await supabase.rpc('calculate_significance', {
-              control_conversions: controlVariant.conversions,
-              control_visitors: controlVariant.visitors,
-              variant_conversions: variant.conversions,
-              variant_visitors: variant.visitors
-            })
-            
-            variant.significance = significance
+            try {
+              const { data: significance } = await supabase.rpc('calculate_significance', {
+                control_conversions: controlVariant.conversions,
+                control_visitors: controlVariant.visitors,
+                variant_conversions: variant.conversions,
+                variant_visitors: variant.visitors
+              })
+              
+              variant.significance = significance || 0
+            } catch (sigErr) {
+              console.error('Erro ao calcular significância:', sigErr)
+              variant.significance = 0
+            }
           }
         }
       }

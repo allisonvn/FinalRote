@@ -87,9 +87,10 @@ export interface Event {
 export interface MetricSnapshot {
   id: string
   experiment_id: string
-  variant_id: string
-  metric_type: 'visitors' | 'conversions' | 'revenue'
-  count: number
-  value: number
-  computed_at: string
+  variant_id: string | null
+  visitors: number
+  conversions: number
+  conversion_rate: number
+  snapshot_date: string
+  created_at: string
 }

@@ -39,18 +39,22 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
     let expError = null
 
     try {
+      // Usar a função get_experiment_stats sem parâmetros para obter todos
       const result = await supabase
-        .rpc('get_experiment_stats')
+        .rpc('get_experiment_stats', { experiment_uuid: null })
+      
+      console.log('📊 Dados de get_experiment_stats:', result)
+      
       experiments = result.data?.map(stat => ({
         experiment_id: stat.experiment_id,
         experiment_name: stat.experiment_name,
         status: stat.status,
-        total_visitors: stat.total_visitors,
-        total_conversions: stat.total_conversions
+        total_visitors: stat.total_visitors || 0,
+        total_conversions: stat.total_conversions || 0
       })) || []
       expError = result.error
     } catch (viewError) {
-      console.log('Função RPC não disponível, usando tabela experiments diretamente')
+      console.log('Função RPC não disponível, usando tabela experiments diretamente', viewError)
       const result = await supabase
         .from('experiments')
         .select('id, name, status, created_at')
