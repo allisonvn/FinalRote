@@ -1278,10 +1278,15 @@ ${baseCode}
 
       if (variantsError) {
         console.error('❌ Erro ao buscar variantes:', variantsError)
+        toast.error('Erro ao buscar variantes criadas. Tente recarregar a página.')
+      } else if (!createdVariants || createdVariants.length === 0) {
+        console.error('❌ Nenhuma variante foi encontrada após criar o experimento!')
+        toast.error('Erro: O experimento foi criado mas não tem variantes. Por favor, contate o suporte.')
       } else {
         console.log('📋 Variantes encontradas:', createdVariants)
 
         // Atualizar cada variante com os dados do formulário
+        let updatedCount = 0
         for (let i = 0; i < createdVariants.length && i < experimentForm.variants.length; i++) {
           const dbVariant = createdVariants[i]
           const formVariant = experimentForm.variants[i]
@@ -1303,10 +1308,14 @@ ${baseCode}
 
           if (updateError) {
             console.error(`❌ Erro ao atualizar variante ${dbVariant.id}:`, updateError)
+            toast.error(`Erro ao atualizar variante "${formVariant.name}"`)
           } else {
             console.log(`✅ Variante ${dbVariant.id} atualizada com sucesso`)
+            updatedCount++
           }
         }
+
+        console.log(`✅ ${updatedCount} de ${createdVariants.length} variantes atualizadas com sucesso`)
       }
 
       toast.success(`✅ Experimento "${newExperiment.name}" criado com sucesso!`)
