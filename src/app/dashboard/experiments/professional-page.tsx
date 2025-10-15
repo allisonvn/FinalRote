@@ -88,7 +88,7 @@ const calculateExperimentMetrics = async (experimentId: string, supabase: any) =
     // Buscar total de visitantes únicos
     const { data: visitors, error: visitError } = await supabase
       .from('assignments')
-      .select('user_id')
+      .select('visitor_id')
       .eq('experiment_id', experimentId)
 
     if (convError || visitError) throw new Error('Erro ao calcular métricas')
@@ -97,9 +97,8 @@ const calculateExperimentMetrics = async (experimentId: string, supabase: any) =
     const totalVisitors = visitors?.length || 0
     const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
 
-    // Calcular receita total (assumindo valor médio por conversão)
-    const avgOrderValue = 150 // R$ por conversão
-    const revenue = totalConversions * avgOrderValue
+    // Calcular receita total usando valores reais das conversões
+    const revenue = conversions?.reduce((sum, conv) => sum + (conv.value || 0), 0) || 0
 
     // Calcular improvement comparando com baseline (assumindo 3% como baseline)
     const baseline = 3.0

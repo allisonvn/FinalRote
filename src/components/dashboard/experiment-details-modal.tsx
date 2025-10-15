@@ -255,6 +255,34 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     }
   }
 
+  // Função para recarregar todos os dados
+  const refreshData = async () => {
+    if (!experiment?.project_id) return
+
+    try {
+      setLoading(true)
+      console.log('🔄 Atualizando dados do experimento:', experiment.id)
+
+      // Buscar métricas do experimento
+      const metrics = await fetchExperimentMetrics(experiment.id)
+      setExperimentMetrics(metrics)
+
+      // Buscar dados das variantes
+      const variants = await fetchVariantData(experiment.id)
+      setVariantData(variants)
+
+      // Buscar dados da timeline
+      const timeline = await fetchTimeSeriesData(experiment.id)
+      setTimeSeriesData(timeline)
+
+      console.log('✅ Dados atualizados com sucesso')
+    } catch (error) {
+      console.error('Erro ao atualizar dados:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Buscar dados do projeto e API key
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -266,7 +294,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
       try {
         setLoading(true)
         console.log('🔍 Buscando dados do projeto para experimento:', experiment.id, 'project_id:', experiment.project_id)
-        
+
         const { data: project } = await supabase
           .from('projects')
           .select('*')
@@ -297,7 +325,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     }
 
     console.log('🔄 useEffect executado - isOpen:', isOpen, 'experiment:', !!experiment, 'experiment.id:', experiment?.id)
-    
+
     if (isOpen && experiment) {
       console.log('✅ Condições atendidas, executando fetchProjectData')
       fetchProjectData()
@@ -613,9 +641,15 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
             <p className="text-slate-600">Taxa de conversão diária dos últimos 7 dias</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="rounded-lg">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Atualizar
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              onClick={refreshData}
+              disabled={loading}
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
+              {loading ? 'Atualizando...' : 'Atualizar'}
             </Button>
           </div>
         </div>
