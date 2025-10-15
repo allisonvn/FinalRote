@@ -60,6 +60,9 @@ export default function OptimizedCodeGenerator({
   const [copied, setCopied] = useState(false)
   const [debugMode, setDebugMode] = useState(false)
 
+  // ✅ CORREÇÃO: Mover antiFlickerTimeout para escopo do componente
+  const antiFlickerTimeout = experimentType === 'redirect' || experimentType === 'split_url' ? 120 : 200
+
   /**
    * Gera o código completo otimizado
    */
@@ -67,9 +70,6 @@ export default function OptimizedCodeGenerator({
     // Buscar configuração de conversão das variantes
     const conversionConfig = variants.find(v => v.changes?.conversion)?.changes?.conversion
     const hasConversionTracking = conversionConfig && (conversionConfig.url || conversionConfig.selector || conversionConfig.event)
-    
-    // Timeout anti-flicker baseado no tipo
-    const antiFlickerTimeout = experimentType === 'redirect' || experimentType === 'split_url' ? 120 : 200
     
     // Versão do SDK
     const sdkVersion = '3.0.0-optimized'
