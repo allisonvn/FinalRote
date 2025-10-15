@@ -539,6 +539,72 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         </Card>
       </div>
 
+      {/* Detalhes de Conversões */}
+      {experimentMetrics?.conversions > 0 && (
+        <Card className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-200">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+              <Target className="w-7 h-7 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xl font-bold text-green-900">📊 Conversões Registradas</h4>
+                <Badge className="bg-green-600 text-white px-3 py-1 text-sm">
+                  {experimentMetrics.conversions} conversões
+                </Badge>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="bg-white/70 backdrop-blur rounded-xl p-4 border border-green-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    <p className="text-sm font-medium text-green-900">Valor Total</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-700">
+                    R$ {(experimentMetrics.totalValue || 0).toFixed(2)}
+                  </p>
+                </div>
+                
+                <div className="bg-white/70 backdrop-blur rounded-xl p-4 border border-green-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Percent className="w-4 h-4 text-green-600" />
+                    <p className="text-sm font-medium text-green-900">Taxa de Conversão</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-700">
+                    {experimentMetrics.conversionRate.toFixed(2)}%
+                  </p>
+                </div>
+                
+                <div className="bg-white/70 backdrop-blur rounded-xl p-4 border border-green-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    <p className="text-sm font-medium text-green-900">Ticket Médio</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-700">
+                    R$ {experimentMetrics.conversions > 0 
+                      ? (experimentMetrics.totalValue / experimentMetrics.conversions).toFixed(2) 
+                      : '0.00'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur rounded-xl p-4 border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Info className="w-4 h-4 text-green-600" />
+                  <p className="text-sm font-semibold text-green-900">Como funciona o rastreamento</p>
+                </div>
+                <p className="text-sm text-green-800 leading-relaxed">
+                  As conversões são registradas automaticamente quando os visitantes acessam a página de sucesso 
+                  configurada (<strong>{experiment.conversion_url || '/obrigado'}</strong>). 
+                  O sistema identifica qual variante o visitante estava vendo e registra a conversão 
+                  no Supabase com o valor de <strong>R$ {experiment.conversion_value || 0}</strong> por conversão.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Gráfico de performance */}
       <Card className="p-8">
         <div className="flex items-center justify-between mb-6">

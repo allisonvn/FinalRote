@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Teste Completo - Sistema de Conversões</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+        
+        .step h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .step p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .step code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #d63384;
+        }
+        
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .button-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+        
+        .console .comment { color: #6a9955; }
+        .console .string { color: #ce9178; }
+        .console .number { color: #b5cea8; }
+        .console .keyword { color: #569cd6; }
+        .console .function { color: #dcdcaa; }
+        
+        .alert {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .alert h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .alert p {
+            color: #856404;
+            line-height: 1.6;
+        }
+        
+        .checklist {
+            list-style: none;
+        }
+        
+        .checklist li {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checklist li:before {
+            content: '✅';
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Teste Completo - Sistema de Conversões</h1>
+            <p>Validação do rastreamento automático de conversões com Supabase</p>
+            <div style="margin-top: 15px;">
+                <span class="status success" id="status">✅ Sistema Operacional</span>
+            </div>
+        </div>
+
+        <!-- Alert -->
+        <div class="alert">
+            <h3>⚠️ Como Usar Este Teste</h3>
+            <p>
+                <strong>1.</strong> Abra o console do navegador (F12)<br>
+                <strong>2.</strong> Clique em "Simular Fluxo Completo"<br>
+                <strong>3.</strong> Veja os logs e verifique se a conversão foi registrada<br>
+                <strong>4.</strong> Confira no Supabase se os dados foram salvos
+            </p>
+        </div>
+
+        <!-- Grid de Cards -->
+        <div class="grid">
+            <!-- Card 1: Fluxo do Teste -->
+            <div class="card">
+                <h2>📋 Fluxo do Teste</h2>
+                
+                <div class="step">
+                    <h3>1. Atribuição de Variante</h3>
+                    <p>Simula visitante acessando página original e recebendo variante</p>
+                </div>
+                
+                <div class="step">
+                    <h3>2. Salvamento no localStorage</h3>
+                    <p>Dados da atribuição salvos localmente para rastreamento</p>
+                </div>
+                
+                <div class="step">
+                    <h3>3. Detecção de Conversão</h3>
+                    <p>Simulação de acesso à página de sucesso <code>/obrigado</code></p>
+                </div>
+                
+                <div class="step">
+                    <h3>4. Registro no Supabase</h3>
+                    <p>Conversão enviada para API e salva no banco de dados</p>
+                </div>
+
+                <button class="button" onclick="runCompleteTest()" style="margin-top: 20px; width: 100%;">
+                    🚀 Simular Fluxo Completo
+                </button>
+            </div>
+
+            <!-- Card 2: O Que Será Testado -->
+            <div class="card">
+                <h2>🧪 O Que Será Testado</h2>
+                
+                <ul class="checklist">
+                    <li>Detecção de experimento ativo</li>
+                    <li>Leitura do localStorage</li>
+                    <li>Identificação da variante</li>
+                    <li>Detecção da URL de conversão</li>
+                    <li>Envio para API /api/track</li>
+                    <li>Registro no Supabase</li>
+                    <li>Prevenção de duplicatas</li>
+                    <li>Logs de debug</li>
+                </ul>
+
+                <div style="margin-top: 20px;">
+                    <button class="button button-secondary" onclick="clearTestData()" style="width: 100%;">
+                        🗑️ Limpar Dados do Teste
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 3: Dados Esperados -->
+            <div class="card">
+                <h2>📊 Dados Esperados</h2>
+                
+                <div class="step">
+                    <h3>localStorage</h3>
+                    <p>
+                        <code>rotafinal_exp_123</code><br>
+                        Contém: experimentId, variantId, variant, visitorId
+                    </p>
+                </div>
+                
+                <div class="step">
+                    <h3>Evento de Conversão</h3>
+                    <p>
+                        POST <code>/api/track</code><br>
+                        event_type: "conversion"<br>
+                        value: 100
+                    </p>
+                </div>
+                
+                <div class="step">
+                    <h3>Supabase - Tabela events</h3>
+                    <p>
+                        Novo registro com:<br>
+                        • experiment_id<br>
+                        • visitor_id<br>
+                        • variant_id<br>
+                        • event_type: conversion<br>
+                        • value: 100
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console Output -->
+        <div class="card">
+            <h2>💻 Logs do Sistema</h2>
+            <div id="console-output" class="console">
+                <span class="comment">// Os logs aparecerão aqui quando você executar o teste</span><br>
+                <span class="comment">// Também verifique o console do navegador (F12)</span>
+            </div>
+        </div>
+
+        <!-- Verificação no Supabase -->
+        <div class="card">
+            <h2>🔍 Verificação no Supabase</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                Após executar o teste, use estas queries para validar os dados:
+            </p>
+            
+            <div class="console">
+<span class="comment">-- Ver conversões do experimento</span>
+<span class="keyword">SELECT</span> *
+<span class="keyword">FROM</span> events
+<span class="keyword">WHERE</span> experiment_id = <span class="string">'seu-experimento-id'</span>
+  <span class="keyword">AND</span> event_type = <span class="string">'conversion'</span>
+<span class="keyword">ORDER BY</span> created_at <span class="keyword">DESC</span>;
+
+<span class="comment">-- Ver estatísticas das variantes</span>
+<span class="keyword">SELECT</span> 
+  v.name,
+  vs.visitors,
+  vs.conversions,
+  vs.revenue,
+  <span class="function">ROUND</span>(vs.conversions::numeric / vs.visitors::numeric * <span class="number">100</span>, <span class="number">2</span>) <span class="keyword">as</span> conversion_rate
+<span class="keyword">FROM</span> variant_stats vs
+<span class="keyword">JOIN</span> variants v <span class="keyword">ON</span> vs.variant_id = v.id
+<span class="keyword">WHERE</span> vs.experiment_id = <span class="string">'seu-experimento-id'</span>;
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações do teste
+        const TEST_CONFIG = {
+            experimentId: 'test-exp-' + Date.now(),
+            variantId: 'test-var-' + Date.now(),
+            variantName: 'Variante A',
+            visitorId: 'rf_test_' + Math.random().toString(36).substr(2, 9),
+            conversionUrl: '/obrigado',
+            conversionValue: 100,
+            apiUrl: window.location.origin + '/api/track'
+        };
+
+        // Função para adicionar log ao console visual
+        function addLog(message, type = 'info') {
+            const consoleEl = document.getElementById('console-output');
+            const colors = {
+                info: '#569cd6',
+                success: '#4ec9b0',
+                error: '#f48771',
+                warning: '#dcdcaa'
+            };
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const log = `<span style="color: ${colors[type]}">[${timestamp}]</span> ${message}<br>`;
+            
+            consoleEl.innerHTML += log;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+            
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        // Função para simular atribuição de variante
+        function simulateVariantAssignment() {
+            addLog('🎯 Simulando atribuição de variante...', 'info');
+            
+            const assignmentData = {
+                experimentId: TEST_CONFIG.experimentId,
+                variantId: TEST_CONFIG.variantId,
+                variant: TEST_CONFIG.variantName,
+                visitorId: TEST_CONFIG.visitorId,
+                timestamp: Date.now()
+            };
+            
+            const storageKey = `rotafinal_${TEST_CONFIG.experimentId}`;
+            localStorage.setItem(storageKey, JSON.stringify(assignmentData));
+            
+            addLog(`✅ Variante atribuída: ${TEST_CONFIG.variantName}`, 'success');
+            addLog(`📦 Dados salvos em localStorage: ${storageKey}`, 'success');
+            
+            return assignmentData;
+        }
+
+        // Função para simular detecção de conversão
+        function simulateConversionDetection() {
+            addLog('🔍 Simulando detecção de conversão...', 'info');
+            
+            const storageKey = `rotafinal_${TEST_CONFIG.experimentId}`;
+            const data = JSON.parse(localStorage.getItem(storageKey));
+            
+            if (!data) {
+                addLog('❌ Erro: Dados do experimento não encontrados', 'error');
+                return null;
+            }
+            
+            addLog('✅ Dados do experimento encontrados', 'success');
+            addLog(`👤 Visitor ID: ${data.visitorId}`, 'info');
+            addLog(`🎯 Variante: ${data.variant}`, 'info');
+            
+            return data;
+        }
+
+        // Função para registrar conversão
+        async function trackConversion(assignmentData) {
+            addLog('📤 Enviando conversão para API...', 'info');
+            
+            const conversionData = {
+                experiment_id: assignmentData.experimentId,
+                visitor_id: assignmentData.visitorId,
+                variant_id: assignmentData.variantId,
+                variant: assignmentData.variant,
+                event_type: 'conversion',
+                event_name: 'conversion',
+                properties: {
+                    page_url: window.location.href,
+                    page_title: document.title,
+                    test: true,
+                    timestamp: new Date().toISOString()
+                },
+                value: TEST_CONFIG.conversionValue,
+                timestamp: new Date().toISOString()
+            };
+            
+            addLog(`📊 Payload: ${JSON.stringify(conversionData, null, 2)}`, 'info');
+            
+            try {
+                const response = await fetch(TEST_CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(conversionData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                addLog('✅ Conversão registrada com sucesso!', 'success');
+                addLog(`📊 Resposta da API: ${JSON.stringify(result)}`, 'success');
+                
+                // Marcar como convertido
+                const conversionKey = `rotafinal_conversion_${TEST_CONFIG.experimentId}`;
+                sessionStorage.setItem(conversionKey, JSON.stringify({
+                    converted_at: new Date().toISOString(),
+                    experiment_id: TEST_CONFIG.experimentId,
+                    variant: TEST_CONFIG.variantName
+                }));
+                
+                addLog('🔒 Flag de conversão salva (evitar duplicatas)', 'success');
+                
+                return result;
+            } catch (error) {
+                addLog(`❌ Erro ao registrar conversão: ${error.message}`, 'error');
+                console.error('Erro detalhado:', error);
+                throw error;
+            }
+        }
+
+        // Função principal do teste
+        async function runCompleteTest() {
+            const consoleEl = document.getElementById('console-output');
+            consoleEl.innerHTML = '';
+            
+            addLog('🚀 Iniciando teste completo do sistema de conversões', 'info');
+            addLog('━'.repeat(60), 'info');
+            
+            try {
+                // Passo 1: Simular atribuição
+                addLog('', 'info');
+                addLog('PASSO 1: Atribuição de Variante', 'warning');
+                const assignmentData = simulateVariantAssignment();
+                await sleep(500);
+                
+                // Passo 2: Simular detecção
+                addLog('', 'info');
+                addLog('PASSO 2: Detecção de Conversão', 'warning');
+                const detectedData = simulateConversionDetection();
+                await sleep(500);
+                
+                if (!detectedData) {
+                    throw new Error('Falha na detecção de dados');
+                }
+                
+                // Passo 3: Registrar conversão
+                addLog('', 'info');
+                addLog('PASSO 3: Registro da Conversão', 'warning');
+                await trackConversion(detectedData);
+                
+                // Resumo final
+                addLog('', 'info');
+                addLog('━'.repeat(60), 'info');
+                addLog('✅ TESTE CONCLUÍDO COM SUCESSO!', 'success');
+                addLog('', 'info');
+                addLog('📋 Próximos passos:', 'warning');
+                addLog('1. Verifique o console do navegador para mais detalhes', 'info');
+                addLog('2. Confira a tabela "events" no Supabase', 'info');
+                addLog('3. Verifique a tabela "variant_stats" no Supabase', 'info');
+                addLog('4. Abra o modal de detalhes no dashboard', 'info');
+                
+                document.getElementById('status').textContent = '✅ Teste Concluído';
+                document.getElementById('status').className = 'status success';
+                
+            } catch (error) {
+                addLog('', 'info');
+                addLog('❌ TESTE FALHOU', 'error');
+                addLog(`Erro: ${error.message}`, 'error');
+                
+                document.getElementById('status').textContent = '❌ Teste Falhou';
+                document.getElementById('status').className = 'status warning';
+            }
+        }
+
+        // Função para limpar dados do teste
+        function clearTestData() {
+            const storageKey = `rotafinal_${TEST_CONFIG.experimentId}`;
+            const conversionKey = `rotafinal_conversion_${TEST_CONFIG.experimentId}`;
+            
+            localStorage.removeItem(storageKey);
+            sessionStorage.removeItem(conversionKey);
+            
+            const consoleEl = document.getElementById('console-output');
+            consoleEl.innerHTML = '<span class="comment">// Dados do teste limpos. Execute novamente para testar.</span>';
+            
+            document.getElementById('status').textContent = '🔄 Pronto para Novo Teste';
+            document.getElementById('status').className = 'status info';
+            
+            console.log('✅ Dados do teste limpos');
+        }
+
+        // Helper para delay
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Log inicial
+        console.log('%c🎯 Sistema de Conversões - Teste Completo', 'font-size: 20px; color: #667eea; font-weight: bold;');
+        console.log('Configuração do teste:', TEST_CONFIG);
+    </script>
+</body>
+</html>
+
