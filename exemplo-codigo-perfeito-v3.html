@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RotaFinal - Exemplo Código v3.0 Otimizado</title>
+    
+    <!-- ========================================
+         ⚠️ CRITICAL: COLE O CÓDIGO AQUI
+         ANTES DE QUALQUER OUTRO SCRIPT!
+         ======================================== -->
+    
+    <!-- RotaFinal SDK v3.0.0-optimized - Exemplo de Experimento -->
+    <!-- Experimento ID: SUBSTITUA_PELO_SEU_ID -->
+    <!-- Tipo: REDIRECT | Algoritmo: THOMPSON_SAMPLING -->
+    
+    <link rel="preconnect" href="https://rotafinal.com.br">
+    <link rel="dns-prefetch" href="https://rotafinal.com.br">
+    
+    <style data-rf-antiflicker>
+    body:not([data-rf-ready]){opacity:0;visibility:hidden}
+    body[data-rf-ready]{opacity:1;visibility:visible;transition:opacity .1s ease-out}
+    </style>
+    
+    <script>
+    // ⚠️ SUBSTITUA ESTE BLOCO PELO CÓDIGO GERADO NO SEU DASHBOARD
+    // Este é apenas um EXEMPLO da estrutura
+    
+    !function(){"use strict";
+        console.log("⚠️ ATENÇÃO: Este é um código de exemplo!");
+        console.log("Copie o código real do seu experimento no dashboard RotaFinal");
+        
+        // Simular comportamento para exemplo
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.setAttribute('data-rf-ready', 'true');
+            
+            // Simular API do RotaFinal para testes
+            window.RotaFinal = {
+                track: function(eventName, properties) {
+                    console.log('📊 [RotaFinal] Track:', eventName, properties);
+                    return Promise.resolve({ success: true });
+                },
+                convert: function(value, properties) {
+                    console.log('🎯 [RotaFinal] Convert:', value, properties);
+                    return Promise.resolve({ success: true });
+                },
+                getVariant: function() {
+                    return {
+                        name: 'Exemplo',
+                        is_control: true,
+                        message: 'Este é um exemplo - substitua pelo código real'
+                    };
+                },
+                getUserId: function() {
+                    return 'user_example_' + Date.now();
+                },
+                setDebug: function(enabled) {
+                    console.log('🐛 [RotaFinal] Debug ' + (enabled ? 'ativado' : 'desativado'));
+                },
+                reload: function() {
+                    console.log('🔄 [RotaFinal] Reload solicitado');
+                    location.reload();
+                }
+            };
+            
+            console.log('✅ [RotaFinal] API de exemplo inicializada');
+            showExampleInfo();
+        });
+    }();
+    </script>
+    
+    <!-- ======================================== -->
+    
+    <!-- Estilos da página de teste -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        h2 {
+            color: #764ba2;
+            font-size: 1.8em;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        h3 {
+            color: #555;
+            font-size: 1.3em;
+            margin-bottom: 12px;
+            margin-top: 24px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .badge-success { background: #10b981; color: white; }
+        .badge-warning { background: #f59e0b; color: white; }
+        .badge-info { background: #3b82f6; color: white; }
+        .badge-danger { background: #ef4444; color: white; }
+        
+        .alert {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid;
+        }
+        
+        .alert-warning {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        
+        .alert-success {
+            background: #d1fae5;
+            border-color: #10b981;
+            color: #065f46;
+        }
+        
+        .alert-info {
+            background: #dbeafe;
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+        
+        .code-block {
+            background: #1e293b;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .btn-info {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea22 0%, #764ba244 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+        
+        .console {
+            background: #0f172a;
+            color: #22c55e;
+            padding: 20px;
+            border-radius: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin: 16px 0;
+        }
+        
+        .console-line {
+            margin: 4px 0;
+            padding: 4px;
+            border-left: 2px solid transparent;
+        }
+        
+        .console-line:hover {
+            background: #1e293b;
+            border-left-color: #22c55e;
+        }
+        
+        ul, ol {
+            margin-left: 24px;
+            margin-bottom: 16px;
+        }
+        
+        li {
+            margin: 8px 0;
+        }
+        
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #e11d48;
+        }
+        
+        .divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            margin: 32px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="card">
+            <h1>🚀 RotaFinal SDK v3.0 - Código Perfeito</h1>
+            <p style="text-align: center; color: #666; font-size: 1.1em;">
+                Exemplo completo de código otimizado para teste A/B
+            </p>
+            <div style="text-align: center; margin-top: 16px;">
+                <span class="badge badge-success">✅ 100% Funcional</span>
+                <span class="badge badge-info">⚡ Zero Flicker</span>
+                <span class="badge badge-warning">🔧 Pronto para Produção</span>
+            </div>
+        </div>
+        
+        <!-- Alerta Importante -->
+        <div class="alert alert-warning">
+            <strong>⚠️ ATENÇÃO:</strong> Este é um arquivo de <strong>EXEMPLO</strong>. 
+            Para usar em seu site, você deve:
+            <ol style="margin-top: 12px;">
+                <li>Criar um experimento no dashboard do RotaFinal</li>
+                <li>Copiar o código gerado especificamente para seu experimento</li>
+                <li>Substituir o bloco <code>&lt;script&gt;</code> acima pelo código real</li>
+            </ol>
+        </div>
+        
+        <!-- Status -->
+        <div class="card">
+            <h2>📊 Status do Sistema</h2>
+            
+            <div class="grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-variant">-</div>
+                    <div class="stat-label">Variante Atual</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-user">-</div>
+                    <div class="stat-label">User ID</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-events">0</div>
+                    <div class="stat-label">Eventos Rastreados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-conversions">0</div>
+                    <div class="stat-label">Conversões</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Testes -->
+        <div class="card">
+            <h2>🧪 Painel de Testes</h2>
+            
+            <div class="alert alert-info">
+                Use os botões abaixo para testar as funcionalidades do RotaFinal SDK
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-primary" onclick="testGetVariant()">
+                    🎯 Ver Variante Atual
+                </button>
+                <button class="btn-success" onclick="testTrackEvent()">
+                    📊 Rastrear Evento
+                </button>
+                <button class="btn-warning" onclick="testConversion()">
+                    💰 Registrar Conversão
+                </button>
+                <button class="btn-info" onclick="testGetUserId()">
+                    👤 Ver User ID
+                </button>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-primary" onclick="testDebugOn()">
+                    🐛 Ativar Debug
+                </button>
+                <button class="btn-success" onclick="testDebugOff()">
+                    ✅ Desativar Debug
+                </button>
+                <button class="btn-warning" onclick="testReload()">
+                    🔄 Forçar Nova Atribuição
+                </button>
+                <button class="btn-info" onclick="clearConsole()">
+                    🗑️ Limpar Console
+                </button>
+            </div>
+        </div>
+        
+        <!-- Console -->
+        <div class="card">
+            <h2>🖥️ Console de Logs</h2>
+            <div class="console" id="custom-console">
+                <div class="console-line">📝 Aguardando ações...</div>
+            </div>
+        </div>
+        
+        <!-- Instruções -->
+        <div class="card">
+            <h2>📖 Como Usar em Seu Site</h2>
+            
+            <h3>1️⃣ Crie um Experimento</h3>
+            <ol>
+                <li>Acesse o dashboard do RotaFinal</li>
+                <li>Clique em "Novo Experimento"</li>
+                <li>Configure nome, variantes e conversões</li>
+                <li>Salve o experimento</li>
+            </ol>
+            
+            <h3>2️⃣ Copie o Código</h3>
+            <ol>
+                <li>Abra o experimento criado</li>
+                <li>Vá até a aba "Código" ou "Settings"</li>
+                <li>Clique em "Copiar Código Completo"</li>
+                <li>O código já estará copiado para sua área de transferência</li>
+            </ol>
+            
+            <h3>3️⃣ Cole no Seu Site</h3>
+            <div class="alert alert-warning">
+                <strong>⚠️ POSIÇÃO CRÍTICA:</strong> Cole o código no <strong>TOPO</strong> da tag <code>&lt;head&gt;</code>
+            </div>
+            
+            <div class="code-block">
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    
+    &lt;!-- ✅ AQUI - Logo após charset --&gt;
+    &lt;!-- RotaFinal SDK v3.0.0-optimized --&gt;
+    &lt;script&gt;
+    !function(){...}();
+    &lt;/script&gt;
+    
+    &lt;!-- Resto do seu código --&gt;
+    &lt;title&gt;Meu Site&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    ...
+&lt;/body&gt;
+&lt;/html&gt;
+            </div>
+            
+            <h3>4️⃣ Teste</h3>
+            <ol>
+                <li>Abra seu site em um navegador</li>
+                <li>Pressione F12 para abrir o console</li>
+                <li>Procure por logs <code>[RotaFinal v3.0.0]</code></li>
+                <li>Teste em modo anônimo para ver variantes diferentes</li>
+            </ol>
+            
+            <div class="alert alert-success">
+                <strong>✅ Pronto!</strong> Seu teste A/B está funcionando automaticamente.
+                Acesse o dashboard para ver os resultados em tempo real.
+            </div>
+        </div>
+        
+        <!-- API Reference -->
+        <div class="card">
+            <h2>📚 Referência da API</h2>
+            
+            <h3>window.RotaFinal.track(eventName, properties)</h3>
+            <p>Rastreia um evento customizado</p>
+            <div class="code-block">
+// Exemplo: Rastrear clique em botão
+RotaFinal.track('cta_click', { 
+    button: 'signup',
+    position: 'header' 
+});
+            </div>
+            
+            <h3>window.RotaFinal.convert(value, properties)</h3>
+            <p>Registra uma conversão com valor opcional</p>
+            <div class="code-block">
+// Exemplo: Rastrear compra
+RotaFinal.convert(99.90, { 
+    product: 'produto-premium',
+    orderId: '12345' 
+});
+            </div>
+            
+            <h3>window.RotaFinal.getVariant()</h3>
+            <p>Retorna a variante atual do usuário</p>
+            <div class="code-block">
+const variant = RotaFinal.getVariant();
+console.log('Variante:', variant.name);
+            </div>
+            
+            <h3>window.RotaFinal.getUserId()</h3>
+            <p>Retorna o ID único do usuário</p>
+            <div class="code-block">
+const userId = RotaFinal.getUserId();
+console.log('User ID:', userId);
+            </div>
+            
+            <h3>window.RotaFinal.setDebug(enabled)</h3>
+            <p>Ativa/desativa modo debug</p>
+            <div class="code-block">
+// Ativar debug
+RotaFinal.setDebug(true);
+
+// Desativar debug
+RotaFinal.setDebug(false);
+            </div>
+            
+            <h3>window.RotaFinal.reload()</h3>
+            <p>Força nova atribuição de variante</p>
+            <div class="code-block">
+// Limpar cache e atribuir nova variante
+RotaFinal.reload();
+            </div>
+        </div>
+        
+        <!-- FAQ -->
+        <div class="card">
+            <h2>❓ Perguntas Frequentes</h2>
+            
+            <h3>Por que minha página está "piscando"?</h3>
+            <p>
+                Isso significa que o código não está na posição correta. 
+                Certifique-se de que está <strong>no topo do &lt;head&gt;</strong>, 
+                ANTES de qualquer outro script, CSS ou link.
+            </p>
+            
+            <h3>Como testar diferentes variantes?</h3>
+            <p>
+                Use modo anônimo (Ctrl+Shift+N) ou execute <code>RotaFinal.reload()</code> no console.
+                Cada nova sessão pode receber uma variante diferente.
+            </p>
+            
+            <h3>O código funciona em todos os navegadores?</h3>
+            <p>
+                Sim! O código é compatível com IE11+, Chrome, Firefox, Safari, Edge e mobile browsers.
+            </p>
+            
+            <h3>Posso usar em React/Vue/Angular?</h3>
+            <p>
+                Sim! Cole o código no <code>index.html</code> ou no template principal do seu framework.
+            </p>
+            
+            <h3>Quanto tempo leva para ver resultados?</h3>
+            <p>
+                Os dados aparecem em tempo real no dashboard. Recomendamos aguardar pelo menos 
+                100 visitantes para ter significância estatística.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Scripts de Teste -->
+    <script>
+        let eventCount = 0;
+        let conversionCount = 0;
+        
+        // Mostrar informações do exemplo
+        function showExampleInfo() {
+            try {
+                const variant = window.RotaFinal.getVariant();
+                const userId = window.RotaFinal.getUserId();
+                
+                document.getElementById('stat-variant').textContent = variant?.name || '-';
+                document.getElementById('stat-user').textContent = userId?.substr(0, 12) + '...' || '-';
+                
+                addLog('✅ RotaFinal SDK carregado com sucesso!');
+                addLog('📊 Variante: ' + (variant?.name || 'N/A'));
+                addLog('👤 User ID: ' + (userId || 'N/A'));
+            } catch (error) {
+                addLog('❌ Erro ao carregar informações: ' + error.message);
+            }
+        }
+        
+        // Funções de teste
+        function testGetVariant() {
+            const variant = window.RotaFinal.getVariant();
+            addLog('🎯 Variante Atual: ' + JSON.stringify(variant, null, 2));
+        }
+        
+        function testTrackEvent() {
+            window.RotaFinal.track('test_event', { 
+                origem: 'painel_de_testes',
+                timestamp: new Date().toISOString()
+            });
+            eventCount++;
+            document.getElementById('stat-events').textContent = eventCount;
+            addLog('📊 Evento rastreado: test_event (total: ' + eventCount + ')');
+        }
+        
+        function testConversion() {
+            window.RotaFinal.convert(100, { 
+                produto: 'teste',
+                moeda: 'BRL'
+            });
+            conversionCount++;
+            document.getElementById('stat-conversions').textContent = conversionCount;
+            addLog('💰 Conversão registrada: R$ 100,00 (total: ' + conversionCount + ')');
+        }
+        
+        function testGetUserId() {
+            const userId = window.RotaFinal.getUserId();
+            addLog('👤 User ID: ' + userId);
+        }
+        
+        function testDebugOn() {
+            window.RotaFinal.setDebug(true);
+            addLog('🐛 Debug ATIVADO - Reload será executado');
+        }
+        
+        function testDebugOff() {
+            window.RotaFinal.setDebug(false);
+            addLog('✅ Debug DESATIVADO - Reload será executado');
+        }
+        
+        function testReload() {
+            addLog('🔄 Forçando nova atribuição...');
+            setTimeout(() => {
+                window.RotaFinal.reload();
+            }, 1000);
+        }
+        
+        function clearConsole() {
+            document.getElementById('custom-console').innerHTML = 
+                '<div class="console-line">📝 Console limpo</div>';
+        }
+        
+        function addLog(message) {
+            const console = document.getElementById('custom-console');
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.textContent = `[${timestamp}] ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        // Interceptar logs do console
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('RotaFinal')) {
+                addLog(args.join(' '));
+            }
+        };
+    </script>
+</body>
+</html>
+

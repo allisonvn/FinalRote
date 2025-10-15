@@ -91,10 +91,12 @@ export async function POST(request: NextRequest) {
     const eventData = {
       experiment_id: experimentId,
       visitor_id: data.visitor_id,
+      variant_id: data.variant_id || null, // ✅ CORREÇÃO: Incluir variant_id
       event_type: data.event_type,
       event_name: data.event_type,
       event_data: {
         variant: data.variant,
+        variant_id: data.variant_id, // ✅ CORREÇÃO: Incluir variant_id nos dados
         url: data.url,
         ...data.properties
       },
@@ -121,27 +123,39 @@ export async function POST(request: NextRequest) {
         experiment: experimentId,
         visitor: data.visitor_id,
         variant: data.variant,
+        variant_id: data.variant_id,
         value: eventData.value
       })
 
       try {
-        // Buscar variante pelo nome
-        const { data: variant } = await supabase
-          .from('variants')
-          .select('id')
-          .eq('experiment_id', experimentId)
-          .eq('name', data.variant)
-          .single()
+        let variantId = data.variant_id
+        
+        // ✅ CORREÇÃO: Usar variant_id se disponível, caso contrário buscar por nome (fallback)
+        if (!variantId && data.variant) {
+          console.log('⚠️ [WARNING] variant_id não fornecido, buscando por nome (fallback):', data.variant)
+          const { data: variant } = await supabase
+            .from('variants')
+            .select('id')
+            .eq('experiment_id', experimentId)
+            .eq('name', data.variant)
+            .single()
+          
+          if (variant) {
+            variantId = variant.id
+          }
+        }
 
-        if (variant) {
+        if (variantId) {
           // Atualizar estatísticas da variante
           await supabase.rpc('increment_variant_conversions', {
-            p_variant_id: variant.id,
+            p_variant_id: variantId,
             p_experiment_id: experimentId,
             p_revenue: eventData.value || 0
           })
 
-          console.log('✅ [CONVERSION] Estatísticas atualizadas para variante:', variant.id)
+          console.log('✅ [CONVERSION] Estatísticas atualizadas para variante:', variantId)
+        } else {
+          console.error('❌ [ERROR] Não foi possível identificar variant_id para conversão')
         }
       } catch (conversionError) {
         console.error('⚠️ [WARNING] Erro ao atualizar estatísticas de conversão:', conversionError)

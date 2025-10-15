@@ -238,6 +238,7 @@ class RotaFinal {
             // Salvar info do experimento e marcar como redirecionado
             sessionStorage.setItem('rf_current_experiment', experimentId);
             sessionStorage.setItem('rf_current_variant', variant.id);
+            sessionStorage.setItem('rf_current_variant_name', variant.name); // ✅ CORREÇÃO: Salvar nome também
             sessionStorage.setItem(redirectKey, 'true');
 
             // Redirecionar IMEDIATAMENTE (sem mostrar página)
@@ -312,27 +313,28 @@ class RotaFinal {
       const utmData = this.getUTMData ? this.getUTMData() : {};
       const currentExperiment = sessionStorage.getItem('rf_current_experiment');
       const currentVariant = sessionStorage.getItem('rf_current_variant');
+      const currentVariantName = sessionStorage.getItem('rf_current_variant_name');
 
       const enrichedProperties = {
         ...properties,
         ...utmData,
         ...(currentExperiment && { experiment_id: currentExperiment }),
-        ...(currentVariant && { variant_id: currentVariant })
+        ...(currentVariant && { variant_id: currentVariant }),
+        ...(currentVariantName && { variant: currentVariantName })
       };
 
-      const response = await fetch(`${this.baseUrl}/api/track-event`, {
+      const response = await fetch(`${this.baseUrl}/api/track`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          events: [{
-            event_type: 'custom',
-            event_name: eventName,
-            visitor_id: this.userId,
-            properties: enrichedProperties,
-            timestamp: new Date().toISOString()
-          }]
+          experiment_id: currentExperiment,
+          visitor_id: this.userId,
+          variant_id: currentVariant, // ✅ CORREÇÃO: Enviar variant_id
+          event_type: 'custom',
+          properties: enrichedProperties,
+          timestamp: new Date().toISOString()
         })
       });
 
@@ -357,28 +359,27 @@ class RotaFinal {
       const utmData = this.getUTMData ? this.getUTMData() : {};
       const currentExperiment = sessionStorage.getItem('rf_current_experiment');
       const currentVariant = sessionStorage.getItem('rf_current_variant');
+      const currentVariantName = sessionStorage.getItem('rf_current_variant_name');
 
       const enrichedProperties = {
         ...properties,
-        ...utmData,
-        ...(currentExperiment && { experiment_id: currentExperiment }),
-        ...(currentVariant && { variant_id: currentVariant })
+        ...utmData
       };
 
-      const response = await fetch(`${this.baseUrl}/api/track-event`, {
+      const response = await fetch(`${this.baseUrl}/api/track`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          events: [{
-            event_type: 'conversion',
-            event_name: eventName,
-            visitor_id: this.userId,
-            value: value,
-            properties: enrichedProperties,
-            timestamp: new Date().toISOString()
-          }]
+          experiment_id: currentExperiment,
+          visitor_id: this.userId,
+          variant_id: currentVariant, // ✅ CORREÇÃO: Enviar variant_id
+          variant: currentVariantName, // Fallback para compatibilidade
+          event_type: 'conversion',
+          value: value,
+          properties: enrichedProperties,
+          timestamp: new Date().toISOString()
         })
       });
 
@@ -386,7 +387,7 @@ class RotaFinal {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      if (this.debug) console.log('RotaFinal: Conversion tracked', { eventName, value });
+      if (this.debug) console.log('RotaFinal: Conversion tracked', { eventName, value, variant_id: currentVariant });
 
       return await response.json();
     } catch (error) {
@@ -418,7 +419,8 @@ class RotaFinal {
   }
 
   /**
-   * Inicializa captura de UTMs
+   * Inicializa captura de UTMs com first-touch attribution
+   * ✅ CORREÇÃO: Só salva UTM se não existir (preserva primeira origem)
    */
   initUTMCapture() {
     if (typeof window === 'undefined') return;
@@ -434,10 +436,21 @@ class RotaFinal {
     utmParams.forEach(param => {
       const value = urlParams.get(param);
       if (value) {
-        const sanitizedValue = this.sanitizeUTMValue(value, param);
-        localStorage.setItem(`rf_${param}`, sanitizedValue);
-        this.setCookie(param, sanitizedValue, 30);
-        hasUTMs = true;
+        const existingValue = localStorage.getItem(`rf_${param}`) || this.getCookie(param);
+        
+        // ✅ CORREÇÃO: Só salva se não existir (first-touch attribution)
+        if (!existingValue) {
+          const sanitizedValue = this.sanitizeUTMValue(value, param);
+          localStorage.setItem(`rf_${param}`, sanitizedValue);
+          this.setCookie(param, sanitizedValue, 30);
+          hasUTMs = true;
+          
+          if (this.debug) {
+            console.log('RotaFinal: Salvando primeira origem UTM:', param, sanitizedValue);
+          }
+        } else if (this.debug) {
+          console.log('RotaFinal: Preservando origem original:', param, existingValue);
+        }
       }
     });
 

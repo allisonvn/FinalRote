@@ -173,49 +173,51 @@ export async function POST(
         }
       })
 
-      // Selecionar usando algoritmo MAB, mas mantendo consistência por usuário
-      const hash = hashCode(visitorId + experimentId)
-      const userSeed = hash % 1000000 / 1000000 // 0-1
+      // ✅ CORREÇÃO: Implementar algoritmo MAB corretamente
+      // Calcular probabilidades para cada variante baseado no algoritmo
+      const variantProbabilities: number[] = []
       
-      // Usar algoritmo MAB para obter probabilidades, mas manter determinismo
-      const mabResult = selectVariantMAB(variantStatsArray, algorithmType)
-      
-      // Se algoritmo é determinístico (uniform), usar hash
-      // Se algoritmo é estocástico (thompson, ucb1, epsilon), usar resultado MAB mas com seed do usuário
-      if (algorithmType === 'uniform') {
-        selectedVariant = selectVariantByHash(visitorId, experimentId, variants)
-        algorithmUsed = 'uniform_hash'
-      } else {
-        // Para MAB, usar resultado do algoritmo, mas garantir consistência
-        // Cada usuário tem um seed fixo, então sempre vê a mesma variante
-        const variantIndex = Math.floor(userSeed * variants.length)
-        
-        // Ajustar baseado nas probabilidades do MAB
-        // Variantes com melhor performance têm maior probabilidade
-        const variantProbabilities = variantStatsArray.map(v => {
-          const variantResult = selectVariantMAB([v], algorithmType)
-          return variantResult.score
-        })
-        
-        const totalScore = variantProbabilities.reduce((sum, p) => sum + p, 0)
-        const normalizedProbabilities = variantProbabilities.map(p => p / totalScore)
-        
-        // Selecionar baseado em probabilidades e seed do usuário
-        let cumulative = 0
-        let selectedIndex = 0
-        for (let i = 0; i < normalizedProbabilities.length; i++) {
-          cumulative += normalizedProbabilities[i]
-          if (userSeed < cumulative) {
-            selectedIndex = i
-            break
-          }
-        }
-        
-        selectedVariant = variants[selectedIndex]
-        algorithmUsed = algorithmType
+      for (const variantStats of variantStatsArray) {
+        // Usar algoritmo MAB para calcular score/probabilidade
+        const result = selectVariantMAB([variantStats], algorithmType)
+        variantProbabilities.push(result.score)
       }
       
-      console.log('✅ [DEBUG] MAB selected variant:', selectedVariant.name, 'using', algorithmUsed)
+      // Normalizar probabilidades para somar 1
+      const totalScore = variantProbabilities.reduce((sum, p) => sum + p, 0)
+      const normalizedProbabilities = totalScore > 0 
+        ? variantProbabilities.map(p => p / totalScore)
+        : variants.map(() => 1 / variants.length) // Fallback: distribuição uniforme
+      
+      console.log('📊 [DEBUG] MAB Probabilidades:', normalizedProbabilities.map((p, i) => ({
+        variant: variants[i].name,
+        probability: (p * 100).toFixed(2) + '%'
+      })))
+      
+      // Usar seed determinístico do usuário para selecionar variante
+      // Isso garante que o mesmo usuário sempre vê a mesma variante,
+      // mas a distribuição geral segue as probabilidades do MAB
+      const hash = hashCode(visitorId + experimentId)
+      const userSeed = (hash % 1000000) / 1000000 // 0-1
+      
+      // Selecionar variante baseado em probabilidades acumuladas
+      let cumulative = 0
+      let selectedIndex = 0
+      
+      for (let i = 0; i < normalizedProbabilities.length; i++) {
+        cumulative += normalizedProbabilities[i]
+        if (userSeed < cumulative) {
+          selectedIndex = i
+          break
+        }
+      }
+      
+      selectedVariant = variants[selectedIndex]
+      algorithmUsed = algorithmType + '_deterministic'
+      
+      console.log('✅ [DEBUG] MAB selected variant:', selectedVariant.name, 
+                  'probability:', (normalizedProbabilities[selectedIndex] * 100).toFixed(2) + '%',
+                  'user_seed:', userSeed.toFixed(4))
     } else {
       // Usar distribuição uniforme baseada em hash (A/B clássico)
       console.log('🎲 [DEBUG] Using hash-based distribution (classic A/B)')

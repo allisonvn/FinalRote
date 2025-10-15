@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { config } from '@/lib/config'
 import { createClient } from '@/lib/supabase/client'
 import { useSupabaseExperiments } from '@/hooks/useSupabaseExperiments'
+import OptimizedCodeGenerator from '@/components/OptimizedCodeGenerator'
 import {
   X, Target, Users, TrendingUp, BarChart3, Calendar, Globe,
   Crown, Brain, Zap, Play, Pause, StopCircle, Eye, Settings,
@@ -305,172 +306,8 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     }
   }, [isOpen, experiment, supabase])
 
-  // Função para gerar código específico por tipo de experimento
-  const generateIntegrationCode = () => {
-    const experimentId = experiment.id
-    const baseUrl = config.baseUrl
-    const experimentType = experiment.type || 'redirect'
-    // ✅ Usar SEMPRE a API key do experimento (cada experimento tem sua própria)
-    const experimentApiKey = experiment.api_key || projectData?.api_key || ''
-
-    // Buscar configuração de conversão das variantes
-    const conversionConfig = variantData.find(v => v.changes?.conversion)?.changes?.conversion
-    const hasConversionTracking = conversionConfig && (conversionConfig.url || conversionConfig.selector || conversionConfig.event)
-    
-    // Buscar valor de conversão do experimento
-    const conversionValue = experiment.conversionValue || 0
-
-    // Gerar código de aplicação de CSS/JS changes para experimentos de elemento
-    let applyChangesCode = ''
-    if (experimentType === 'element') {
-      applyChangesCode = `
-;if(variant.css_changes){var style=document.createElement("style");style.textContent=variant.css_changes;style.setAttribute("data-rf-css","");document.head.appendChild(style)}
-;if(variant.js_changes){try{eval(variant.js_changes)}catch(e){console.error("RotaFinal: Error executing JS changes",e)}}
-;if(variant.changes&&variant.changes.elements){variant.changes.elements.forEach(function(el){var target=document.querySelector(el.selector);if(target){if(el.html)target.innerHTML=el.html;if(el.text)target.textContent=el.text;if(el.attributes){Object.keys(el.attributes).forEach(function(key){target.setAttribute(key,el.attributes[key])})}if(el.style){Object.keys(el.style).forEach(function(key){target.style[key]=el.style[key]})}}})}
-`
-    }
-
-    // SDK Otimizado v2.5 - Cache-first, Persistent Queue, Event Batching
-    const sdkVersion = '2.5.0-optimized'
-    const antiFlickerTimeout = experimentType === 'redirect' || experimentType === 'split_url' ? 120 : 200
-
-    const optimizedSDK = `!function(){"use strict";var experimentId="${experimentId}",baseUrl="${baseUrl}",apiKey="${experimentApiKey}",version="${sdkVersion}",debugMode=${experimentType === 'element' ? 'true' : 'false'},ANTIFLICKER_TIMEOUT=${antiFlickerTimeout},VAR_KEY="rf_variant_"+experimentId,QKEY="rf_queue_"+experimentId,VAR_TTL=18e5,log=function(msg,data){if(debugMode||window.localStorage.getItem("rf_debug")){try{console.log("[RotaFinal]",msg,data||"")}catch(_){}}},safeUA=function(){try{return navigator.userAgent||""}catch(_){return""}},hasLS=function(){try{var k="__t";localStorage.setItem(k,"1");localStorage.removeItem(k);return true}catch(_){return false}},getLS=function(k){try{return localStorage.getItem(k)}catch(_){return null}},setLS=function(k,v){try{localStorage.setItem(k,v)}catch(_){}},nowISO=function(){return new Date().toISOString()},apiCall=function(url,options,tries){tries=tries||3;var headers={"Content-Type":"application/json","Authorization":"Bearer "+apiKey,"X-RF-Version":version};var opts=Object.assign({headers:headers,keepalive:true},options||{});log("API call",{url:url});return fetch(url,opts).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).catch(function(err){if(tries<=1)throw err;var backoff=Math.min(600,100*Math.pow(2,3-tries))+Math.random()*120;return new Promise(function(res){setTimeout(res,backoff)}).then(function(){return apiCall(url,options,tries-1)})})},getUserId=function(){var k="rf_user_id";var v=hasLS()?getLS(k):null;if(!v){v="rf_"+Math.random().toString(36).slice(2)+"_"+Date.now().toString(36);if(hasLS())setLS(k,v)}return v},isBot=function(){return/bot|crawler|spider|crawling/i.test(safeUA())},saveVariantCache=function(variant){if(!hasLS())return;setLS(VAR_KEY,JSON.stringify({v:variant,t:Date.now()}))},loadVariantCache=function(){if(!hasLS())return null;try{var raw=getLS(VAR_KEY);if(!raw)return null;var obj=JSON.parse(raw);if(Date.now()-obj.t>VAR_TTL)return null;return obj.v||null}catch(_){return null}},experiment={cachedVariant:null,applyVariant:function(variant){if(!variant){log("No variant");return}this.cachedVariant=variant;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url){log("Redirecting to",variant.redirect_url);window.location.href=variant.redirect_url;return}${applyChangesCode}}},buildAssignPayload=function(){return{visitor_id:getUserId(),user_agent:safeUA(),url:location.href,referrer:document.referrer,timestamp:nowISO(),viewport:{width:window.innerWidth,height:window.innerHeight}}},assignInFlight=null,assignOnce=function(){if(experiment.cachedVariant)return Promise.resolve({variant:experiment.cachedVariant});if(assignInFlight)return assignInFlight;assignInFlight=apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify(buildAssignPayload())}).then(function(r){if(r&&r.variant){experiment.cachedVariant=r.variant;saveVariantCache(r.variant)}return r}).finally(function(){assignInFlight=null});return assignInFlight}`
-
-    // Código específico por tipo
-    let usageInstructions = ''
-
-    switch (experimentType) {
-      case 'redirect':
-      case 'split_url':
-        if (hasConversionTracking) {
-          usageInstructions = `<!-- Experimento de Redirecionamento com Tracking Automático -->
-<!-- Este código redireciona automaticamente os visitantes para diferentes URLs -->
-<!-- O tracking de conversão é automático - não é necessário código adicional -->
-<!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->`
-        } else {
-          usageInstructions = `<!-- Experimento de Redirecionamento -->
-<!-- Este código redireciona automaticamente os visitantes para diferentes URLs -->
-<!-- Para rastrear conversões na página de destino, use: -->
-<!-- RotaFinal.convert(${conversionValue}, { product: 'produto-x' }); -->`
-        }
-        break
-
-      case 'element':
-        if (hasConversionTracking) {
-          usageInstructions = `<!-- Experimento de Elemento com Tracking e Aplicação Automáticos -->
-<!-- Este código modifica elementos específicos da página AUTOMATICAMENTE -->
-<!-- CSS, JS e mudanças de elementos são aplicados sem código adicional -->
-<!-- O tracking de conversão é automático - não é necessário código adicional -->
-<!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->
-<!-- Debug: Abra o console do navegador para ver logs de aplicação das variantes -->`
-        } else {
-          usageInstructions = `<!-- Experimento de Elemento com Aplicação Automática -->
-<!-- Este código modifica elementos específicos da página AUTOMATICAMENTE -->
-<!-- CSS, JS e mudanças de elementos são aplicados sem código adicional -->
-<!-- Para rastrear conversões: -->
-<!-- RotaFinal.convert(${conversionValue}, { product: 'produto-x' }); -->
-<!-- Para rastrear cliques em elementos modificados: -->
-<!-- <button data-rf-track="cta_click" data-rf-button="signup">Inscrever-se</button> -->
-<!-- Debug: Abra o console do navegador para ver logs de aplicação das variantes -->`
-        }
-        break
-
-      case 'mab':
-        if (hasConversionTracking) {
-          usageInstructions = `<!-- Experimento Multi-Armed Bandit com Tracking Automático -->
-<!-- Este código usa IA para otimizar automaticamente as variantes -->
-<!-- O tracking de conversão é automático - não é necessário código adicional -->
-<!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->`
-        } else {
-          usageInstructions = `<!-- Experimento Multi-Armed Bandit -->
-<!-- Este código usa IA para otimizar automaticamente as variantes -->
-<!-- Para rastrear conversões: -->
-<!-- RotaFinal.convert(${conversionValue}, { product: 'produto-x' }); -->
-<!-- Para rastrear eventos customizados: -->
-<!-- RotaFinal.track('button_click', { button: 'cta-principal' }); -->`
-        }
-        break
-
-      default:
-        if (hasConversionTracking) {
-          usageInstructions = `<!-- Experimento com Tracking Automático -->
-<!-- O tracking de conversão é automático - não é necessário código adicional -->
-<!-- Conversão configurada: ${conversionConfig.type || 'page_view'} em ${conversionConfig.url || 'seletor configurado'} -->`
-        } else {
-          usageInstructions = `<!-- Experimento de Teste A/B -->
-<!-- Para rastrear conversões: -->
-<!-- RotaFinal.convert(${conversionValue}, { product: 'produto-x' }); -->`
-        }
-    }
-
-    // Código de tracking automático de conversão
-    let conversionTrackingCode = ''
-    if (hasConversionTracking) {
-      if (conversionConfig.type === 'page_view' && conversionConfig.url) {
-        // Tracking automático por URL
-        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.url}";if(window.location.href.includes(e)||window.location.pathname.includes(e)){tracking.track("conversion",{url:window.location.href,type:"page_view",value:${conversionValue}})}}`
-      } else if (conversionConfig.selector) {
-        // Tracking automático por seletor
-        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.selector}";document.addEventListener("click",function(t){var n=t.target.closest(e);if(n){tracking.track("conversion",{selector:e,element:n.tagName.toLowerCase(),text:(n.textContent||"").trim().substr(0,100),value:${conversionValue}})}})}`
-      } else if (conversionConfig.event) {
-        // Tracking automático por evento
-        conversionTrackingCode = `,setupConversionTracking:function(){var e="${conversionConfig.event}";document.addEventListener(e,function(t){tracking.track("conversion",{event:e,value:${conversionValue}})})}`
-      }
-    }
-
-    // Tracking otimizado com persistent queue, batching e sendBeacon
-    const trackingCode = `,tracking={eventQueue:[],_clickBuffer:[],_clickTimer:null,baseEvent:function(type,props){return{experiment_id:experimentId,visitor_id:getUserId(),event_type:type,properties:props||{},timestamp:nowISO(),url:location.href,referrer:document.referrer,user_agent:safeUA(),variant:experiment.cachedVariant&&experiment.cachedVariant.name||null}},track:function(eventName,properties){var ev=this.baseEvent(eventName,properties);log("Track",ev);return apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(ev)}).catch(function(err){log("Track error, queued",err&&err.message);tracking.enqueue(ev)})},trackBufferedClick:function(eventName,props){this._clickBuffer.push(this.baseEvent(eventName,props));if(this._clickTimer)return;this._clickTimer=setTimeout(function(){tracking._clickTimer=null;tracking.flushClicks()},150)},flushClicks:function(){var events=tracking._clickBuffer.splice(0);if(!events.length)return;apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue.push.apply(tracking.eventQueue,events);persistQueue()})},setupClickTracking:function(){document.addEventListener("click",function(event){var el=event.target&&event.target.closest&&event.target.closest("[data-rf-track]");if(!el)return;var eventName=el.getAttribute("data-rf-track")||"click";var attributes={};Array.prototype.forEach.call(el.attributes,function(attr){if(attr.name.indexOf("data-rf-")===0&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:el.tagName.toLowerCase(),text:(el.textContent||"").trim().slice(0,100)};Object.assign(clickData,attributes);tracking.trackBufferedClick(eventName,clickData)})},trackPageview:function(){this.track("page_view",{title:document.title,path:location.pathname,search:location.search})},enqueue:function(ev){tracking.eventQueue.push(ev);persistQueue()},flushQueue:function(){if(!tracking.eventQueue.length)return;var events=tracking.eventQueue.splice(0);persistQueue();apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue.unshift.apply(tracking.eventQueue,events);persistQueue()})}${conversionTrackingCode}},loadQueue=function(){if(!hasLS())return[];try{return JSON.parse(getLS(QKEY)||"[]")}catch(_){return[]}},persistQueue=function(){if(!hasLS())return;try{setLS(QKEY,JSON.stringify(tracking.eventQueue))}catch(_){}};tracking.eventQueue=loadQueue();var _push=tracking.eventQueue.push.bind(tracking.eventQueue);tracking.eventQueue.push=function(){var r=_push.apply(tracking.eventQueue,arguments);persistQueue();return r};function flushWithBeacon(){if(!tracking.eventQueue.length)return;var payload=JSON.stringify({events:tracking.eventQueue});if(navigator.sendBeacon){var ok=navigator.sendBeacon(baseUrl+"/api/track/batch",new Blob([payload],{type:"application/json"}));if(ok){tracking.eventQueue=[];persistQueue();return}}tracking.flushQueue()}document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")flushWithBeacon()});window.addEventListener("beforeunload",flushWithBeacon);function showPage(){document.body.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){try{style.remove()}catch(_){}},80);log("Page visible")}function idle(fn){return window.requestIdleCallback?requestIdleCallback(fn,{timeout:500}):setTimeout(fn,50)}function init(){if(isBot()){log("Bot detected, skip assign");showPage();return}log("Init experiment",{experimentId:experimentId,type:"${experimentType}",version:version});var cached=loadVariantCache();if(cached){log("Using cached variant",cached&&cached.name);experiment.applyVariant(cached);if(!cached.redirect_url){idle(function(){tracking.trackPageview()});showPage()}}var tId=setTimeout(showPage,ANTIFLICKER_TIMEOUT);assignOnce().then(function(r){clearTimeout(tId);if(r&&r.variant){var willRedirect=!!r.variant.redirect_url;if(!cached||(cached&&cached.name!==r.variant.name)){experiment.applyVariant(r.variant)}if(!willRedirect){tracking.trackPageview();showPage()}}else{showPage()}}).catch(function(err){clearTimeout(tId);console.error("RotaFinal assign error",err);showPage()});idle(function(){tracking.setupClickTracking()})}window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return tracking.track("conversion",Object.assign({value:value||0},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;setLS(VAR_KEY,"");init()},setDebug:function(enabled){enabled?localStorage.setItem("rf_debug","1"):localStorage.removeItem("rf_debug")}};if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();`
-
-    // Preconnect e DNS prefetch para otimização
-    const preconnectTags = `<link rel="preconnect" href="${baseUrl}">
-<link rel="dns-prefetch" href="${baseUrl}">`
-
-    // CSS anti-flicker otimizado v2.5
-    const antiFlickerCSS = `<style data-rf-antiflicker>
-body:not([data-rf-ready]){opacity:0;visibility:hidden}
-body[data-rf-ready]{opacity:1;visibility:visible;transition:opacity .1s ease-out}
-</style>`
-
-    // Instruções de uso diferenciadas
-    const isRedirectType = experimentType === 'redirect' || experimentType === 'split_url'
-    const implementationNotes = isRedirectType
-      ? `<!-- ⚠️ EXPERIMENTO DE REDIRECIONAMENTO -->
-<!-- • Cache-first: Segunda visita = ZERO flicker (usa cache de 30min) -->
-<!-- • Primeira visita: Máx 120ms de espera -->
-<!-- • Se redirect: Usuário NUNCA vê página original -->
-<!-- • Se control: Aparece instantaneamente -->`
-      : `<!-- ℹ️ EXPERIMENTO VISUAL (mesma página) -->
-<!-- • Cache-first: Segunda visita = aplicação instantânea -->
-<!-- • Primeira visita: Máx 200ms de espera -->
-<!-- • Mudanças CSS/JS aplicadas automaticamente -->
-<!-- • Tracking de cliques com batching (150ms) -->`
-
-    return `<!-- Rota Final SDK v${sdkVersion} - ${experiment.name} -->
-${preconnectTags}
-
-${antiFlickerCSS}
-
-<script>
-${optimizedSDK}${trackingCode}
-</script>
-
-${implementationNotes}
-
-${usageInstructions}`
-  }
-
-  // Função para copiar código de integração
-  const copyIntegrationCode = async () => {
-    const integrationCode = generateIntegrationCode()
-
-    try {
-      await navigator.clipboard.writeText(integrationCode)
-      alert('Código copiado para a área de transferência!')
-    } catch (error) {
-      console.error('Erro ao copiar código:', error)
-      alert('Erro ao copiar código. Tente selecionar e copiar manualmente.')
-    }
-  }
+  // ✅ REMOVIDO: generateIntegrationCode() e copyIntegrationCode()
+  // Agora usa OptimizedCodeGenerator diretamente
 
   // Função para salvar alterações
   const handleSave = async () => {
@@ -1825,37 +1662,29 @@ ${usageInstructions}`
         </Card>
       </div>
 
-      <Card className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 border-slate-200">
-        <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Code className="w-5 h-5" />
-          Código de Integração
-        </h4>
-        <div className="bg-slate-900 rounded-xl p-4 overflow-x-auto">
-          <code className="text-green-400 text-sm font-mono whitespace-pre">
-            {generateIntegrationCode()}
-          </code>
+      {/* ✅ NOVO: Usando OptimizedCodeGenerator v3.0 */}
+      <div className="mt-6">
+        <OptimizedCodeGenerator
+          experimentName={experiment.name}
+          experimentId={experiment.id}
+          experimentType={experiment.type || 'redirect'}
+          variants={variantData.map(v => ({
+            id: v.id,
+            name: v.name,
+            description: v.description,
+            redirect_url: v.redirect_url,
+            traffic_percentage: v.traffic_percentage,
+            css_changes: v.css_changes,
+            js_changes: v.js_changes,
+            changes: v.changes,
+            is_control: v.is_control
+          }))}
+          baseUrl={config.baseUrl}
+          apiKey={experiment.api_key || projectData?.api_key || ''}
+          algorithm={experiment.algorithm || 'thompson_sampling'}
+          conversionValue={experiment.conversionValue || 0}
+        />
         </div>
-        <div className="flex gap-2 mt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-lg"
-            onClick={() => copyIntegrationCode()}
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            Copiar Código
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-lg"
-            onClick={() => window.open(`${config.baseUrl}/docs/integration`, '_blank')}
-          >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Documentação
-          </Button>
-        </div>
-      </Card>
     </div>
   )
 
