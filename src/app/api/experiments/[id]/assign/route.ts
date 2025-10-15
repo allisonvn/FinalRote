@@ -42,7 +42,7 @@ export async function POST(
     // 1. Verificar se o experimento existe e está rodando
     const { data: experiment, error: experimentError } = await supabase
       .from('experiments')
-      .select('id, name, status, traffic_allocation, type, project_id, algorithm')
+      .select('id, name, status, traffic_allocation, type, project_id, algorithm, conversion_url, conversion_value, conversion_type')
       .eq('id', experimentId)
       .single()
 
@@ -102,6 +102,11 @@ export async function POST(
           ...variantData,
           final_url: finalUrl,
           has_multiple_pages: !!variantData.changes?.multipage
+        },
+        experiment: {
+          conversion_url: experiment.conversion_url,
+          conversion_value: experiment.conversion_value,
+          conversion_type: experiment.conversion_type
         },
         assignment: 'existing',
         assigned_at: existingAssignment.assigned_at
@@ -300,6 +305,11 @@ export async function POST(
         ...selectedVariant,
         final_url: finalUrl, // URL final selecionada (pode ser diferente de redirect_url se multipage)
         has_multiple_pages: !!selectedVariant.changes?.multipage
+      },
+      experiment: {
+        conversion_url: experiment.conversion_url,
+        conversion_value: experiment.conversion_value,
+        conversion_type: experiment.conversion_type
       },
       assignment: 'new',
       algorithm: algorithmUsed,
