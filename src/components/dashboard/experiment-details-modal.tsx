@@ -88,35 +88,70 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
   }, [experiment])
   const supabase = createClient()
 
-  // Função para buscar métricas do experimento
+  // Função para buscar métricas do experimento - OTIMIZADA
   const fetchExperimentMetrics = async (experimentId: string) => {
     try {
-      // Buscar total de visitantes únicos
-      const { data: visitors } = await supabase
-        .from('assignments')
-        .select('visitor_id')
+      console.log('📊 Buscando métricas do experimento:', experimentId)
+
+      // Tentar buscar de variant_stats primeiro (mais rápido)
+      const { data: stats, error: statsError } = await supabase
+        .from('variant_stats')
+        .select('visitors, conversions, revenue')
         .eq('experiment_id', experimentId)
 
-      // Buscar total de conversões
-      const { data: conversions } = await supabase
-        .from('events')
-          .select('*')
-        .eq('experiment_id', experimentId)
-        .eq('event_type', 'conversion')
+      console.log('📈 Stats encontradas:', stats, 'Erro:', statsError)
 
-      const totalVisitors = visitors?.length || 0
-      const totalConversions = conversions?.length || 0
+      // Se variant_stats tem dados, usar eles
+      if (stats && stats.length > 0) {
+        const totalVisitors = stats.reduce((sum, s) => sum + (s.visitors || 0), 0)
+        const totalConversions = stats.reduce((sum, s) => sum + (s.conversions || 0), 0)
+        const totalValue = stats.reduce((sum, s) => sum + (s.revenue || 0), 0)
+        const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
+
+        const metrics = {
+          visitors: totalVisitors,
+          conversions: totalConversions,
+          conversionRate,
+          totalValue,
+          confidence: calculateConfidence(totalVisitors, totalConversions)
+        }
+
+        console.log('✅ Métricas de variant_stats:', metrics)
+        return metrics
+      }
+
+      // Fallback: buscar diretamente das tabelas events e assignments
+      console.log('⚠️ variant_stats vazio, usando fallback')
+
+      const [visitorsResult, conversionsResult] = await Promise.all([
+        supabase
+          .from('assignments')
+          .select('visitor_id', { count: 'exact', head: true })
+          .eq('experiment_id', experimentId),
+        supabase
+          .from('events')
+          .select('value')
+          .eq('experiment_id', experimentId)
+          .eq('event_type', 'conversion')
+      ])
+
+      const totalVisitors = visitorsResult.count || 0
+      const conversions = conversionsResult.data || []
+      const totalConversions = conversions.length
+      const totalValue = conversions.reduce((sum, conv) => sum + (conv.value || 0), 0)
       const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
-      const totalValue = conversions?.reduce((sum, conv) => sum + (conv.value || 0), 0) || 0
 
-      return {
+      const metrics = {
         visitors: totalVisitors,
         conversions: totalConversions,
         conversionRate,
         totalValue,
         confidence: calculateConfidence(totalVisitors, totalConversions)
       }
-      } catch (error) {
+
+      console.log('✅ Métricas de fallback:', metrics)
+      return metrics
+    } catch (error) {
       console.error('Erro ao buscar métricas:', error)
       return {
         visitors: 0,
@@ -128,40 +163,77 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     }
   }
 
-  // Função para buscar dados das variantes
+  // Função para buscar dados das variantes - OTIMIZADA
   const fetchVariantData = async (experimentId: string) => {
     try {
       console.log('🔍 Buscando dados das variantes para experimento:', experimentId)
-      
-      const { data: variants } = await supabase
+
+      // Buscar variantes básicas
+      const { data: variants, error: variantsError } = await supabase
         .from('variants')
         .select('*')
         .eq('experiment_id', experimentId)
         .order('is_control', { ascending: false })
 
+      if (variantsError) {
+        console.error('Erro ao buscar variantes:', variantsError)
+        return []
+      }
+
       console.log('📊 Variantes encontradas:', variants)
 
+      // Buscar stats para todas as variantes
       const variantMetrics = await Promise.all(
         (variants || []).map(async (variant) => {
-          // Buscar visitantes únicos por variante
-          const { data: visitors } = await supabase
-            .from('assignments')
-            .select('visitor_id')
-            .eq('experiment_id', experimentId)
+          // Tentar buscar de variant_stats primeiro
+          const { data: stats } = await supabase
+            .from('variant_stats')
+            .select('visitors, conversions, revenue')
             .eq('variant_id', variant.id)
-
-          // Buscar conversões por variante
-          const { data: conversions } = await supabase
-            .from('events')
-            .select('*')
             .eq('experiment_id', experimentId)
-            .eq('variant_id', variant.id)
-            .eq('event_type', 'conversion')
+            .maybeSingle()
 
-          const visitorCount = visitors?.length || 0
-          const conversionCount = conversions?.length || 0
+          let visitorCount = 0
+          let conversionCount = 0
+          let totalValue = 0
+
+          if (stats) {
+            // Usar dados de variant_stats se disponível
+            visitorCount = stats.visitors || 0
+            conversionCount = stats.conversions || 0
+            totalValue = stats.revenue || 0
+            console.log(`✅ Stats de variant_stats para ${variant.name}:`, stats)
+          } else {
+            // Fallback: buscar diretamente
+            console.log(`⚠️ Usando fallback para ${variant.name}`)
+
+            const [visitorsResult, conversionsResult] = await Promise.all([
+              supabase
+                .from('assignments')
+                .select('visitor_id', { count: 'exact', head: true })
+                .eq('experiment_id', experimentId)
+                .eq('variant_id', variant.id),
+              supabase
+                .from('events')
+                .select('value')
+                .eq('experiment_id', experimentId)
+                .eq('variant_id', variant.id)
+                .eq('event_type', 'conversion')
+            ])
+
+            visitorCount = visitorsResult.count || 0
+            const conversions = conversionsResult.data || []
+            conversionCount = conversions.length
+            totalValue = conversions.reduce((sum, conv) => sum + (conv.value || 0), 0)
+
+            console.log(`✅ Stats de fallback para ${variant.name}:`, {
+              visitors: visitorCount,
+              conversions: conversionCount,
+              revenue: totalValue
+            })
+          }
+
           const variantConversionRate = visitorCount > 0 ? (conversionCount / visitorCount) * 100 : 0
-          const totalValue = conversions?.reduce((sum, conv) => sum + (conv.value || 0), 0) || 0
 
           const variantData = {
             id: variant.id,
@@ -179,7 +251,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
             confidence: calculateConfidence(visitorCount, conversionCount),
             color: variant.is_control ? '#f59e0b' : '#10b981'
           }
-          
+
           console.log(`📋 Variante ${variant.name} processada:`, variantData)
           return variantData
         })
@@ -187,7 +259,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
       console.log('✅ Dados das variantes processados:', variantMetrics)
       return variantMetrics
-      } catch (error) {
+    } catch (error) {
       console.error('Erro ao buscar dados das variantes:', error)
       return []
     }

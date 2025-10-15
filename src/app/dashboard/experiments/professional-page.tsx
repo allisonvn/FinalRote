@@ -75,34 +75,64 @@ const algorithmConfig = {
   uniform: { label: 'Uniforme', icon: BarChart3, premium: false }
 }
 
-// Função para calcular métricas reais dos experimentos
+// Função para calcular métricas reais dos experimentos - OTIMIZADA
 const calculateExperimentMetrics = async (experimentId: string, supabase: any) => {
   try {
-    // Buscar eventos de conversão para este experimento
-    const { data: conversions, error: convError } = await supabase
-      .from('events')
-      .select('*')
-      .eq('experiment_id', experimentId)
-      .eq('event_type', 'conversion')
+    console.log('📊 Calculando métricas para experimento:', experimentId)
 
-    // Buscar total de visitantes únicos
-    const { data: visitors, error: visitError } = await supabase
-      .from('assignments')
-      .select('visitor_id')
+    // Tentar buscar de variant_stats primeiro (mais rápido)
+    const { data: stats } = await supabase
+      .from('variant_stats')
+      .select('visitors, conversions, revenue')
       .eq('experiment_id', experimentId)
 
-    if (convError || visitError) throw new Error('Erro ao calcular métricas')
+    if (stats && stats.length > 0) {
+      // Agregar stats
+      const totalVisitors = stats.reduce((sum: number, s: any) => sum + (s.visitors || 0), 0)
+      const totalConversions = stats.reduce((sum: number, s: any) => sum + (s.conversions || 0), 0)
+      const revenue = stats.reduce((sum: number, s: any) => sum + (s.revenue || 0), 0)
+      const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
 
-    const totalConversions = conversions?.length || 0
-    const totalVisitors = visitors?.length || 0
+      const baseline = 3.0
+      const improvement = conversionRate > 0 ? ((conversionRate - baseline) / baseline) * 100 : 0
+
+      console.log('✅ Métricas de variant_stats:', { totalVisitors, totalConversions, revenue })
+
+      return {
+        conversions: totalConversions,
+        visitors: totalVisitors,
+        conversionRate,
+        confidence: conversionRate > baseline ? 95 : 75,
+        revenue,
+        improvement
+      }
+    }
+
+    // Fallback: buscar diretamente
+    console.log('⚠️ Usando fallback para métricas')
+
+    const [visitorsResult, conversionsResult] = await Promise.all([
+      supabase
+        .from('assignments')
+        .select('visitor_id', { count: 'exact', head: true })
+        .eq('experiment_id', experimentId),
+      supabase
+        .from('events')
+        .select('value')
+        .eq('experiment_id', experimentId)
+        .eq('event_type', 'conversion')
+    ])
+
+    const totalVisitors = visitorsResult.count || 0
+    const conversions = conversionsResult.data || []
+    const totalConversions = conversions.length
+    const revenue = conversions.reduce((sum: number, conv: any) => sum + (conv.value || 0), 0)
     const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
 
-    // Calcular receita total usando valores reais das conversões
-    const revenue = conversions?.reduce((sum, conv) => sum + (conv.value || 0), 0) || 0
-
-    // Calcular improvement comparando com baseline (assumindo 3% como baseline)
     const baseline = 3.0
     const improvement = conversionRate > 0 ? ((conversionRate - baseline) / baseline) * 100 : 0
+
+    console.log('✅ Métricas de fallback:', { totalVisitors, totalConversions, revenue })
 
     return {
       conversions: totalConversions,
