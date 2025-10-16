@@ -2,18 +2,18 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Adicionar headers de segurança e cache
+  // Não processar requisições de assets estáticos - deixar Next.js servir diretamente
+  if (request.nextUrl.pathname.startsWith('/_next/')) {
+    return NextResponse.next()
+  }
+
+  // Criar resposta padrão
   const response = NextResponse.next()
   
   // Headers para melhorar performance e segurança
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'origin-when-cross-origin')
-  
-  // Cache headers para assets estáticos
-  if (request.nextUrl.pathname.startsWith('/_next/static/')) {
-    response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  }
   
   // Headers para API routes
   if (request.nextUrl.pathname.startsWith('/api/')) {
@@ -31,6 +31,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next|favicon.ico).*)',
   ],
 }
