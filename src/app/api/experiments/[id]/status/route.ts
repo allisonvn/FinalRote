@@ -3,10 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params }: { params: Promise<{ id: string }> }) {
   try {
-    const experimentId = params.id
+    const { id } = await params
+    const experimentId = id
     const { status } = await request.json()
     
     // Validar status

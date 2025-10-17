@@ -1,12 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    tsconfigPath: './tsconfig.json',
-    ignoreBuildErrors: true,
+  output: 'standalone',
+  experimental: {
+    optimizeCss: true,
   },
   eslint: {
-    dirs: ['src'],
     ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   },
   images: {
     domains: ['localhost'],

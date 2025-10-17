@@ -1,23 +1,24 @@
 /**
- * 🎯 ROTAFINAL - RASTREADOR AUTOMÁTICO DE CONVERSÕES
+ * 🎯 ROTAFINAL - RASTREADOR AUTOMÁTICO DE CONVERSÕES (v2.0)
  * 
  * Este script detecta automaticamente quando a página de sucesso é acessada
- * e registra a conversão no Supabase, associando à variante correta.
+ * e registra a conversão no Supabase com o valor configurado.
  * 
  * COMO USAR:
  * 
  * 1. Adicione este script na página de sucesso/conversão:
  *    <script src="https://rotafinal.com.br/conversion-tracker.js"></script>
  * 
- * 2. Configure a URL de conversão no experimento
+ * 2. Configure a URL de conversão no experimento (Etapa 3 do modal)
  * 
  * 3. Quando o usuário acessar a página de sucesso, a conversão será
- *    automaticamente registrada no Supabase
+ *    automaticamente registrada no Supabase com o valor configurado
  * 
  * O script detecta:
  * - Qual experimento está ativo (via localStorage)
  * - Qual variante foi atribuída ao visitante
- * - Registra a conversão com o valor configurado
+ * - O valor de conversão configurado no experimento
+ * - Registra tudo no Supabase automaticamente
  */
 
 (function() {
@@ -26,7 +27,9 @@
   // Configurações
   const CONFIG = {
     apiUrl: 'https://rotafinal.com.br/api/track',
-    debug: true
+    batchApiUrl: 'https://rotafinal.com.br/api/track/batch',
+    debug: typeof window !== 'undefined' && window.location.hostname === 'localhost',
+    maxWaitTime: 5000, // 5 segundos max para enviar
   };
 
   // Função de log apenas em modo debug
@@ -36,97 +39,127 @@
     }
   }
 
-  // Função para obter dados do visitante do localStorage
-  function getVisitorData() {
+  /**
+   * Buscar dados de atribuição de variante do localStorage
+   */
+  function getAssignmentData() {
     try {
-      // Buscar todos os experimentos ativos no localStorage
-      const storageKeys = Object.keys(localStorage);
-      const experimentKeys = storageKeys.filter(key => key.startsWith('rotafinal_'));
+      log('🔍 Procurando dados de atribuição no localStorage');
       
-      if (experimentKeys.length === 0) {
-        log('⚠️ Nenhum experimento ativo encontrado no localStorage');
-        return null;
-      }
-
-      log('📦 Experimentos encontrados:', experimentKeys);
-
-      // Processar cada experimento
-      const experiments = [];
-      for (const key of experimentKeys) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key));
-          if (data && data.variant && data.experimentId) {
-            experiments.push({
-              experimentId: data.experimentId,
-              variantId: data.variantId,
-              variantName: data.variant,
-              visitorId: data.visitorId || generateVisitorId(),
+      const storageKeys = Object.keys(localStorage);
+      
+      // Procurar por chaves rotafinal_*
+      for (const key of storageKeys) {
+        if (key.startsWith('rotafinal_exp_') || key.startsWith('rotafinal_assignment_')) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key));
+            log('✅ Dados encontrados:', { key, data });
+            return {
+              key,
+              experimentId: data.experimentId || data.experiment_id,
+              variantId: data.variantId || data.variant_id,
+              variantName: data.variant || data.variantName,
+              visitorId: data.visitorId || data.visitor_id,
               timestamp: data.timestamp
-            });
+            };
+          } catch (e) {
+            log('⚠️ Erro ao parsear dados:', key, e);
           }
-        } catch (e) {
-          log('⚠️ Erro ao processar experimento:', key, e);
         }
       }
-
-      if (experiments.length === 0) {
-        log('⚠️ Nenhum experimento válido encontrado');
-        return null;
-      }
-
-      // Retornar o experimento mais recente
-      experiments.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-      return experiments[0];
+      
+      log('⚠️ Nenhum experimento ativo encontrado no localStorage');
+      return null;
     } catch (error) {
-      log('❌ Erro ao obter dados do visitante:', error);
+      log('❌ Erro ao buscar dados de atribuição:', error);
       return null;
     }
   }
 
-  // Função para gerar ID único do visitante
-  function generateVisitorId() {
-    return 'rf_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+  /**
+   * Buscar dados do experimento da API (para obter o valor de conversão)
+   */
+  async function getExperimentData(experimentId) {
+    try {
+      log('📡 Buscando dados do experimento:', experimentId);
+      
+      const response = await fetch(`https://rotafinal.com.br/api/experiments/${experimentId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      log('✅ Dados do experimento obtidos:', result);
+      
+      return {
+        conversionValue: result.experiment?.conversion_value || 0,
+        conversionUrl: result.experiment?.conversion_url,
+        conversionType: result.experiment?.conversion_type || 'page_view'
+      };
+    } catch (error) {
+      log('⚠️ Erro ao buscar dados do experimento:', error);
+      return {
+        conversionValue: 0,
+        conversionUrl: null,
+        conversionType: 'page_view'
+      };
+    }
   }
 
-  // Função para registrar conversão
-  async function trackConversion(experimentData) {
+  /**
+   * Registrar conversão na API
+   */
+  async function trackConversion(assignmentData, experimentData) {
     try {
-      log('📊 Registrando conversão:', experimentData);
+      log('📊 Registrando conversão:', {
+        experimentId: assignmentData.experimentId,
+        variantId: assignmentData.variantId,
+        value: experimentData.conversionValue
+      });
 
       // Verificar se já converteu (evitar duplicatas)
-      const conversionKey = `rotafinal_conversion_${experimentData.experimentId}`;
+      const conversionKey = `rotafinal_conversion_${assignmentData.experimentId}`;
       if (localStorage.getItem(conversionKey)) {
-        log('✅ Conversão já registrada anteriormente');
-        return;
+        log('✅ Conversão já registrada anteriormente para este experimento');
+        return true; // Retornar sucesso para não tentar novamente
       }
 
       // Preparar dados da conversão
-      const conversionData = {
-        experiment_id: experimentData.experimentId,
-        visitor_id: experimentData.visitorId,
-        variant_id: experimentData.variantId,
-        variant: experimentData.variantName,
+      const conversionPayload = {
+        experiment_id: assignmentData.experimentId,
+        visitor_id: assignmentData.visitorId,
+        variant_id: assignmentData.variantId,
+        variant: assignmentData.variantName,
         event_type: 'conversion',
         event_name: 'conversion',
+        value: experimentData.conversionValue || 0,
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
         properties: {
           page_url: window.location.href,
           page_title: document.title,
           referrer: document.referrer,
-          timestamp: new Date().toISOString()
-        },
-        value: experimentData.value || 0,
-        timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          success_page: true
+        }
       };
 
-      log('📤 Enviando conversão para API:', conversionData);
+      log('📤 Enviando conversão para API:', conversionPayload);
 
       // Enviar para API
       const response = await fetch(CONFIG.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify(conversionData)
+        body: JSON.stringify(conversionPayload)
       });
 
       if (!response.ok) {
@@ -136,58 +169,96 @@
       const result = await response.json();
       log('✅ Conversão registrada com sucesso:', result);
 
-      // Marcar como convertido
+      // Marcar como convertido no localStorage
       localStorage.setItem(conversionKey, JSON.stringify({
         converted_at: new Date().toISOString(),
-        experiment_id: experimentData.experimentId,
-        variant: experimentData.variantName
+        experiment_id: assignmentData.experimentId,
+        variant: assignmentData.variantName,
+        value: experimentData.conversionValue
       }));
 
       // Disparar evento customizado
       if (window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('rotafinal:conversion', {
-          detail: { experimentId: experimentData.experimentId, variant: experimentData.variantName }
-        }));
+        const event = new CustomEvent('rotafinal_conversion', {
+          detail: {
+            experimentId: assignmentData.experimentId,
+            variantId: assignmentData.variantId,
+            value: experimentData.conversionValue
+          }
+        });
+        window.dispatchEvent(event);
+        log('🎉 Evento de conversão disparado');
       }
 
+      return true;
     } catch (error) {
       log('❌ Erro ao registrar conversão:', error);
+      return false;
     }
   }
 
-  // Função principal
-  function init() {
-    log('🚀 Inicializando rastreador de conversões');
+  /**
+   * Inicializar rastreamento
+   */
+  async function init() {
+    log('🚀 Iniciando ConversionTracker');
+    log('📍 Página atual:', window.location.href);
 
-    // Aguardar DOM estar pronto
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-      return;
-    }
-
-    // Obter dados do visitante
-    const visitorData = getVisitorData();
+    // Buscar dados de atribuição
+    const assignmentData = getAssignmentData();
     
-    if (!visitorData) {
-      log('⚠️ Não foi possível obter dados do visitante');
+    if (!assignmentData) {
+      log('⚠️ Nenhuma atribuição de variante encontrada. SDK pode não ter sido executado ou visitante não participante.');
       return;
     }
 
-    log('👤 Dados do visitante:', visitorData);
+    log('✅ Dados de atribuição encontrados:', assignmentData);
+
+    // Buscar dados do experimento (incluindo valor de conversão)
+    const experimentData = await getExperimentData(assignmentData.experimentId);
+    
+    log('✅ Dados do experimento:', experimentData);
 
     // Registrar conversão
-    trackConversion(visitorData);
+    const success = await trackConversion(assignmentData, experimentData);
+    
+    if (success) {
+      log('🎊 Conversão rastreada com sucesso!');
+    } else {
+      log('⚠️ Falha ao rastrear conversão, tentando novamente em 2 segundos...');
+      // Tentar novamente uma vez
+      setTimeout(async () => {
+        await trackConversion(assignmentData, experimentData);
+      }, 2000);
+    }
   }
 
-  // Expor API global
-  window.RotaFinalConversion = {
-    track: trackConversion,
-    getVisitorData: getVisitorData,
-    debug: (enabled) => { CONFIG.debug = enabled; }
-  };
+  // Esperar DOM estar pronto
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    // DOM já está pronto
+    setTimeout(init, 100);
+  }
 
-  // Iniciar
-  init();
-
+  // Expor métodos globais para testes/debug
+  if (typeof window !== 'undefined') {
+    window.RotaFinalConversionTracker = {
+      debug: () => {
+        CONFIG.debug = true;
+        log('✅ Debug ativado');
+      },
+      test: async () => {
+        log('🧪 Teste manual iniciado');
+        const assignmentData = getAssignmentData();
+        if (assignmentData) {
+          const experimentData = await getExperimentData(assignmentData.experimentId);
+          console.table({ assignmentData, experimentData });
+        } else {
+          log('❌ Sem dados de atribuição. Teste o SDK primeiro.');
+        }
+      }
+    };
+  }
 })();
 

@@ -16,10 +16,10 @@ export async function OPTIONS() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params }: { params: Promise<{ id: string }> }) {
   try {
-    const experimentId = params.id
+    const { id } = await params
+    const experimentId = id
     const supabase = createServiceClient()
 
     // 1. Buscar informações do experimento

@@ -690,14 +690,36 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
               <div className="bg-white/70 backdrop-blur rounded-xl p-4 border border-green-200">
                 <div className="flex items-center gap-2 mb-2">
+                  <Globe className="w-4 h-4 text-green-600" />
+                  <p className="text-sm font-semibold text-green-900">Página de Sucesso</p>
+                </div>
+                {experiment.conversion_url ? (
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded flex-1 break-all">
+                      {experiment.conversion_url}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => window.open(experiment.conversion_url, '_blank')}
+                      className="p-1 h-6 w-6 flex-shrink-0"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">Nenhuma página de sucesso configurada</p>
+                )}
+              </div>
+
+              <div className="bg-white/70 backdrop-blur rounded-xl p-4 border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
                   <Info className="w-4 h-4 text-green-600" />
                   <p className="text-sm font-semibold text-green-900">Como funciona o rastreamento</p>
                 </div>
                 <p className="text-sm text-green-800 leading-relaxed">
-                  As conversões são registradas automaticamente quando os visitantes acessam a página de sucesso 
-                  configurada (<strong>{experiment.conversion_url || '/obrigado'}</strong>). 
-                  O sistema identifica qual variante o visitante estava vendo e registra a conversão 
-                  no Supabase com o valor de <strong>R$ {experiment.conversion_value || 0}</strong> por conversão.
+                  As conversões são registradas automaticamente quando os visitantes acessam a página de sucesso configurada. 
+                  O sistema identifica qual variante o visitante estava vendo e registra a conversão com o valor de <strong>R$ {experiment.conversion_value || 0}</strong> por conversão.
                 </p>
               </div>
             </div>
@@ -1241,6 +1263,73 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
           </div>
         </div>
       </Card>
+
+      {/* ✅ NOVO: Card de Conversão */}
+      {experiment.conversion_url && (
+        <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+              <Target className="w-7 h-7 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-lg font-bold text-green-900 mb-3">🎯 Página de Sucesso (Conversão)</h4>
+              <div className="space-y-3">
+                <div className="bg-white/70 rounded-lg p-4 border border-green-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-semibold text-green-900">URL de Conversão</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs text-green-700 bg-green-100 px-3 py-2 rounded flex-1 break-all font-mono">
+                      {experiment.conversion_url}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => window.open(experiment.conversion_url, '_blank')}
+                      className="p-1 h-6 w-6 flex-shrink-0"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="bg-white/70 rounded-lg p-4 border border-green-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-semibold text-green-900">Tipo de Conversão</span>
+                  </div>
+                  <div className="text-sm text-green-700">
+                    {experiment.conversion_type === 'page_view' ? 'Visualização de Página' : 
+                     experiment.conversion_type === 'click' ? 'Clique em Elemento' :
+                     experiment.conversion_type === 'form_submit' ? 'Envio de Formulário' : 
+                     experiment.conversion_type}
+                  </div>
+                </div>
+
+                {experiment.conversion_value > 0 && (
+                  <div className="bg-white/70 rounded-lg p-4 border border-green-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="w-4 h-4 text-green-600" />
+                      <span className="text-sm font-semibold text-green-900">Valor por Conversão</span>
+                    </div>
+                    <div className="text-lg font-bold text-green-700">
+                      R$ {experiment.conversion_value.toFixed(2)}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-green-100/50 rounded-lg p-4 border border-green-200">
+                  <p className="text-sm text-green-800 leading-relaxed">
+                    ℹ️ Quando visitantes acessam <strong>{experiment.conversion_url}</strong>, uma conversão será registrada automaticamente. 
+                    Cada conversão será associada à variante que o visitante estava vendo e contabilizada no relatório de performance.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Lista detalhada das variantes */}
       <div className="space-y-4">

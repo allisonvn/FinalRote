@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { table: string } }
+  { params }: { params: Promise<{ table: string }> }
 ) {
   try {
-    const tableName = params.table
+    const { table } = await params
+    const tableName = table
 
     // Schema mockado baseado no que sabemos da tabela experiments
     const mockSchema = {
@@ -155,7 +156,7 @@ export async function GET(
           max_value: col.numeric_precision ? Math.pow(10, col.numeric_precision - col.numeric_scale) - 1 : null,
           max_decimal: col.numeric_scale ? Math.pow(10, col.numeric_scale) - 1 : null
         })),
-        potential_issues: []
+        potential_issues: [] as any[]
       }
     }
 

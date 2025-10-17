@@ -968,6 +968,26 @@ export function PremiumExperimentModal({ isOpen, onClose, onSave, saving = false
                 </p>
               </div>
 
+              {/* ✅ NOVO: Card informativo sobre conversão */}
+              {formData.goalType === 'page_view' && formData.goalValue && (
+                <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl border-2 border-green-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-green-900 mb-1">Página de Sucesso Configurada</h4>
+                      <p className="text-sm text-green-800 mb-2">
+                        Quando os visitantes acessarem esta página, a conversão será registrada automaticamente:
+                      </p>
+                      <div className="p-2 bg-white/60 rounded-lg border border-green-200 text-xs font-mono text-green-700 break-all">
+                        {formData.goalValue}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-green-500" />

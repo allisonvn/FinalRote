@@ -406,7 +406,7 @@ export function ExperimentMetrics({
                     {variant.significance.significant && (
                       <div className="flex items-center space-x-1 text-sm text-green-600">
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Resultado estatisticamente significativo (p < 0.05)</span>
+                        <span>Resultado estatisticamente significativo (p &lt; 0.05)</span>
                       </div>
                     )}
                   </div>
