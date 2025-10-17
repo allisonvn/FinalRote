@@ -3,7 +3,7 @@ module.exports = {
     name: 'rotafinal',
     script: 'npm',
     args: 'start',
-    cwd: '/var/www/rotafinal.com.br',
+    cwd: '/Users/allisonnascimento/Desktop/site/rotafinal',
     instances: 1,
     autorestart: true,
     watch: false,
@@ -11,6 +11,10 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 3000
-    }
+    },
+    error_file: './logs/err.log',
+    out_file: './logs/out.log',
+    log_file: './logs/combined.log',
+    time: true
   }]
 }
