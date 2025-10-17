@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
+    "build:prod": "NODE_ENV=production next build",
     "start": "next start",
+    "start:prod": "NODE_ENV=production next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "fix-chunks": "./force-fix-chunk-errors.sh"
   },
   "keywords": [
     "ab-testing",

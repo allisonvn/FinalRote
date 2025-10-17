@@ -48,7 +48,12 @@ export class ChunkErrorBoundary extends Component<Props, State> {
                         error.message.includes('ChunkLoadError')
 
     if (isChunkError) {
+      // Log interno do erro
+      console.error('ChunkError capturado no layout:', error, errorInfo)
+      
+      // Chamar callback se fornecido
       this.props.onError?.(error, errorInfo)
+      
       this.handleChunkError()
     }
   }

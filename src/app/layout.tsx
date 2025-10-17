@@ -17,11 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
-        <ChunkErrorBoundary
-          onError={(error, errorInfo) => {
-            console.error('ChunkError capturado no layout:', error, errorInfo)
-          }}
-        >
+        <ChunkErrorBoundary>
           <ClientWrapper>
             {/* Background layers */}
             <div className="fixed inset-0 -z-10">

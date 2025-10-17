@@ -8,23 +8,29 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Headers para assets estáticos
+# Rewrites para assets estáticos
+[[redirects]]
+  from = "/_next/static/*"
+  to = "/_next/static/:splat"
+  status = 200
+
+# Headers específicos para chunks JavaScript
+[[headers]]
+  for = "/_next/static/chunks/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "application/javascript; charset=utf-8"
+    Access-Control-Allow-Origin = "*"
+
+# Headers para outros assets estáticos
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-    Content-Type = "application/javascript"
 
-# Headers para chunks do webpack
+# Headers de segurança apenas para rotas de aplicação
 [[headers]]
-  for = "/_next/static/chunks/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-    Content-Type = "application/javascript"
-
-# Headers de segurança padrão
-[[headers]]
-  for = "/*"
+  for = "/((?!_next|static|favicon.ico|robots.txt|sitemap.xml).*)"
   [headers.values]
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"

@@ -16,9 +16,15 @@
       "maxDuration": 30
     }
   },
-  "headers": [
+  "rewrites": [
     {
       "source": "/_next/static/(.*)",
+      "destination": "/_next/static/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/_next/static/chunks/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -26,12 +32,25 @@
         },
         {
           "key": "Content-Type",
-          "value": "application/javascript"
+          "value": "application/javascript; charset=utf-8"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
         }
       ]
     },
     {
-      "source": "/(.*)",
+      "source": "/_next/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/((?!_next|static|favicon.ico|robots.txt|sitemap.xml).*)",
       "headers": [
         {
           "key": "X-Content-Type-Options",

@@ -16,11 +16,6 @@ const nextConfig = {
   compress: true,
   reactStrictMode: true,
   
-  // Configurações para resolver ChunkLoadError
-  experimental: {
-    optimizeCss: true,
-  },
-  
   // Configurações do webpack para chunks mais estáveis
   webpack: (config, { isServer, dev }) => {
     config.resolve.fallback = {
