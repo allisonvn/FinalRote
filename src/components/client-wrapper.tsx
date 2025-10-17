@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from 'react'
 import { AppProvider } from '@/providers/app-provider'
 import { ToastContainer } from '@/components/ui/toast'
 import { setupGlobalErrorHandlers } from '@/lib/error-handler'
+import '@/app/chunk-error-handler'
 
 interface ClientWrapperProps {
   children: ReactNode

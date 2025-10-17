@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
 import { ClientWrapper } from '@/components/client-wrapper'
+import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -16,19 +17,25 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
-        <ClientWrapper>
-          {/* Background layers */}
-          <div className="fixed inset-0 -z-10">
-            <div className="absolute inset-0 bg-grid-slate [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
-            <div className="spotlight left-[-10%] top-[-10%]" />
-            <div className="spotlight right-[-15%] bottom-[-20%]" />
-          </div>
+        <ChunkErrorBoundary
+          onError={(error, errorInfo) => {
+            console.error('ChunkError capturado no layout:', error, errorInfo)
+          }}
+        >
+          <ClientWrapper>
+            {/* Background layers */}
+            <div className="fixed inset-0 -z-10">
+              <div className="absolute inset-0 bg-grid-slate [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
+              <div className="spotlight left-[-10%] top-[-10%]" />
+              <div className="spotlight right-[-15%] bottom-[-20%]" />
+            </div>
 
-          {children}
+            {children}
 
-          {/* Global UI helpers */}
-          <Toaster richColors position="top-right" />
-        </ClientWrapper>
+            {/* Global UI helpers */}
+            <Toaster richColors position="top-right" />
+          </ClientWrapper>
+        </ChunkErrorBoundary>
       </body>
     </html>
   )

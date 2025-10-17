@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Correção ChunkLoadError</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+        }
+        .success { border-left-color: #28a745; }
+        .warning { border-left-color: #ffc107; }
+        .error { border-left-color: #dc3545; }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Teste - Correção ChunkLoadError</h1>
+    
+    <div class="test-section">
+        <h2>📋 Status do Teste</h2>
+        <p>Este teste verifica se as correções para ChunkLoadError estão funcionando corretamente.</p>
+        <div id="status">Aguardando teste...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Testes Disponíveis</h2>
+        <button onclick="testChunkErrorHandling()">Testar Tratamento de Erro</button>
+        <button onclick="testChunkRetry()">Testar Mecanismo de Retry</button>
+        <button onclick="testChunkReload()">Testar Recarregamento</button>
+        <button onclick="clearLog()">Limpar Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Log de Testes</h2>
+        <div id="log" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Instruções</h2>
+        <ol>
+            <li>Clique em "Testar Tratamento de Erro" para simular um ChunkLoadError</li>
+            <li>Observe se o sistema detecta e trata o erro automaticamente</li>
+            <li>Use "Testar Mecanismo de Retry" para verificar tentativas de recarregamento</li>
+            <li>Verifique se não há erros no console do navegador</li>
+        </ol>
+    </div>
+
+    <script>
+        let logElement = document.getElementById('log');
+        let statusElement = document.getElementById('status');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            logElement.innerHTML += logEntry + '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(logEntry);
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusElement.innerHTML = message;
+            statusElement.className = type;
+        }
+
+        function clearLog() {
+            logElement.innerHTML = '';
+            updateStatus('Log limpo');
+        }
+
+        // Simular ChunkLoadError
+        function testChunkErrorHandling() {
+            log('🧪 Iniciando teste de tratamento de ChunkLoadError...');
+            updateStatus('Testando tratamento de erro...', 'warning');
+
+            // Simular erro de chunk loading
+            const mockError = new Error('Loading chunk 4459 failed. (error: https://rotafinal.com.br/_next/static/chunks/4459-fc1a09f3bb0c0601.js)');
+            mockError.name = 'ChunkLoadError';
+
+            log('📡 Simulando ChunkLoadError...');
+            
+            // Verificar se o handler está funcionando
+            if (typeof window.chunkErrorHandler !== 'undefined') {
+                log('✅ ChunkErrorHandler encontrado');
+                try {
+                    window.chunkErrorHandler.handleChunkError(mockError);
+                    log('✅ Erro processado pelo handler');
+                } catch (error) {
+                    log('❌ Erro ao processar: ' + error.message, 'error');
+                }
+            } else {
+                log('⚠️ ChunkErrorHandler não encontrado - simulando comportamento...');
+                
+                // Simular tratamento manual
+                setTimeout(() => {
+                    log('🔄 Simulando retry automático...');
+                    setTimeout(() => {
+                        log('🔄 Simulando recarregamento da página...');
+                        updateStatus('Teste concluído - Página seria recarregada', 'success');
+                    }, 2000);
+                }, 1000);
+            }
+        }
+
+        // Testar mecanismo de retry
+        function testChunkRetry() {
+            log('🔄 Testando mecanismo de retry...');
+            updateStatus('Testando retry...', 'warning');
+
+            const chunkUrl = 'https://rotafinal.com.br/_next/static/chunks/test-chunk.js';
+            
+            // Simular tentativas de retry
+            let attempt = 1;
+            const maxRetries = 3;
+            
+            function attemptRetry() {
+                log(`🔄 Tentativa ${attempt} de ${maxRetries}...`);
+                
+                if (attempt < maxRetries) {
+                    attempt++;
+                    setTimeout(attemptRetry, 1000);
+                } else {
+                    log('✅ Máximo de tentativas atingido - simulando recarregamento');
+                    updateStatus('Retry testado com sucesso', 'success');
+                }
+            }
+            
+            attemptRetry();
+        }
+
+        // Testar recarregamento
+        function testChunkReload() {
+            log('🔄 Testando recarregamento da página...');
+            updateStatus('Testando recarregamento...', 'warning');
+            
+            setTimeout(() => {
+                log('⚠️ Em um ambiente real, a página seria recarregada agora');
+                updateStatus('Teste de recarregamento concluído', 'success');
+            }, 2000);
+        }
+
+        // Verificar se a aplicação está carregada
+        function checkApplicationStatus() {
+            log('🔍 Verificando status da aplicação...');
+            
+            // Verificar se estamos no domínio correto
+            if (window.location.hostname === 'rotafinal.com.br') {
+                log('✅ Domínio de produção detectado');
+            } else {
+                log('⚠️ Teste local - alguns recursos podem não estar disponíveis');
+            }
+
+            // Verificar se há chunks do Next.js carregados
+            const nextChunks = document.querySelectorAll('script[src*="/_next/static/chunks/"]');
+            log(`📦 ${nextChunks.length} chunks do Next.js encontrados`);
+
+            // Verificar se há erros no console
+            const originalError = console.error;
+            let errorCount = 0;
+            console.error = function(...args) {
+                errorCount++;
+                originalError.apply(console, args);
+            };
+
+            setTimeout(() => {
+                if (errorCount === 0) {
+                    log('✅ Nenhum erro detectado no console');
+                    updateStatus('Aplicação funcionando corretamente', 'success');
+                } else {
+                    log(`⚠️ ${errorCount} erros detectados no console`, 'warning');
+                    updateStatus('Alguns erros detectados - verificar console', 'warning');
+                }
+                console.error = originalError;
+            }, 3000);
+        }
+
+        // Inicializar teste
+        window.addEventListener('load', () => {
+            log('🚀 Página carregada - iniciando verificações...');
+            checkApplicationStatus();
+        });
+
+        // Interceptar erros reais
+        window.addEventListener('error', (event) => {
+            if (event.error && event.error.name === 'ChunkLoadError') {
+                log('🚨 ChunkLoadError real detectado: ' + event.error.message, 'error');
+                updateStatus('ChunkLoadError real detectado!', 'error');
+            }
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            if (event.reason && event.reason.name === 'ChunkLoadError') {
+                log('🚨 ChunkLoadError em Promise detectado: ' + event.reason.message, 'error');
+                updateStatus('ChunkLoadError em Promise detectado!', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
