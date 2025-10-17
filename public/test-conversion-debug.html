@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Conversão - Rota Final</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 500;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #10b981;
+        }
+        
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #059669;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .log-area {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .log-success {
+            color: #10b981;
+        }
+        
+        .log-error {
+            color: #ef4444;
+        }
+        
+        .log-warning {
+            color: #f59e0b;
+        }
+        
+        .log-info {
+            color: #3b82f6;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .data-display {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #374151;
+            overflow-x: auto;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .card {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .card h3 {
+            color: #111827;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .card p {
+            color: #6b7280;
+            font-size: 13px;
+            margin: 5px 0;
+        }
+        
+        .card strong {
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Conversão - Debug Completo</h1>
+    <p class="subtitle">Ferramenta de diagnóstico para validar o fluxo completo de rastreamento de conversões</p>
+    
+    <div class="section">
+        <h2>1. Configuração do Teste</h2>
+        
+        <div class="form-group">
+            <label for="experimentId">ID do Experimento:</label>
+            <input type="text" id="experimentId" placeholder="Cole aqui o ID do experimento (UUID)">
+        </div>
+        
+        <div class="form-group">
+            <label for="variantName">Nome da Variante:</label>
+            <select id="variantName">
+                <option value="">Selecione...</option>
+                <option value="Controle">Controle</option>
+                <option value="Variante A">Variante A</option>
+                <option value="Variante B">Variante B</option>
+                <option value="Variante C">Variante C</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="conversionValue">Valor da Conversão (R$):</label>
+            <input type="number" id="conversionValue" value="100" min="0" step="0.01">
+        </div>
+        
+        <button onclick="setupTest()">🚀 Simular Visitante + Conversão</button>
+        <button class="btn-secondary" onclick="clearLogs()">🗑️ Limpar Logs</button>
+    </div>
+    
+    <div class="section">
+        <h2>2. Dados da Simulação</h2>
+        <div class="grid" id="simulationData">
+            <div class="card">
+                <h3>Status</h3>
+                <p>Aguardando teste...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Logs do Sistema</h2>
+        <div class="log-area" id="logArea"></div>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        let visitorId = null;
+        let variantId = null;
+        
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logArea').innerHTML = '';
+            log('Logs limpos', 'info');
+        }
+        
+        function updateSimulationData(data) {
+            const container = document.getElementById('simulationData');
+            container.innerHTML = `
+                <div class="card">
+                    <h3>Visitor ID</h3>
+                    <p><strong>${data.visitorId || 'N/A'}</strong></p>
+                </div>
+                <div class="card">
+                    <h3>Variant ID</h3>
+                    <p><strong>${data.variantId || 'N/A'}</strong></p>
+                </div>
+                <div class="card">
+                    <h3>Experimento</h3>
+                    <p><strong>${data.experimentId || 'N/A'}</strong></p>
+                </div>
+                <div class="card">
+                    <h3>Status</h3>
+                    <p class="status-badge status-${data.status || 'error'}">${data.statusText || 'Pendente'}</p>
+                </div>
+            `;
+        }
+        
+        async function setupTest() {
+            const experimentId = document.getElementById('experimentId').value.trim();
+            const variantName = document.getElementById('variantName').value;
+            const conversionValue = parseFloat(document.getElementById('conversionValue').value);
+            
+            if (!experimentId) {
+                alert('Por favor, insira o ID do experimento');
+                return;
+            }
+            
+            if (!variantName) {
+                alert('Por favor, selecione uma variante');
+                return;
+            }
+            
+            log('====================================', 'info');
+            log('🧪 INICIANDO TESTE DE CONVERSÃO', 'info');
+            log('====================================', 'info');
+            
+            // Gerar visitor_id único
+            visitorId = 'test_visitor_' + Date.now();
+            log(`✅ Visitor ID gerado: ${visitorId}`, 'success');
+            
+            // Etapa 1: Buscar dados do experimento
+            log('📡 Buscando dados do experimento...', 'info');
+            try {
+                const expResponse = await fetch(`${API_BASE}/api/experiments/${experimentId}`);
+                if (!expResponse.ok) {
+                    throw new Error(`Erro ao buscar experimento: ${expResponse.status}`);
+                }
+                const expData = await expResponse.json();
+                log(`✅ Experimento encontrado: ${expData.experiment?.name}`, 'success');
+                log(`   - URL de conversão: ${expData.experiment?.conversion_url}`, 'info');
+                log(`   - Valor padrão: R$ ${expData.experiment?.conversion_value}`, 'info');
+                
+                // Buscar variant_id
+                const variant = expData.variants?.find(v => v.name === variantName);
+                if (variant) {
+                    variantId = variant.id;
+                    log(`✅ Variante encontrada: ${variant.name} (ID: ${variantId})`, 'success');
+                } else {
+                    log(`⚠️  Variante "${variantName}" não encontrada, usando apenas nome`, 'warning');
+                }
+            } catch (error) {
+                log(`❌ Erro ao buscar experimento: ${error.message}`, 'error');
+                return;
+            }
+            
+            updateSimulationData({
+                visitorId,
+                variantId,
+                experimentId,
+                status: 'success',
+                statusText: 'Configurado'
+            });
+            
+            // Etapa 2: Simular page_view (visita inicial)
+            log('', 'info');
+            log('📄 ETAPA 1: Simulando visita inicial (page_view)...', 'info');
+            await sendEvent(experimentId, {
+                event_type: 'page_view',
+                variant: variantName,
+                variant_id: variantId,
+                properties: {
+                    experiment_start: true,
+                    url: window.location.href,
+                    referrer: document.referrer
+                }
+            });
+            
+            // Aguardar 1 segundo
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Etapa 3: Simular conversão
+            log('', 'info');
+            log('💰 ETAPA 2: Simulando conversão...', 'info');
+            await sendEvent(experimentId, {
+                event_type: 'conversion',
+                variant: variantName,
+                variant_id: variantId,
+                value: conversionValue,
+                properties: {
+                    success_page_url: window.location.href,
+                    success_page_title: document.title,
+                    origin_page_url: window.location.href,
+                    origin_page_title: 'Página de Teste',
+                    conversion_value: conversionValue,
+                    conversion_type: 'page_view',
+                    success_page: true,
+                    referrer: document.referrer,
+                    user_agent: navigator.userAgent
+                }
+            });
+            
+            log('', 'info');
+            log('====================================', 'info');
+            log('✅ TESTE COMPLETO!', 'success');
+            log('====================================', 'info');
+            log('📊 Próximos passos:', 'info');
+            log('1. Verifique os logs do servidor Next.js', 'info');
+            log('2. Execute o script diagnose-conversions.sql no Supabase', 'info');
+            log('3. Verifique a tabela variant_stats no Supabase', 'info');
+            log('4. Recarregue o dashboard e verifique se a conversão aparece', 'info');
+        }
+        
+        async function sendEvent(experimentId, eventData) {
+            try {
+                const payload = {
+                    experiment_id: experimentId,
+                    visitor_id: visitorId,
+                    ...eventData
+                };
+                
+                log(`📤 Enviando evento ${eventData.event_type}...`, 'info');
+                log(`   Payload: ${JSON.stringify(payload, null, 2)}`, 'info');
+                
+                const response = await fetch(`${API_BASE}/api/track`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Evento ${eventData.event_type} registrado com sucesso`, 'success');
+                    log(`   Response: ${JSON.stringify(result, null, 2)}`, 'success');
+                } else {
+                    log(`❌ Erro ao registrar evento ${eventData.event_type}: ${result.error}`, 'error');
+                    log(`   Response: ${JSON.stringify(result, null, 2)}`, 'error');
+                }
+                
+                return result;
+            } catch (error) {
+                log(`❌ Exceção ao enviar evento: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        // Log inicial
+        log('🎯 Ferramenta de teste carregada', 'success');
+        log('📝 Preencha os campos acima e clique em "Simular Visitante + Conversão"', 'info');
+    </script>
+</body>
+</html>
+

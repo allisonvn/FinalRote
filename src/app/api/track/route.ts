@@ -140,12 +140,13 @@ export async function POST(request: NextRequest) {
 
     // Se for conversão, atualizar variant_stats
     if (data.event_type === 'conversion') {
-      console.log('📊 [CONVERSION] Registrando conversão', {
+      console.log('📊 [CONVERSION] Iniciando registro de conversão', {
         experiment: experimentId,
         visitor: data.visitor_id,
-        variant: data.variant,
+        variant_name: data.variant,
         variant_id: data.variant_id,
-        value: eventData.value
+        value: eventData.value,
+        properties: data.properties
       })
 
       try {
@@ -154,32 +155,89 @@ export async function POST(request: NextRequest) {
         // ✅ CORREÇÃO: Usar variant_id se disponível, caso contrário buscar por nome (fallback)
         if (!variantId && data.variant) {
           console.log('⚠️ [WARNING] variant_id não fornecido, buscando por nome (fallback):', data.variant)
-          const { data: variant } = await supabase
+          const { data: variant, error: variantError } = await supabase
             .from('variants')
             .select('id')
             .eq('experiment_id', experimentId)
             .eq('name', data.variant)
             .single()
           
-          if (variant) {
+          if (variantError) {
+            console.error('❌ [ERROR] Erro ao buscar variante por nome:', {
+              error: variantError,
+              variant_name: data.variant,
+              experiment_id: experimentId
+            })
+          } else if (variant) {
             variantId = variant.id
+            console.log('✅ [SUCCESS] Variante encontrada pelo nome:', variantId)
           }
         }
 
         if (variantId) {
+          console.log('📈 [CONVERSION] Chamando increment_variant_conversions', {
+            variant_id: variantId,
+            experiment_id: experimentId,
+            revenue: eventData.value || 0
+          })
+
           // Atualizar estatísticas da variante
-          await supabase.rpc('increment_variant_conversions', {
+          const { data: rpcResult, error: rpcError } = await supabase.rpc('increment_variant_conversions', {
             p_variant_id: variantId,
             p_experiment_id: experimentId,
             p_revenue: eventData.value || 0
           })
 
-          console.log('✅ [CONVERSION] Estatísticas atualizadas para variante:', variantId)
+          if (rpcError) {
+            console.error('❌ [ERROR] Erro na função RPC increment_variant_conversions:', {
+              error: rpcError,
+              message: rpcError.message,
+              details: rpcError.details,
+              hint: rpcError.hint,
+              code: rpcError.code
+            })
+            
+            // Tentar atualizar manualmente se RPC falhar
+            console.log('🔄 [FALLBACK] Tentando atualização manual de variant_stats')
+            const { error: manualError } = await supabase
+              .from('variant_stats')
+              .upsert({
+                experiment_id: experimentId,
+                variant_id: variantId,
+                visitors: 0,
+                conversions: 1,
+                revenue: eventData.value || 0,
+                last_updated: new Date().toISOString()
+              }, {
+                onConflict: 'experiment_id,variant_id',
+                ignoreDuplicates: false
+              })
+            
+            if (manualError) {
+              console.error('❌ [ERROR] Falha no fallback manual:', manualError)
+            } else {
+              console.log('✅ [SUCCESS] Fallback manual executado com sucesso')
+            }
+          } else {
+            console.log('✅ [CONVERSION] Estatísticas atualizadas com sucesso:', {
+              variant_id: variantId,
+              rpc_result: rpcResult
+            })
+          }
         } else {
-          console.error('❌ [ERROR] Não foi possível identificar variant_id para conversão')
+          console.error('❌ [ERROR] Não foi possível identificar variant_id para conversão', {
+            variant_name_provided: data.variant,
+            variant_id_provided: data.variant_id,
+            experiment_id: experimentId,
+            visitor_id: data.visitor_id
+          })
         }
       } catch (conversionError) {
-        console.error('⚠️ [WARNING] Erro ao atualizar estatísticas de conversão:', conversionError)
+        console.error('⚠️ [WARNING] Exceção ao atualizar estatísticas de conversão:', {
+          error: conversionError,
+          message: conversionError instanceof Error ? conversionError.message : 'Unknown error',
+          stack: conversionError instanceof Error ? conversionError.stack : undefined
+        })
         // Não falhar a requisição
       }
     }
