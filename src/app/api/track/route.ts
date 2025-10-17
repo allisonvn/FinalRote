@@ -87,16 +87,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Preparar dados do evento
+    // ✅ CORREÇÃO: Preparar dados do evento com estrutura completa
     const eventData = {
       experiment_id: experimentId,
       visitor_id: data.visitor_id,
-      variant_id: data.variant_id || null, // ✅ CORREÇÃO: Incluir variant_id
+      variant_id: data.variant_id || null,
       event_type: data.event_type,
       event_name: data.event_type,
       event_data: {
+        // ✅ Dados da variante
         variant: data.variant,
-        variant_id: data.variant_id, // ✅ CORREÇÃO: Incluir variant_id nos dados
+        variant_id: data.variant_id,
+        
+        // ✅ Dados da página de sucesso (se for conversão)
+        success_page_url: data.properties?.success_page_url,
+        success_page_title: data.properties?.success_page_title,
+        
+        // ✅ Dados da página de origem (se for conversão)
+        origin_page_url: data.properties?.origin_page_url,
+        origin_page_title: data.properties?.origin_page_title,
+        
+        // ✅ Dados de navegação
+        referrer: data.properties?.referrer,
+        user_agent: data.properties?.user_agent,
+        viewport: data.properties?.viewport,
+        
+        // ✅ Dados da conversão (se for conversão)
+        conversion_value: data.properties?.conversion_value,
+        conversion_type: data.properties?.conversion_type,
+        success_page: data.properties?.success_page,
+        
+        // ✅ Dados originais (compatibilidade)
         url: data.url,
         ...data.properties
       },

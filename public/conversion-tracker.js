@@ -130,7 +130,12 @@
         return true; // Retornar sucesso para não tentar novamente
       }
 
-      // Preparar dados da conversão
+      // ✅ CORREÇÃO: Buscar dados da página de origem do localStorage
+      const originPageData = JSON.parse(
+        localStorage.getItem(`rotafinal_origin_${assignmentData.experimentId}`) || '{}'
+      );
+
+      // Preparar dados da conversão COMPLETOS
       const conversionPayload = {
         experiment_id: assignmentData.experimentId,
         visitor_id: assignmentData.visitorId,
@@ -139,14 +144,33 @@
         event_type: 'conversion',
         event_name: 'conversion',
         value: experimentData.conversionValue || 0,
-        url: window.location.href,
         timestamp: new Date().toISOString(),
         properties: {
-          page_url: window.location.href,
-          page_title: document.title,
+          // ✅ Página de sucesso (atual)
+          success_page_url: window.location.href,
+          success_page_title: document.title,
+          
+          // ✅ Página que originou a conversão (do localStorage)
+          origin_page_url: originPageData.url || experimentData.targetUrl,
+          origin_page_title: originPageData.title || 'Página de Origem',
+          
+          // ✅ Dados de navegação
           referrer: document.referrer,
+          user_agent: navigator.userAgent,
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight
+          },
+          
+          // ✅ Dados da conversão
+          conversion_value: experimentData.conversionValue,
+          conversion_type: experimentData.conversionType,
           timestamp: new Date().toISOString(),
-          success_page: true
+          success_page: true,
+          
+          // ✅ Dados da variante
+          variant: assignmentData.variantName,
+          variant_id: assignmentData.variantId
         }
       };
 

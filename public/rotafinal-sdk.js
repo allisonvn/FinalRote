@@ -260,6 +260,19 @@ class RotaFinal {
             sessionStorage.setItem('rf_current_variant', variant.id);
             sessionStorage.setItem('rf_current_variant_name', variant.name); // ✅ CORREÇÃO: Salvar nome também
             sessionStorage.setItem(redirectKey, 'true');
+            
+            // ✅ NOVO: Salvar dados da página de origem para rastreamento de conversão
+            const originPageData = {
+              url: window.location.href,
+              title: document.title,
+              referrer: document.referrer,
+              timestamp: new Date().toISOString(),
+              viewport: {
+                width: window.innerWidth,
+                height: window.innerHeight
+              }
+            };
+            localStorage.setItem(`rotafinal_origin_${experimentId}`, JSON.stringify(originPageData));
 
             // Redirecionar IMEDIATAMENTE (sem mostrar página)
             window.location.replace(redirectUrl);
