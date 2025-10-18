@@ -228,14 +228,24 @@ export function useSupabaseExperiments() {
       console.log('✅ Experimento criado com sucesso:', newExp.id)
 
       // Preparar configuração de conversão para todas as variantes
-      const conversionConfig = data.conversion_type ? {
+      // ✅ CORREÇÃO: Criar config se conversion_url OU conversion_type estiverem preenchidos
+      console.log('🔍 [DEBUG] Dados de conversão recebidos:', {
+        conversion_type: data.conversion_type,
+        conversion_url: data.conversion_url,
+        conversion_value: data.conversion_value,
+        conversion_selector: data.conversion_selector
+      })
+
+      const conversionConfig = (data.conversion_type || data.conversion_url) ? {
         conversion: {
-          type: data.conversion_type,
+          type: data.conversion_type || 'page_view',
           url: data.conversion_url || null,
           selector: data.conversion_selector || null,
           value: data.conversion_value || 0
         }
       } : {}
+
+      console.log('🔍 [DEBUG] Configuração de conversão preparada:', conversionConfig)
 
       // Criar variantes padrão
       // ✅ CORREÇÃO: Variante de controle usa a URL da página configurada na etapa 01
