@@ -81,6 +81,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
   const [variantData, setVariantData] = useState<any[]>([])
   const [timeSeriesData, setTimeSeriesData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   // Atualizar experimento editado quando o prop muda
   useEffect(() => {
@@ -347,11 +348,37 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
       const timeline = await fetchTimeSeriesData(experiment.id)
       setTimeSeriesData(timeline)
 
-      console.log('✅ Dados atualizados com sucesso')
+      console.log('✅ Dados do experimento atualizados')
     } catch (error) {
       console.error('Erro ao atualizar dados:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ✅ NOVO: Função de refresh com estado separado
+  const handleManualRefresh = async () => {
+    try {
+      setRefreshing(true)
+      console.log('🔄 [MANUAL] Atualizando dados do experimento:', experiment.id)
+
+      // Buscar métricas do experimento
+      const metrics = await fetchExperimentMetrics(experiment.id)
+      setExperimentMetrics(metrics)
+
+      // Buscar dados das variantes
+      const variants = await fetchVariantData(experiment.id)
+      setVariantData(variants)
+
+      // Buscar dados da timeline
+      const timeline = await fetchTimeSeriesData(experiment.id)
+      setTimeSeriesData(timeline)
+
+      console.log('✅ [MANUAL] Dados atualizados com sucesso')
+    } catch (error) {
+      console.error('❌ [MANUAL] Erro ao atualizar dados:', error)
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -401,6 +428,53 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     if (isOpen && experiment) {
       console.log('✅ Condições atendidas, executando fetchProjectData')
       fetchProjectData()
+
+      // ✅ NOVO: Adicionar subscriber em tempo real para variant_stats
+      const subscription = supabase
+        .channel(`variant_stats:experiment_id=eq.${experiment.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'variant_stats',
+            filter: `experiment_id=eq.${experiment.id}`
+          },
+          (payload) => {
+            console.log('🔄 [REALTIME] Alteração detectada em variant_stats:', payload)
+            
+            // Recarregar dados das variantes
+            fetchVariantData(experiment.id).then(variants => {
+              console.log('✅ [REALTIME] Variantes atualizadas:', variants)
+              setVariantData(variants)
+            })
+
+            // Recarregar métricas do experimento
+            fetchExperimentMetrics(experiment.id).then(metrics => {
+              console.log('✅ [REALTIME] Métricas atualizadas:', metrics)
+              setExperimentMetrics(metrics)
+            })
+
+            // Recarregar timeline
+            fetchTimeSeriesData(experiment.id).then(timeline => {
+              console.log('✅ [REALTIME] Timeline atualizada:', timeline)
+              setTimeSeriesData(timeline)
+            })
+          }
+        )
+        .subscribe((status, error) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ [REALTIME] Inscrito em alterações de variant_stats')
+          } else if (error) {
+            console.error('❌ [REALTIME] Erro ao se inscrever em variant_stats:', error)
+          }
+        })
+
+      // Cleanup da subscription quando o modal fecha
+      return () => {
+        console.log('🔌 [REALTIME] Desinscrição de variant_stats')
+        supabase.removeChannel(subscription)
+      }
     } else {
       console.log('❌ Condições não atendidas para fetchProjectData')
     }
@@ -1974,14 +2048,26 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
                 <p className="text-slate-600">Análise completa de performance e resultados</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-12 w-12 p-0 rounded-2xl hover:bg-slate-200/50 transition-all duration-300"
-            >
-              <X className="w-6 h-6" />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleManualRefresh}
+                disabled={refreshing}
+                className="h-12 px-4 rounded-2xl hover:bg-blue-100 transition-all duration-300 flex items-center gap-2"
+              >
+                <RefreshCw className={cn("w-5 h-5", refreshing && "animate-spin")} />
+                {!refreshing && <span className="text-sm">Atualizar</span>}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="h-12 w-12 p-0 rounded-2xl hover:bg-slate-200/50 transition-all duration-300"
+              >
+                <X className="w-6 h-6" />
+              </Button>
+            </div>
           </div>
 
           {/* Tabs */}
