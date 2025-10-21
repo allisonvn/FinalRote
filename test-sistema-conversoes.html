@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Sistema de Conversões Automático - Rota Final</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .info { background: #dbeafe; color: #1e40af; }
+        .warning { background: #fef3c7; color: #92400e; }
+        .error { background: #fee2e2; color: #991b1b; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .code {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .metric-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Teste Sistema de Conversões Automático</h1>
+            <p>Demonstração do sistema de A/B testing com conversões automáticas</p>
+        </div>
+
+        <div id="status" class="status info">
+            Inicializando sistema...
+        </div>
+
+        <div class="metrics" id="metrics" style="display: none;">
+            <div class="metric">
+                <div class="metric-value" id="visitors">0</div>
+                <div class="metric-label">Visitantes</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="conversions">0</div>
+                <div class="metric-label">Conversões</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="revenue">R$ 0,00</div>
+                <div class="metric-label">Receita</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="conversion-rate">0%</div>
+                <div class="metric-label">Taxa de Conversão</div>
+            </div>
+        </div>
+
+        <div>
+            <h3>Teste Manual</h3>
+            <button onclick="testAssignment()" id="btn-assign">1. Obter Variante</button>
+            <button onclick="testPageView()" id="btn-pageview" disabled>2. Simular Page View</button>
+            <button onclick="testConversion()" id="btn-conversion" disabled>3. Simular Conversão</button>
+            <button onclick="loadMetrics()" id="btn-metrics" disabled>4. Carregar Métricas</button>
+        </div>
+
+        <div>
+            <h3>Teste Automático (SDK)</h3>
+            <p>Este teste simula o uso real do SDK JavaScript:</p>
+            <div class="code" id="sdk-code">
+// SDK será carregado automaticamente
+const rf = new RotaFinal({
+  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  debug: true
+});
+
+// Obter variante (auto salva conversion_url)
+rf.getVariant('teste-homepage-nova').then(variant => {
+  console.log('Variante atribuída:', variant);
+  // Conversão é AUTOMÁTICA quando visitar /obrigado
+});
+            </div>
+            <button onclick="testSDK()" id="btn-sdk">Testar SDK Automático</button>
+        </div>
+
+        <div>
+            <h3>Logs do Sistema</h3>
+            <div class="code" id="logs" style="height: 200px; overflow-y: auto;">
+                Aguardando logs...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://ynarsxvvonabpoirogse.supabase.co/functions/v1';
+        const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InluYXJzeHZ2b25hYnBvaXJvZ3NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM4NTM0OTgsImV4cCI6MjA0OTQyOTQ5OH0.LrO7-tR2kQzvj6tpXWaII5eeOKVOSjwGmuIR_k41yBM';
+        
+        let currentVariant = null;
+        let visitorId = 'demo_visitor_' + Math.random().toString(36).substr(2, 9);
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            logs.textContent += logEntry;
+            logs.scrollTop = logs.scrollHeight;
+            
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        async function testAssignment() {
+            try {
+                log('Obtendo variante do experimento...', 'info');
+                
+                const response = await fetch(`${API_URL}/assign-variant`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        experiment_key: 'teste-homepage-nova',
+                        visitor_id: visitorId,
+                        context: {
+                            page_url: window.location.href,
+                            user_agent: navigator.userAgent
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentVariant = data;
+                    log(`✅ Variante atribuída: ${data.variant_name} (${data.variant_key})`, 'success');
+                    log(`📊 Experimento: ${data.experiment.name}`, 'info');
+                    log(`🎯 URL de conversão: ${data.experiment.conversion_url}`, 'info');
+                    log(`💰 Valor da conversão: R$ ${data.experiment.conversion_value}`, 'info');
+                    
+                    document.getElementById('btn-pageview').disabled = false;
+                    document.getElementById('btn-assign').disabled = true;
+                } else {
+                    throw new Error(data.error || 'Erro ao obter variante');
+                }
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPageView() {
+            try {
+                log('Enviando evento de page view...', 'info');
+                
+                const response = await fetch(`${API_URL}/track-event`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        events: [{
+                            visitor_id: visitorId,
+                            event_type: 'page_view',
+                            event_name: 'homepage_visit',
+                            properties: {
+                                page_url: window.location.href,
+                                referrer: document.referrer,
+                                variant: currentVariant.variant_name
+                            },
+                            experiment_key: 'teste-homepage-nova'
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Page view rastreado com sucesso`, 'success');
+                    document.getElementById('btn-conversion').disabled = false;
+                    document.getElementById('btn-pageview').disabled = true;
+                } else {
+                    throw new Error(data.error || 'Erro ao rastrear page view');
+                }
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        async function testConversion() {
+            try {
+                log('Simulando conversão...', 'info');
+                
+                const response = await fetch(`${API_URL}/track-event`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        events: [{
+                            visitor_id: visitorId,
+                            event_type: 'conversion',
+                            event_name: 'purchase',
+                            properties: {
+                                success_page_url: currentVariant.experiment.conversion_url,
+                                conversion_type: currentVariant.experiment.conversion_type,
+                                variant: currentVariant.variant_name
+                            },
+                            value: currentVariant.experiment.conversion_value,
+                            experiment_key: 'teste-homepage-nova'
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Conversão rastreada com sucesso!`, 'success');
+                    log(`💰 Valor: R$ ${currentVariant.experiment.conversion_value}`, 'success');
+                    document.getElementById('btn-metrics').disabled = false;
+                    document.getElementById('btn-conversion').disabled = true;
+                } else {
+                    throw new Error(data.error || 'Erro ao rastrear conversão');
+                }
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadMetrics() {
+            try {
+                log('Carregando métricas do experimento...', 'info');
+                
+                // Simular carregamento de métricas
+                // Em um sistema real, você faria uma chamada para obter as métricas
+                const mockMetrics = {
+                    visitors: Math.floor(Math.random() * 100) + 50,
+                    conversions: Math.floor(Math.random() * 20) + 5,
+                    revenue: Math.floor(Math.random() * 1000) + 200
+                };
+                
+                const conversionRate = mockMetrics.visitors > 0 
+                    ? ((mockMetrics.conversions / mockMetrics.visitors) * 100).toFixed(2)
+                    : 0;
+                
+                document.getElementById('visitors').textContent = mockMetrics.visitors;
+                document.getElementById('conversions').textContent = mockMetrics.conversions;
+                document.getElementById('revenue').textContent = `R$ ${mockMetrics.revenue.toFixed(2)}`;
+                document.getElementById('conversion-rate').textContent = `${conversionRate}%`;
+                
+                document.getElementById('metrics').style.display = 'grid';
+                log(`📊 Métricas carregadas: ${mockMetrics.visitors} visitantes, ${mockMetrics.conversions} conversões`, 'success');
+                
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSDK() {
+            try {
+                log('Testando SDK JavaScript...', 'info');
+                
+                // Simular carregamento do SDK
+                const sdkCode = `
+// Simulação do SDK RotaFinal
+class RotaFinal {
+    constructor(config) {
+        this.apiKey = config.apiKey;
+        this.apiUrl = config.apiUrl || 'https://ynarsxvvonabpoirogse.supabase.co/functions/v1';
+        this.debug = config.debug;
+    }
+    
+    async getVariant(experimentKey) {
+        const response = await fetch(\`\${this.apiUrl}/assign-variant\`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': \`Bearer \${this.apiKey}\`
+            },
+            body: JSON.stringify({
+                experiment_key: experimentKey,
+                visitor_id: '${visitorId}',
+                context: { page_url: window.location.href }
+            })
+        });
+        return response.json();
+    }
+    
+    async track(eventType, eventName, properties, value, experimentKey) {
+        const response = await fetch(\`\${this.apiUrl}/track-event\`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': \`Bearer \${this.apiKey}\`
+            },
+            body: JSON.stringify({
+                events: [{
+                    visitor_id: '${visitorId}',
+                    event_type: eventType,
+                    event_name: eventName,
+                    properties,
+                    value,
+                    experiment_key: experimentKey
+                }]
+            })
+        });
+        return response.json();
+    }
+}
+
+// Inicializar SDK
+const rf = new RotaFinal({
+    apiKey: '${API_KEY}',
+    debug: true
+});
+
+// Obter variante
+rf.getVariant('teste-homepage-nova').then(variant => {
+    console.log('Variante atribuída:', variant);
+    // Conversão automática quando visitar URL de conversão
+    if (window.location.href.includes('obrigado')) {
+        rf.track('conversion', 'purchase', {
+            success_page_url: window.location.href
+        }, variant.experiment.conversion_value, 'teste-homepage-nova');
+    }
+});
+                `;
+                
+                document.getElementById('sdk-code').textContent = sdkCode;
+                log('✅ SDK simulado carregado com sucesso!', 'success');
+                log('💡 Em um site real, o SDK detectaria automaticamente a conversão', 'info');
+                
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        // Inicializar
+        log('Sistema inicializado. Clique em "Obter Variante" para começar.', 'info');
+    </script>
+</body>
+</html>
