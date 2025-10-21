@@ -21,6 +21,13 @@ interface Variant {
   variant_name: string
   config?: any
   is_new: boolean
+  experiment?: {
+    id: string
+    name: string
+    conversion_url?: string
+    conversion_type?: string
+    conversion_value?: number
+  }
 }
 
 interface TrackEvent {
@@ -64,6 +71,14 @@ class RotaFinal {
   private flushTimer?: number
   private assignmentCache: Map<string, Variant> = new Map()
   private initialized = false
+  private experimentConversions: Map<string, {
+    conversion_url: string
+    conversion_value?: number
+    conversion_type?: string
+    experiment_id: string
+    experiment_key: string
+  }> = new Map()
+  private conversionTracked: Set<string> = new Set()
 
   constructor(config: RotaFinalConfig) {
     // Validar configuração
@@ -112,6 +127,9 @@ class RotaFinal {
         ...sessionInfo
       })
 
+      // Verificar conversão no carregamento inicial
+      setTimeout(() => this.checkConversionUrl(), 100)
+
       // Escutar mudanças de rota (SPA)
       const originalPushState = history.pushState
       history.pushState = (...args) => {
@@ -120,6 +138,8 @@ class RotaFinal {
           url: window.location.href,
           title: document.title
         })
+        // Verificar conversão após mudança de rota
+        setTimeout(() => this.checkConversionUrl(), 100)
       }
 
       window.addEventListener('popstate', () => {
@@ -127,6 +147,8 @@ class RotaFinal {
           url: window.location.href,
           title: document.title
         })
+        // Verificar conversão após navegação
+        setTimeout(() => this.checkConversionUrl(), 100)
       })
     }
 
@@ -197,10 +219,22 @@ class RotaFinal {
       }
 
       const variant = await response.json()
-      
+
       // Cachear resultado
       this.assignmentCache.set(cacheKey, variant)
-      
+
+      // Armazenar informações de conversão se houver
+      if (variant.experiment?.conversion_url) {
+        this.experimentConversions.set(experimentKey, {
+          conversion_url: variant.experiment.conversion_url,
+          conversion_value: variant.experiment.conversion_value,
+          conversion_type: variant.experiment.conversion_type,
+          experiment_id: variant.experiment.id,
+          experiment_key: experimentKey
+        })
+        this.log('Conversion URL registered:', variant.experiment.conversion_url)
+      }
+
       // Aplicar configuração se houver
       if (variant.config) {
         this.applyVariantConfig(variant.config)
@@ -218,9 +252,9 @@ class RotaFinal {
    * Rastreia um evento
    */
   track(
-    eventType: string, 
-    eventName: string, 
-    properties?: Record<string, any>, 
+    eventType: string,
+    eventName: string,
+    properties?: Record<string, any>,
     value?: number,
     experimentKey?: string
   ): void {
@@ -241,6 +275,59 @@ class RotaFinal {
     // Flush se atingiu o tamanho máximo
     if (this.eventQueue.length >= this.config.maxBatchSize) {
       this.flush()
+    }
+  }
+
+  /**
+   * Verifica se a URL atual é uma URL de conversão e rastreia automaticamente
+   */
+  private checkConversionUrl(): void {
+    if (typeof window === 'undefined') return
+
+    const currentUrl = window.location.href
+    const currentPath = window.location.pathname
+
+    // Iterar sobre experimentos registrados
+    for (const [experimentKey, conversionData] of this.experimentConversions.entries()) {
+      const trackingKey = `${experimentKey}_${this.visitorId}`
+
+      // Verificar se já rastreou conversão para este experimento
+      if (this.conversionTracked.has(trackingKey)) {
+        continue
+      }
+
+      // Verificar se a URL atual é a URL de conversão
+      const conversionUrl = conversionData.conversion_url
+      let isConversion = false
+
+      // Comparar URL completa ou apenas pathname
+      if (currentUrl === conversionUrl || currentPath === conversionUrl) {
+        isConversion = true
+      } else if (currentUrl.includes(conversionUrl) || currentPath.includes(conversionUrl)) {
+        isConversion = true
+      }
+
+      if (isConversion) {
+        this.log(`Conversion detected for experiment: ${experimentKey}`)
+
+        // Rastrear conversão
+        this.track(
+          'conversion',
+          `conversion_${experimentKey}`,
+          {
+            success_page_url: currentUrl,
+            conversion_type: conversionData.conversion_type || 'page_view',
+            experiment_id: conversionData.experiment_id
+          },
+          conversionData.conversion_value,
+          experimentKey
+        )
+
+        // Marcar como rastreado para não duplicar
+        this.conversionTracked.add(trackingKey)
+
+        this.log(`Conversion tracked for ${experimentKey} with value: ${conversionData.conversion_value}`)
+      }
     }
   }
 

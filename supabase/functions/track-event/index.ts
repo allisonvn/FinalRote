@@ -96,12 +96,61 @@ serve(async (req) => {
           visitor_id: event.visitor_id,
           event_type: event.event_type,
           event_name: event.event_name,
-          properties: event.properties || {},
+          event_data: event.properties || {},
           value: event.value || null,
           created_at: event.timestamp || new Date().toISOString()
         }
 
         processedEvents.push(eventData)
+
+        // Process conversions
+        if (event.event_type === 'conversion' && experimentId) {
+          try {
+            // Get variant_id from assignment or properties
+            let variantId = event.properties?.variant_id
+
+            // If no variant_id, try to find assignment
+            if (!variantId) {
+              const { data: assignment } = await supabase
+                .from('assignments')
+                .select('variant_id')
+                .eq('experiment_id', experimentId)
+                .eq('visitor_id', event.visitor_id)
+                .single()
+
+              if (assignment) {
+                variantId = assignment.variant_id
+              }
+            }
+
+            // Update variant stats if variant_id is found
+            if (variantId) {
+              const { error: statsError } = await supabase.rpc('increment_variant_conversions', {
+                p_variant_id: variantId,
+                p_experiment_id: experimentId,
+                p_revenue: event.value || 0
+              })
+
+              if (statsError) {
+                console.error('Error incrementing conversion:', statsError)
+                // Fallback: manual upsert
+                await supabase.from('variant_stats').upsert({
+                  experiment_id: experimentId,
+                  variant_id: variantId,
+                  visitors: 0,
+                  conversions: 1,
+                  revenue: event.value || 0,
+                  last_updated: new Date().toISOString()
+                }, {
+                  onConflict: 'experiment_id,variant_id'
+                })
+              }
+            }
+          } catch (convError) {
+            console.error('Error processing conversion:', convError)
+            // Don't fail the event tracking
+          }
+        }
       } catch (error) {
         errors.push({
           event,
