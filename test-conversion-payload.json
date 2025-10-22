@@ -1,0 +1,14 @@
+{
+  "experiment_id": "test-1",
+  "visitor_id": "test_visitor_manual_001",
+  "variant_id": "var-control",
+  "variant": "Control",
+  "event_type": "conversion",
+  "value": 199.90,
+  "url": "https://example.com/thank-you",
+  "properties": {
+    "conversion_value": 199.90,
+    "conversion_type": "purchase",
+    "success_page_url": "https://example.com/thank-you"
+  }
+}
