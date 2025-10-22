@@ -18,7 +18,7 @@ if [ $? -eq 0 ]; then
   echo "  2. git commit -m 'Deploy: Correção de chunk loading'"
   echo "  3. git push"
   echo ""
-  echo "⏳ O Vercel/Netlify iniciará o deploy automaticamente"
+  echo "⏳ O deploy será iniciado automaticamente"
 else
   echo "❌ Erro durante o build!"
   exit 1

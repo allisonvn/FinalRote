@@ -15,7 +15,7 @@ Plataforma profissional de teste A/B que usa algoritmos de Multi-Armed Bandit pa
 
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS, shadcn/ui
 - **Backend**: Supabase (PostgreSQL + Auth + Edge Functions)
-- **Infraestrutura**: Vercel, Cloudflare CDN
+- **Infraestrutura**: Cloudflare CDN
 - **Pagamentos**: Stripe
 - **Email**: Resend
 
@@ -94,12 +94,6 @@ npm run dev
 - Mesmos trilhos de segurança
 
 ## 🚀 Deploy
-
-### Vercel (Recomendado)
-
-1. Connect repository
-2. Configure environment variables
-3. Deploy automatically
 
 ### Supabase
 
