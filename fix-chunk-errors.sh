@@ -69,9 +69,9 @@ else
     warning "Middleware pode não estar configurado corretamente"
 fi
 
-# Verificar vercel.json
-if grep -q "Content-Type.*application/javascript" vercel.json; then
-    success "Headers de Content-Type configurados no vercel.json"
+# Verificar configuração de headers
+if grep -q "Content-Type.*application/javascript" next.config.js; then
+    success "Headers de Content-Type configurados no next.config.js"
 else
     warning "Headers de Content-Type podem não estar configurados"
 fi
