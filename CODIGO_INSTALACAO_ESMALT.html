@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Código para Instalar no Site Esmalt</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-top: 0; }
+        h2 { color: #555; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #e83e8c;
+            font-family: 'Courier New', monospace;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚀 Código para Instalar no Site Esmalt</h1>
+        <p><strong>Experimento:</strong> Rota Esmalt</p>
+        <p><strong>ID:</strong> c6dbffbe-fae0-4769-84a3-c91adc8c821e</p>
+    </div>
+
+    <div class="card">
+        <h2>⚠️ PROBLEMA ATUAL</h2>
+        <div class="warning">
+            <strong>O teste A/B não está funcionando porque:</strong>
+            <ol>
+                <li>O código do experimento <strong>NÃO está instalado</strong> nas páginas do Esmalt</li>
+                <li>Os visitantes acessam diretamente as URLs e não são redirecionados</li>
+                <li>O sistema não está atribuindo variantes automaticamente</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>✅ SOLUÇÃO: Instalar o Código nas Páginas</h2>
+        
+        <div class="step">
+            <span class="step-number">1</span>
+            <strong>Escolha UMA URL de entrada para o teste A/B</strong>
+        </div>
+        
+        <p>Você precisa escolher qual será a página de entrada onde o código será instalado. Exemplos:</p>
+        <ul>
+            <li><code>https://esmalt.com.br/loja/</code> (página inicial da loja)</li>
+            <li><code>https://esmalt.com.br/produto-x/</code> (página de produto)</li>
+            <li><code>https://esmalt.com.br/</code> (home page)</li>
+        </ul>
+
+        <div class="info">
+            <strong>💡 Como funciona:</strong><br>
+            Quando alguém acessar esta página de entrada, o código vai:
+            <ol>
+                <li>Detectar que é um novo visitante</li>
+                <li>Escolher aleatoriamente uma variante (50% Original / 50% Variante A)</li>
+                <li>Redirecionar automaticamente para a URL correspondente:
+                    <ul>
+                        <li>Original → <code>https://esmalt.com.br/elementor-695/</code></li>
+                        <li>Variante A → <code>https://esmalt.com.br/elementor-595/</code></li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <span class="step-number">2</span>
+            <strong>Adicionar o código na página de entrada</strong>
+        </div>
+
+        <p>Cole este código no <code>&lt;head&gt;</code> da sua página de entrada:</p>
+
+        <button class="btn" onclick="copiarCodigo('codigo-principal')">📋 Copiar Código Principal</button>
+
+        <pre id="codigo-principal"><!-- CSS Anti-Flicker - IMPORTANTE: Previne "piscada" da página -->
+<style data-rf-antiflicker>
+html:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}
+html[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:opacity 150ms ease-in-out!important}
+</style>
+
+<!-- RotaFinal SDK - Experimento: Rota Esmalt -->
+<script>
+!function(){"use strict";
+var experimentId="c6dbffbe-fae0-4769-84a3-c91adc8c821e";
+var baseUrl="https://rotafinal.com.br";
+var apiKey="SUA_API_KEY_AQUI"; // Você precisa adicionar a API key do projeto
+
+// Gerar ID único para o visitante
+function getUserId(){
+  var userId=localStorage.getItem("rf_user_id");
+  if(!userId){
+    userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);
+    localStorage.setItem("rf_user_id",userId);
+  }
+  return userId;
+}
+
+// Verificar se é bot
+function isBot(){
+  return/bot|crawler|spider|crawling/i.test(navigator.userAgent);
+}
+
+// Fazer chamada para API
+function apiCall(url,options){
+  var headers={
+    "Content-Type":"application/json",
+    "Authorization":"Bearer "+apiKey,
+    "X-RF-Version":"2.0.0"
+  };
+  return fetch(url,Object.assign({headers:headers},options))
+    .then(function(response){
+      if(!response.ok)throw new Error("HTTP "+response.status);
+      return response.json();
+    });
+}
+
+// Buscar e aplicar variante
+function init(){
+  if(isBot()){
+    document.documentElement.setAttribute("data-rf-ready","true");
+    return;
+  }
+
+  // Buscar variante da API
+  apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{
+    method:"POST",
+    body:JSON.stringify({
+      visitor_id:getUserId(),
+      user_agent:navigator.userAgent,
+      url:window.location.href,
+      referrer:document.referrer,
+      timestamp:new Date().toISOString()
+    })
+  })
+  .then(function(response){
+    if(response && response.variant){
+      var variant=response.variant;
+      
+      // Salvar no localStorage
+      localStorage.setItem("rotafinal_exp_"+experimentId,JSON.stringify({
+        experimentId:experimentId,
+        variantId:variant.id,
+        variantName:variant.name,
+        visitorId:getUserId(),
+        timestamp:Date.now()
+      }));
+      
+      // Salvar dados da página de origem para rastreamento de conversão
+      localStorage.setItem("rotafinal_origin_"+experimentId,JSON.stringify({
+        url:window.location.href,
+        title:document.title,
+        timestamp:Date.now()
+      }));
+      
+      console.log("✅ RotaFinal: Variante atribuída:",variant.name);
+      
+      // REDIRECIONAR para a URL da variante
+      if(variant.redirect_url){
+        console.log("↗️ RotaFinal: Redirecionando para:",variant.redirect_url);
+        window.location.href=variant.redirect_url;
+      }else{
+        document.documentElement.setAttribute("data-rf-ready","true");
+      }
+    }
+  })
+  .catch(function(error){
+    console.error("❌ RotaFinal: Erro:",error);
+    document.documentElement.setAttribute("data-rf-ready","true");
+  });
+}
+
+// Executar quando DOM estiver pronto
+if(document.readyState==="loading"){
+  document.addEventListener("DOMContentLoaded",init);
+}else{
+  init();
+}
+}();
+</script></pre>
+
+        <div class="warning">
+            <strong>⚠️ IMPORTANTE:</strong>
+            <ul>
+                <li>Substitua <code>SUA_API_KEY_AQUI</code> pela API key real do projeto</li>
+                <li>Instale <strong>APENAS</strong> na página de entrada escolhida</li>
+                <li>Cole no <code>&lt;head&gt;</code>, não no body</li>
+                <li>Não adicione async ou defer</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <span class="step-number">3</span>
+            <strong>Adicionar script de conversão na página de sucesso</strong>
+        </div>
+
+        <p>Na página de "Obrigado" ou "Pedido Confirmado", adicione este código no <code>&lt;head&gt;</code>:</p>
+
+        <button class="btn" onclick="copiarCodigo('codigo-conversao')">📋 Copiar Código de Conversão</button>
+
+        <pre id="codigo-conversao"><script src="https://rotafinal.com.br/conversion-tracker.js"></script></pre>
+
+        <div class="step">
+            <span class="step-number">4</span>
+            <strong>Como adicionar no WordPress/Elementor</strong>
+        </div>
+
+        <h3>Opção A - Plugin "Insert Headers and Footers"</h3>
+        <ol>
+            <li>Instale o plugin "Insert Headers and Footers"</li>
+            <li>Vá em <strong>Configurações → Insert Headers and Footers</strong></li>
+            <li>Cole o código principal no campo <strong>"Scripts in Header"</strong></li>
+            <li>Salve</li>
+        </ol>
+
+        <h3>Opção B - Código Customizado do Elementor</h3>
+        <ol>
+            <li>Abra a página de entrada no Elementor</li>
+            <li>Clique nas configurações da página (engrenagem no canto inferior esquerdo)</li>
+            <li>Vá em <strong>Avançado → Custom Code</strong></li>
+            <li>Cole no campo <strong>"Head"</strong></li>
+            <li>Publique</li>
+        </ol>
+
+        <h3>Opção C - Plugin "Code Snippets"</h3>
+        <ol>
+            <li>Instale o plugin "Code Snippets"</li>
+            <li>Adicione novo snippet</li>
+            <li>Cole este código PHP:</li>
+        </ol>
+
+        <button class="btn" onclick="copiarCodigo('codigo-php')">📋 Copiar Código PHP</button>
+
+        <pre id="codigo-php">function rotafinal_experimento() {
+    // Apenas na página de entrada (troque pelo ID ou slug correto)
+    if (is_page('sua-pagina-entrada') || is_page(123)) {
+        ?>
+        <!-- Cole aqui o código JavaScript principal -->
+        <?php
+    }
+    
+    // Script de conversão na página de obrigado
+    if (is_page('obrigado') || is_page('sucesso')) {
+        ?>
+        <script src="https://rotafinal.com.br/conversion-tracker.js"></script>
+        <?php
+    }
+}
+add_action('wp_head', 'rotafinal_experimento');</pre>
+
+    </div>
+
+    <div class="card">
+        <h2>🧪 COMO TESTAR</h2>
+        
+        <div class="success">
+            <strong>Teste Passo a Passo:</strong>
+            <ol>
+                <li>Limpe o cache do navegador (Ctrl+Shift+Delete)</li>
+                <li>Abra uma <strong>nova aba anônima</strong></li>
+                <li>Abra o console (F12)</li>
+                <li>Acesse a <strong>página de entrada</strong> onde você instalou o código</li>
+                <li>Você deve ver no console:
+                    <pre style="font-size: 12px;">✅ RotaFinal: Variante atribuída: Original (ou Variante A)
+↗️ RotaFinal: Redirecionando para: https://esmalt.com.br/elementor-695/</pre>
+                </li>
+                <li>A página deve redirecionar automaticamente</li>
+                <li>Teste novamente em outra aba anônima para ver a outra variante</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>❓ FAQ - Perguntas Frequentes</h2>
+        
+        <h3>1. Onde consigo a API Key?</h3>
+        <p>No dashboard do RotaFinal:</p>
+        <ul>
+            <li>Abra o experimento</li>
+            <li>Vá para aba "Configurações"</li>
+            <li>Copie a API Key do projeto</li>
+        </ul>
+
+        <h3>2. Qual página devo escolher como entrada?</h3>
+        <p>Escolha a página onde você quer que o teste comece. Por exemplo:</p>
+        <ul>
+            <li>Se quer testar páginas de produto, use a categoria ou home</li>
+            <li>Se quer testar landing pages, use a URL de entrada da campanha</li>
+        </ul>
+
+        <h3>3. Posso testar diretamente nas URLs das variantes?</h3>
+        <p><strong>NÃO!</strong> Se você acessar diretamente <code>elementor-695</code> ou <code>elementor-595</code>, não haverá redirecionamento. O código só funciona na página de entrada.</p>
+
+        <h3>4. Como sei se está funcionando?</h3>
+        <p>Abra o console e procure por logs do RotaFinal. Se ver "✅ Variante atribuída", está funcionando!</p>
+
+        <h3>5. E se a página piscar?</h3>
+        <p>O CSS Anti-Flicker previne isso. Se piscar, o código pode estar na posição errada (deve ser no <code>&lt;head&gt;</code>).</p>
+    </div>
+
+    <div class="card">
+        <h2>📞 Suporte</h2>
+        <p>Se tiver problemas:</p>
+        <ol>
+            <li>Verifique o console do navegador (F12)</li>
+            <li>Confirme que a API Key está correta</li>
+            <li>Teste em aba anônima</li>
+            <li>Limpe o cache antes de testar</li>
+        </ol>
+    </div>
+
+    <script>
+        function copiarCodigo(id) {
+            const elemento = document.getElementById(id);
+            const texto = elemento.textContent;
+            
+            navigator.clipboard.writeText(texto).then(() => {
+                alert('✅ Código copiado para a área de transferência!');
+            }).catch(err => {
+                console.error('Erro ao copiar:', err);
+                alert('❌ Erro ao copiar. Por favor, copie manualmente.');
+            });
+        }
+    </script>
+</body>
+</html>

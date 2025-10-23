@@ -48,20 +48,45 @@
       
       const storageKeys = Object.keys(localStorage);
       
-      // Procurar por chaves rotafinal_*
+      // Procurar por chaves rotafinal_* (incluindo as novas chaves do SDK inline)
       for (const key of storageKeys) {
-        if (key.startsWith('rotafinal_exp_') || key.startsWith('rotafinal_assignment_')) {
+        if (key.startsWith('rotafinal_exp_') || key.startsWith('rotafinal_assignment_') || key.startsWith('rf_experiment_')) {
           try {
             const data = JSON.parse(localStorage.getItem(key));
             log('✅ Dados encontrados:', { key, data });
-            return {
-              key,
-              experimentId: data.experimentId || data.experiment_id,
-              variantId: data.variantId || data.variant_id,
-              variantName: data.variant || data.variantName,
-              visitorId: data.visitorId || data.visitor_id,
-              timestamp: data.timestamp
-            };
+            
+            // Se for dados do experimento (rf_experiment_), extrair dados da variante também
+            if (key.startsWith('rf_experiment_')) {
+              const experimentId = key.replace('rf_experiment_', '');
+              const variantKey = `rf_variant_${experimentId}`;
+              const variantData = localStorage.getItem(variantKey);
+              
+              if (variantData) {
+                try {
+                  const variant = JSON.parse(variantData);
+                  return {
+                    key,
+                    experimentId: experimentId,
+                    variantId: variant.v?.id || variant.id,
+                    variantName: variant.v?.name || variant.name,
+                    visitorId: localStorage.getItem('rf_user_id'),
+                    timestamp: variant.t || Date.now()
+                  };
+                } catch (e) {
+                  log('⚠️ Erro ao parsear dados da variante:', variantKey, e);
+                }
+              }
+            } else {
+              // Dados diretos de atribuição
+              return {
+                key,
+                experimentId: data.experimentId || data.experiment_id,
+                variantId: data.variantId || data.variant_id,
+                variantName: data.variant || data.variantName,
+                visitorId: data.visitorId || data.visitor_id,
+                timestamp: data.timestamp
+              };
+            }
           } catch (e) {
             log('⚠️ Erro ao parsear dados:', key, e);
           }
