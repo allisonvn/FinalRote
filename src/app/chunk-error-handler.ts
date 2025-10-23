@@ -28,7 +28,8 @@ if (typeof window !== 'undefined') {
           error.name === 'ChunkLoadError' ||
           error.message?.includes('Loading chunk') ||
           error.message?.includes('ChunkLoadError') ||
-          error.message?.includes('ERR_ABORTED')
+          error.message?.includes('ERR_ABORTED') ||
+          error.message?.includes('net::ERR_ABORTED')
         )) {
           console.warn('ChunkLoadError interceptado:', error)
           
@@ -36,7 +37,7 @@ if (typeof window !== 'undefined') {
           setTimeout(() => {
             console.log('Recarregando página devido a ChunkLoadError...')
             window.location.reload()
-          }, 2000)
+          }, 1000)
         }
         throw error
       }
