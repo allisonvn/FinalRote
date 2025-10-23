@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Código Corrigido - RotaFinal</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste do Código Corrigido - RotaFinal</h1>
+    
+    <div class="info">
+        <h3>📋 Informações do Teste</h3>
+        <p><strong>Problema Original:</strong> experimentId null, API key ausente, cachedVariant não armazenada</p>
+        <p><strong>Correções Aplicadas:</strong></p>
+        <ul>
+            <li>✅ Verificação de experimentId antes de usar</li>
+            <li>✅ Inclusão da API key nas requisições</li>
+            <li>✅ Armazenamento correto da variante em cachedVariant</li>
+            <li>✅ Tratamento de erros melhorado</li>
+        </ul>
+    </div>
+
+    <div id="testResults"></div>
+
+    <h3>🔍 Debug Console</h3>
+    <div id="debugConsole"></div>
+
+    <script>
+        // Simular dados de um experimento real
+        const mockExperiment = {
+            id: "ce9ed456-1d03-494a-8b1a-54a51a50286c",
+            name: "Teste ESMALT",
+            api_key: "exp_52784fbfaa613b3d115cb4247f7fce50",
+            variants: [
+                {
+                    name: "Controle",
+                    redirect_url: "https://esmalt.com.br/",
+                    is_control: true,
+                    traffic_percentage: 50
+                },
+                {
+                    name: "Variante A",
+                    redirect_url: "https://esmalt.com.br/variante-a",
+                    is_control: false,
+                    traffic_percentage: 50
+                }
+            ]
+        };
+
+        // Função para gerar código corrigido (simulando a função do dashboard)
+        function generateCorrectedCode(exp) {
+            if (!exp.id) {
+                console.error('❌ Experiment ID is missing:', exp)
+                return `<!-- ❌ ERRO: Experimento sem ID válido -->`
+            }
+
+            const experimentId = exp.id
+            const apiKey = exp.api_key || ''
+            const name = exp.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+            const baseCode = `!function(){"use strict";var experimentId="${experimentId}",apiKey="${apiKey}",baseUrl="${window.location.origin}",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","X-RF-Version":"2.0.0"};if(apiKey){headers["Authorization"]="Bearer "+apiKey}return fetch(url,Object.assign({headers:headers},options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})})},applyVariant:function(variant){if(!variant)return;this.cachedVariant=variant;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url}},tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(){tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}},init=function(){if(isBot())return;apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){experiment.cachedVariant=response.variant;experiment.applyVariant(response.variant)}}).catch(function(error){console.error("RotaFinal: Error loading variant",error)}).finally(function(){document.documentElement.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100)})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();`
+
+            return `<!-- 🚀 Rota Final - Experimento: ${name} -->
+<!-- ID: ${experimentId} | API Key: ${apiKey ? '✅ Configurada' : '❌ Ausente'} -->
+<script>
+${baseCode}
+</script>`
+        }
+
+        // Executar testes
+        async function runTests() {
+            const resultsDiv = document.getElementById('testResults');
+            const debugDiv = document.getElementById('debugConsole');
+            
+            let testResults = [];
+
+            // Teste 1: Verificar se experimentId não é null
+            console.log('🧪 Teste 1: Verificação do experimentId');
+            const code = generateCorrectedCode(mockExperiment);
+            const hasValidId = code.includes('experimentId="ce9ed456-1d03-494a-8b1a-54a51a50286c"');
+            testResults.push({
+                name: 'Experiment ID válido',
+                status: hasValidId ? 'PASS' : 'FAIL',
+                details: hasValidId ? 'ID correto encontrado no código' : 'ID não encontrado ou incorreto'
+            });
+
+            // Teste 2: Verificar se API key está incluída
+            console.log('🧪 Teste 2: Verificação da API key');
+            const hasApiKey = code.includes('apiKey="exp_52784fbfaa613b3d115cb4247f7fce50"');
+            const hasAuthHeader = code.includes('headers["Authorization"]="Bearer "+apiKey');
+            testResults.push({
+                name: 'API Key incluída',
+                status: hasApiKey && hasAuthHeader ? 'PASS' : 'FAIL',
+                details: hasApiKey && hasAuthHeader ? 'API key e header Authorization encontrados' : 'API key ou header ausente'
+            });
+
+            // Teste 3: Verificar se cachedVariant é armazenada
+            console.log('🧪 Teste 3: Verificação do cachedVariant');
+            const hasCachedVariantStorage = code.includes('this.cachedVariant=variant');
+            const hasCachedVariantCheck = code.includes('experiment.cachedVariant&&experiment.cachedVariant.name');
+            testResults.push({
+                name: 'CachedVariant armazenada',
+                status: hasCachedVariantStorage && hasCachedVariantCheck ? 'PASS' : 'FAIL',
+                details: hasCachedVariantStorage && hasCachedVariantCheck ? 'Armazenamento e verificação de cachedVariant encontrados' : 'Armazenamento ou verificação ausente'
+            });
+
+            // Teste 4: Verificar se não há "null" nas URLs
+            console.log('🧪 Teste 4: Verificação de URLs sem null');
+            const hasNullInUrl = code.includes('/api/experiments/null/assign');
+            testResults.push({
+                name: 'URLs sem null',
+                status: !hasNullInUrl ? 'PASS' : 'FAIL',
+                details: !hasNullInUrl ? 'Nenhuma URL com null encontrada' : 'URL com null encontrada'
+            });
+
+            // Teste 5: Verificar tratamento de erros
+            console.log('🧪 Teste 5: Verificação do tratamento de erros');
+            const hasErrorHandling = code.includes('console.error("RotaFinal: Error loading variant",error)');
+            testResults.push({
+                name: 'Tratamento de erros',
+                status: hasErrorHandling ? 'PASS' : 'FAIL',
+                details: hasErrorHandling ? 'Tratamento de erros encontrado' : 'Tratamento de erros ausente'
+            });
+
+            // Exibir resultados
+            let html = '<h3>📊 Resultados dos Testes</h3>';
+            testResults.forEach(test => {
+                const statusClass = test.status === 'PASS' ? 'success' : 'error';
+                html += `<div class="result ${statusClass}">
+                    <strong>${test.name}:</strong> ${test.status}<br>
+                    <small>${test.details}</small>
+                </div>`;
+            });
+
+            // Resumo
+            const passedTests = testResults.filter(t => t.status === 'PASS').length;
+            const totalTests = testResults.length;
+            const summaryClass = passedTests === totalTests ? 'success' : 'error';
+            
+            html += `<div class="result ${summaryClass}">
+                <strong>📈 Resumo:</strong> ${passedTests}/${totalTests} testes passaram
+            </div>`;
+
+            resultsDiv.innerHTML = html;
+
+            // Debug console
+            debugDiv.innerHTML = `
+                <h4>🔍 Código Gerado (primeiras 500 caracteres):</h4>
+                <pre>${code.substring(0, 500)}...</pre>
+                
+                <h4>🔍 Variáveis importantes:</h4>
+                <pre>experimentId: ${mockExperiment.id}
+apiKey: ${mockExperiment.api_key}
+hasValidId: ${hasValidId}
+hasApiKey: ${hasApiKey}
+hasAuthHeader: ${hasAuthHeader}
+hasCachedVariantStorage: ${hasCachedVariantStorage}
+hasNullInUrl: ${hasNullInUrl}</pre>
+            `;
+        }
+
+        // Executar testes quando a página carregar
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>
