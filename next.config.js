@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Remover output: 'standalone' para permitir servimento de arquivos estáticos
+  // output: 'standalone',
   experimental: {
     optimizeCss: true,
   },
@@ -11,7 +12,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'rotafinal.com.br'],
   },
   // Configurações de produção
   productionBrowserSourceMaps: false,
@@ -23,6 +24,10 @@ const nextConfig = {
     // Usar timestamp para garantir builds únicos
     return `build-${Date.now()}`
   },
+  
+  // Configurações para servir arquivos estáticos corretamente
+  assetPrefix: process.env.NODE_ENV === 'production' ? '' : '',
+  trailingSlash: false,
   
   // Configurações do webpack para chunks mais estáveis
   webpack: (config, { isServer, dev }) => {
