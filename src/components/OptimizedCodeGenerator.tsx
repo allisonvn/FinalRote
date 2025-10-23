@@ -49,15 +49,18 @@ export default function OptimizedCodeGenerator({
   // ✅ CORREÇÃO: Mover antiFlickerTimeout para escopo do componente
   const antiFlickerTimeout = experimentType === 'redirect' || experimentType === 'split_url' ? 120 : 200
 
+  // ✅ CORREÇÃO: Mover hasConversionTracking para escopo do componente
+  const experimentConversionConfig = conversionConfig
+  const variantConversionConfig = variants.find(v => v.changes?.conversion)?.changes?.conversion
+  const finalConversionConfig = experimentConversionConfig || variantConversionConfig
+  const hasConversionTracking = finalConversionConfig && (finalConversionConfig.url || finalConversionConfig.selector || finalConversionConfig.event)
+
   /**
    * Gera o código completo otimizado
    */
   const generateOptimizedCode = () => {
     // Buscar configuração de conversão (primeiro do experimento, depois das variantes)
-    const experimentConversionConfig = conversionConfig
-    const variantConversionConfig = variants.find(v => v.changes?.conversion)?.changes?.conversion
-    const finalConversionConfig = experimentConversionConfig || variantConversionConfig
-    const hasConversionTracking = finalConversionConfig && (finalConversionConfig.url || finalConversionConfig.selector || finalConversionConfig.event)
+    // ✅ CORREÇÃO: hasConversionTracking já está definido no escopo do componente
 
     // ✅ NOVO: Extrair todas as URLs do experimento (de todas as variantes)
     const experimentUrls = variants
