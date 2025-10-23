@@ -18,7 +18,7 @@
  */
 
 import { useState } from 'react'
-import { Copy, Check, Code, AlertTriangle, CheckCircle, Info, Lightbulb } from 'lucide-react'
+import { Copy, Check, Code, AlertTriangle, CheckCircle, Info, Lightbulb, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -348,6 +348,82 @@ ${hasTracking ? `<!-- • Conversão rastreada automaticamente -->` : '<!-- • 
               <div className="text-xs text-amber-600">Confiável</div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Card de Rastreamento de Conversões */}
+      <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-purple-800">
+            <Target className="h-5 w-5" />
+            📊 Rastreamento de Conversões
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-white p-4 rounded-lg border border-purple-200">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-purple-600 font-bold">1</span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-purple-900 mb-1">Instale o código acima na página original</h4>
+                <p className="text-sm text-purple-700">Cole no <code className="bg-purple-100 px-1 rounded">&lt;head&gt;</code> da sua landing page ou página de teste</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-purple-600 font-bold">2</span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-purple-900 mb-2">Adicione este script na página de sucesso</h4>
+                <p className="text-sm text-purple-700 mb-2">
+                  Na página de conversão (ex: /obrigado, /sucesso, /checkout-completo):
+                </p>
+                <div className="relative">
+                  <pre className="bg-slate-900 text-green-400 p-3 rounded-lg text-xs overflow-x-auto font-mono">
+                    <code>{`<!-- Adicione no <head> da página de conversão -->\n<script src="${baseUrl}/conversion-tracker.js"></script>`}</code>
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`<script src="${baseUrl}/conversion-tracker.js"></script>`)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
+                    }}
+                  >
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-green-900 mb-1">Pronto! As conversões serão registradas automaticamente</h4>
+                <p className="text-sm text-green-700">
+                  Quando um visitante acessar a página de sucesso, a conversão será automaticamente registrada e aparecerá no dashboard em tempo real.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Alert className="border-blue-300 bg-blue-50">
+            <Info className="h-5 w-5 text-blue-600" />
+            <AlertTitle className="text-blue-800 font-bold">Como funciona?</AlertTitle>
+            <AlertDescription className="text-blue-700 space-y-1 text-sm">
+              <p>1. O visitante acessa sua página e recebe uma variante (A ou B)</p>
+              <p>2. Os dados ficam salvos no navegador do visitante</p>
+              <p>3. Quando ele acessa a página de sucesso, o script detecta automaticamente</p>
+              <p>4. A conversão é registrada com o valor configurado no experimento</p>
+              <p>5. Os dados aparecem no dashboard instantaneamente ✨</p>
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
 
