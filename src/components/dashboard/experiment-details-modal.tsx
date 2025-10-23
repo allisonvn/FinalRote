@@ -2018,6 +2018,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
           apiKey={experiment.api_key || projectData?.api_key || ''}
           algorithm={experiment.algorithm || 'thompson_sampling'}
           conversionValue={experiment.conversionValue || 0}
+          conversionConfig={experiment.conversionConfig || null}
         />
         </div>
     </div>
