@@ -1999,27 +1999,35 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
       {/* ✅ NOVO: Usando OptimizedCodeGenerator v3.0 */}
       <div className="mt-6">
-        <OptimizedCodeGenerator
-          experimentName={experiment.name}
-          experimentId={experiment.id}
-          experimentType={experiment.type || 'redirect'}
-          variants={variantData.map(v => ({
-            id: v.id,
-            name: v.name,
-            description: v.description,
-            redirect_url: v.redirect_url,
-            traffic_percentage: v.traffic_percentage,
-            css_changes: v.css_changes,
-            js_changes: v.js_changes,
-            changes: v.changes,
-            is_control: v.is_control
-          }))}
-          baseUrl={config.baseUrl}
-          apiKey={experiment.api_key || projectData?.api_key || ''}
-          algorithm={experiment.algorithm || 'thompson_sampling'}
-          conversionValue={experiment.conversionValue || 0}
-          conversionConfig={experiment.conversionConfig || null}
-        />
+        {experiment?.id ? (
+          <OptimizedCodeGenerator
+            experimentName={experiment.name}
+            experimentId={experiment.id}
+            experimentType={experiment.type || 'redirect'}
+            variants={variantData.map(v => ({
+              id: v.id,
+              name: v.name,
+              description: v.description,
+              redirect_url: v.redirect_url,
+              traffic_percentage: v.traffic_percentage,
+              css_changes: v.css_changes,
+              js_changes: v.js_changes,
+              changes: v.changes,
+              is_control: v.is_control
+            }))}
+            baseUrl={config.baseUrl}
+            apiKey={experiment.api_key || projectData?.api_key || ''}
+            algorithm={experiment.algorithm || 'thompson_sampling'}
+            conversionValue={experiment.conversionValue || 0}
+            conversionConfig={experiment.conversionConfig || null}
+          />
+        ) : (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 text-sm">
+              ⚠️ Carregando dados do experimento... Aguarde um momento.
+            </p>
+          </div>
+        )}
         </div>
     </div>
   )
