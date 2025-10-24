@@ -164,15 +164,54 @@ function U(){
 
 ---
 
+## 🌐 CORREÇÃO CORS - Cross-Origin Resource Sharing
+
+### Problema
+O código gerado tentava fazer requisições de `https://esmalt.com.br` para `https://rotafinal.com.br`, mas os headers CORS não permitiam.
+
+**Erro:**
+```
+Access to fetch at 'https://rotafinal.com.br/api/track' from origin 'https://esmalt.com.br' 
+has been blocked by CORS policy: Request header field x-requested-with is not allowed
+```
+
+### Solução
+Adicionado header `X-Requested-With` aos CORS headers em 3 endpoints:
+
+1. **`/api/experiments/[id]/assign`** - Atribuição de variantes
+2. **`/api/track`** - Rastreamento individual de eventos
+3. **`/api/track/batch`** - Rastreamento em lote
+
+**Antes:**
+```typescript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version',  // ❌ Falta X-Requested-With
+}
+```
+
+**Depois:**
+```typescript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version, X-Requested-With',  // ✅ Incluído
+}
+```
+
+---
+
 ## ✅ RESULTADOS ESPERADOS
 
 Após essas correções, o código gerado:
 
 1. ✅ **Não gera erros de variáveis não declaradas**
-2. ✅ **Rastreamento de conversões funciona perfeitamente**
-3. ✅ **Testes A/B são atribuídos corretamente**
-4. ✅ **Eventos são salvos e sincronizados**
-5. ✅ **Sem flicker (< 120ms)**
+2. ✅ **CORS funcionando corretamente de qualquer domínio**
+3. ✅ **Rastreamento de conversões funciona perfeitamente**
+4. ✅ **Testes A/B são atribuídos corretamente**
+5. ✅ **Eventos são salvos e sincronizados**
+6. ✅ **Sem flicker (< 120ms)**
 
 ---
 
@@ -195,13 +234,14 @@ O experimento `a16734f4-711f-4e3a-bf08-09245289c692`:
 - ✅ **Tem conversão configurada** (URL: https://esmalt.com.br/glow/)
 - ✅ **API de atribuição funciona** (testado com curl)
 - ✅ **Assignments sendo salvos corretamente**
+- ✅ **CORS configurado em todos os endpoints**
 
 ---
 
 ## 📝 PRÓXIMOS PASSOS
 
 1. Gere o código novamente no dashboard
-2. Cole no seu site
+2. Cole no seu site (no `<head>`)
 3. Teste em navegador anônimo (Ctrl+Shift+P → Janela anônima)
 4. Verifique em `Developer Tools` (F12 → Console) para logs
 5. Abra página de conversão e confirme se é marcada
@@ -210,5 +250,10 @@ O experimento `a16734f4-711f-4e3a-bf08-09245289c692`:
 
 ## 🚀 CÓDIGO ESTÁ PRONTO PARA PRODUÇÃO
 
-Todas as correções foram aplicadas no componente `OptimizedCodeGenerator.tsx`.  
-**Todos os novos experimentos criados agora funcionarão perfeitamente!**
+Todas as correções foram aplicadas:
+- ✅ `src/components/OptimizedCodeGenerator.tsx` - Código gerado corrigido
+- ✅ `src/app/api/experiments/[id]/assign/route.ts` - CORS atualizado
+- ✅ `src/app/api/track/route.ts` - CORS atualizado
+- ✅ `src/app/api/track/batch/route.ts` - CORS atualizado
+
+**Todos os novos experimentos criados agora funcionarão perfeitamente!** 🎉

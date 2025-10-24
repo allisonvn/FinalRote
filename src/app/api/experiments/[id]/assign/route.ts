@@ -5,7 +5,7 @@ import { selectVariant as selectVariantMAB, MABAlgorithms } from '@/lib/mab-algo
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version, X-Requested-With',
 }
 
 export async function OPTIONS() {
