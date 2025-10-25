@@ -34,6 +34,11 @@ type Experiment = {
   project_id?: string | null
   variants?: Variant[]
   tags?: string[]
+  // Estatísticas agregadas do experimento
+  total_visitors?: number
+  total_conversions?: number
+  conversion_rate?: number
+  total_revenue?: number
   metrics?: {
     visitors: number
     conversions: number
@@ -120,36 +125,66 @@ export function useSupabaseExperiments() {
         throw queryError
       }
 
-      // Carregar métricas para experimentos ativos usando RPC
+      // Carregar métricas para experimentos ativos diretamente de variant_stats
       const experimentsWithMetrics = await Promise.all(
         (data || []).map(async (exp: any) => {
-          if (exp.status === 'running' || exp.status === 'completed') {
-            try {
-              // Usar a função RPC para obter estatísticas (passando o UUID como parâmetro)
-              const { data: statsData, error: statsError } = await supabase
-                .rpc('get_experiment_stats', { experiment_uuid: exp.id })
+          try {
+            // Buscar estatísticas agregadas de variant_stats
+            const { data: statsData, error: statsError } = await supabase
+              .from('variant_stats')
+              .select('visitors, conversions, revenue')
+              .eq('experiment_id', exp.id)
 
-              if (statsError) {
-                console.error(`Erro RPC get_experiment_stats para ${exp.id}:`, statsError)
-              } else if (statsData && statsData.length > 0) {
-                const stats = statsData[0]
-                return {
-                  ...exp,
-                  metrics: {
-                    visitors: stats.total_visitors || 0,
-                    conversions: stats.total_conversions || 0,
-                    conversion_rate: stats.total_visitors > 0 
-                      ? (stats.total_conversions / stats.total_visitors) * 100 
-                      : 0,
-                    confidence: 0
-                  }
+            if (statsError) {
+              console.error(`Erro ao buscar variant_stats para ${exp.id}:`, statsError)
+            }
+
+            if (statsData && statsData.length > 0) {
+              // Agregar totais
+              const totalVisitors = statsData.reduce((sum, s) => sum + (s.visitors || 0), 0)
+              const totalConversions = statsData.reduce((sum, s) => sum + (s.conversions || 0), 0)
+              const totalRevenue = statsData.reduce((sum, s) => sum + (s.revenue || 0), 0)
+              const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
+
+              return {
+                ...exp,
+                total_visitors: totalVisitors,
+                total_conversions: totalConversions,
+                conversion_rate: conversionRate,
+                total_revenue: totalRevenue,
+                metrics: {
+                  visitors: totalVisitors,
+                  conversions: totalConversions,
+                  conversion_rate: conversionRate,
+                  confidence: 0
                 }
               }
-            } catch (error) {
-              console.error(`Erro ao buscar métricas do experimento ${exp.id}:`, error)
+            }
+
+            // Se não houver stats, retornar com zeros
+            return {
+              ...exp,
+              total_visitors: 0,
+              total_conversions: 0,
+              conversion_rate: 0,
+              total_revenue: 0,
+              metrics: {
+                visitors: 0,
+                conversions: 0,
+                conversion_rate: 0,
+                confidence: 0
+              }
+            }
+          } catch (error) {
+            console.error(`Erro ao buscar métricas do experimento ${exp.id}:`, error)
+            return {
+              ...exp,
+              total_visitors: 0,
+              total_conversions: 0,
+              conversion_rate: 0,
+              total_revenue: 0
             }
           }
-          return exp
         })
       )
 

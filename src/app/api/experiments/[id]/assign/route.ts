@@ -138,13 +138,15 @@ export async function POST(
 
     // 4. Buscar estatísticas das variantes para algoritmos MAB
     const statsMap = new Map<string, { visitors: number; conversions: number; revenue: number }>()
-    // Comentado: variant_stats não existe no schema
-    // const { data: variantStats, error: statsError } = await supabase
-    //   .from('variant_stats')
-    //   .select('variant_id, visitors, conversions, revenue')
-    //   .eq('experiment_id', experimentId)
-    
-    const variantStats: any = null
+    const { data: variantStats, error: statsError } = await supabase
+      .from('variant_stats')
+      .select('variant_id, visitors, conversions, revenue')
+      .eq('experiment_id', experimentId)
+
+    if (statsError) {
+      console.log('⚠️ [WARNING] Error fetching variant stats:', statsError.message)
+    }
+
     if (variantStats && variantStats.length > 0) {
       variantStats.forEach((stat: any) => {
         statsMap.set(stat.variant_id, {
@@ -153,6 +155,9 @@ export async function POST(
           revenue: stat.revenue || 0
         })
       })
+      console.log('✅ [DEBUG] Loaded stats for', variantStats.length, 'variants')
+    } else {
+      console.log('⚠️ [WARNING] No variant stats found - using zero values')
     }
 
     // 5. Selecionar variante usando algoritmo apropriado
@@ -291,11 +296,17 @@ export async function POST(
 
     // 7. Atualizar estatísticas da variante
     try {
-      // Incrementar contador de visitantes - RPC não existe no schema
-      // await supabase.rpc('increment_variant_visitors', {
-      //   p_variant_id: selectedVariant.id,
-      //   p_experiment_id: experimentId
-      // })
+      console.log('📊 [DEBUG] Incrementing visitor count for variant:', selectedVariant.name)
+      const { error: rpcError } = await supabase.rpc('increment_variant_visitors', {
+        p_variant_id: selectedVariant.id,
+        p_experiment_id: experimentId
+      })
+
+      if (rpcError) {
+        console.error('❌ [ERROR] Failed to increment visitor count:', rpcError.message)
+      } else {
+        console.log('✅ [DEBUG] Visitor count incremented successfully')
+      }
     } catch (statsUpdateError) {
       console.error('⚠️ [WARNING] Error updating variant stats:', statsUpdateError)
     }

@@ -46,6 +46,11 @@ interface Experiment {
     key: string
     is_control: boolean
   }>
+  // Estatísticas agregadas
+  total_visitors?: number
+  total_conversions?: number
+  conversion_rate?: number
+  uplift?: number
 }
 
 interface ExperimentCardProps {
@@ -269,17 +274,32 @@ export function ExperimentCard({
         <div className="text-center">
           <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" strokeWidth={1.75} />
           <p className="text-xs text-muted-foreground">Visitantes</p>
-          <p className="text-sm font-semibold">1.2k</p>
+          <p className="text-sm font-semibold">
+            {experiment.total_visitors !== undefined
+              ? experiment.total_visitors.toLocaleString('pt-BR')
+              : '0'}
+          </p>
         </div>
         <div className="text-center">
           <TrendingUp className="h-4 w-4 mx-auto mb-1 text-muted-foreground" strokeWidth={1.75} />
-          <p className="text-xs text-muted-foreground">Taxa Conv.</p>
-          <p className="text-sm font-semibold">3.4%</p>
+          <p className="text-xs text-muted-foreground">Conversões</p>
+          <p className="text-sm font-semibold">
+            {experiment.total_conversions !== undefined
+              ? experiment.total_conversions.toLocaleString('pt-BR')
+              : '0'}
+          </p>
         </div>
         <div className="text-center">
           <BarChart3 className="h-4 w-4 mx-auto mb-1 text-muted-foreground" strokeWidth={1.75} />
-          <p className="text-xs text-muted-foreground">Uplift</p>
-          <p className="text-sm font-semibold text-success">+12%</p>
+          <p className="text-xs text-muted-foreground">Taxa Conv.</p>
+          <p className={cn(
+            "text-sm font-semibold",
+            experiment.conversion_rate && experiment.conversion_rate > 0 ? "text-success" : ""
+          )}>
+            {experiment.conversion_rate !== undefined
+              ? `${experiment.conversion_rate.toFixed(2)}%`
+              : '0%'}
+          </p>
         </div>
       </div>
 

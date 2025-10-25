@@ -37,6 +37,9 @@ interface TrackEvent {
   properties?: Record<string, any>
   value?: number
   experiment_key?: string
+  experiment_id?: string
+  variant_id?: string
+  variant?: string
   timestamp?: string
 }
 
@@ -77,6 +80,8 @@ class RotaFinal {
     conversion_type?: string
     experiment_id: string
     experiment_key: string
+    variant_id: string
+    variant_name: string
   }> = new Map()
   private conversionTracked: Set<string> = new Set()
 
@@ -230,9 +235,11 @@ class RotaFinal {
           conversion_value: variant.experiment.conversion_value,
           conversion_type: variant.experiment.conversion_type,
           experiment_id: variant.experiment.id,
-          experiment_key: experimentKey
+          experiment_key: experimentKey,
+          variant_id: variant.variant_id,
+          variant_name: variant.variant_name
         })
-        this.log('Conversion URL registered:', variant.experiment.conversion_url)
+        this.log('Conversion URL registered:', variant.experiment.conversion_url, 'for variant:', variant.variant_name)
       }
 
       // Aplicar configuração se houver
@@ -265,6 +272,10 @@ class RotaFinal {
       properties: properties || {},
       value,
       experiment_key: experimentKey,
+      // Extrair variant_id, variant e experiment_id do properties se existirem
+      experiment_id: properties?.experiment_id,
+      variant_id: properties?.variant_id,
+      variant: properties?.variant,
       timestamp: new Date().toISOString()
     }
 
@@ -308,16 +319,19 @@ class RotaFinal {
       }
 
       if (isConversion) {
-        this.log(`Conversion detected for experiment: ${experimentKey}`)
+        this.log(`Conversion detected for experiment: ${experimentKey}, variant: ${conversionData.variant_name}`)
 
-        // Rastrear conversão
+        // Rastrear conversão COM variant_id e variant
         this.track(
           'conversion',
           `conversion_${experimentKey}`,
           {
             success_page_url: currentUrl,
             conversion_type: conversionData.conversion_type || 'page_view',
-            experiment_id: conversionData.experiment_id
+            experiment_id: conversionData.experiment_id,
+            variant_id: conversionData.variant_id,
+            variant: conversionData.variant_name,
+            conversion_value: conversionData.conversion_value
           },
           conversionData.conversion_value,
           experimentKey
@@ -326,7 +340,7 @@ class RotaFinal {
         // Marcar como rastreado para não duplicar
         this.conversionTracked.add(trackingKey)
 
-        this.log(`Conversion tracked for ${experimentKey} with value: ${conversionData.conversion_value}`)
+        this.log(`Conversion tracked for ${experimentKey} (${conversionData.variant_name}) with value: ${conversionData.conversion_value}`)
       }
     }
   }
