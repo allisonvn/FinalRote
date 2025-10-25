@@ -32,7 +32,7 @@ export default function OptimizedCodeGenerator({
   experimentId,
   experimentType,
   variants = [],
-  baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://rotafinal.com.br',
+  baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://rotafinal.com.br',
   apiKey,
   algorithm = 'thompson_sampling',
   conversionValue = 0,
@@ -52,6 +52,11 @@ export default function OptimizedCodeGenerator({
     variants: variants.length,
     conversionValue
   })
+
+  // ✅ VALIDAÇÃO: Garantir que experimentId nunca seja null/undefined
+  if (!experimentId || experimentId === 'null' || experimentId === 'undefined') {
+    console.error('❌ ERRO: experimentId inválido:', experimentId)
+  }
 
   // Buscar configuração de conversão das variantes
   const variantConversionConfig = variants.find(v => v.conversion_config)?.conversion_config
@@ -129,6 +134,7 @@ body[data-rf-ready]{opacity:1;visibility:visible;transition:opacity .1s ease-out
     return `<!-- RotaFinal SDK v${sdkVersion} - ${experimentName} -->
 <!-- Experimento ID: ${experimentId} -->
 <!-- Tipo: ${experimentType.toUpperCase()} | Algoritmo: ${algorithm.toUpperCase()} -->
+<!-- API: ${baseUrl} -->
 
 ${preconnectTags}
 
@@ -224,6 +230,17 @@ ${hasTracking ? `<!-- • Conversão rastreada automaticamente (conversion-track
     <div className="space-y-6">
       {/* Alertas Importantes */}
       <div className="space-y-3">
+        {(!experimentId || experimentId === 'null' || experimentId === 'undefined') && (
+          <Alert className="border-red-500 bg-red-100">
+            <AlertTriangle className="h-5 w-5 text-red-700" />
+            <AlertTitle className="text-red-900 font-bold">🚨 ERRO CRÍTICO - Experiment ID Inválido</AlertTitle>
+            <AlertDescription className="text-red-800">
+              O ID do experimento está ausente ou inválido. O código gerado não funcionará.
+              Recarregue a página ou entre em contato com o suporte.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Alert className="border-red-300 bg-red-50">
           <AlertTriangle className="h-5 w-5 text-red-600" />
           <AlertTitle className="text-red-800 font-bold">⚠️ CRÍTICO - Leia Antes de Instalar</AlertTitle>

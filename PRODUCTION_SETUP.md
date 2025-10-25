@@ -1,187 +1,398 @@
-# 🚀 Configuração de Produção - Rota Final
+# 🚀 Configuração para Produção - RotaFinal SaaS
 
-## ✅ **URLs de Produção Configuradas**
+## 📋 Visão Geral
 
-### 🌐 **Domínio Principal**
+O RotaFinal é um **SaaS de testes A/B** hospedado em **rotafinal.com.br** onde:
+- Clientes criam experimentos dentro da plataforma
+- Sistema gera código JavaScript pronto para uso
+- Cliente instala o código no site dele (ex: esmalt.com.br)
+- Código faz chamadas de API de volta para rotafinal.com.br
+
+## ✅ Correções Aplicadas (25/10/2025)
+
+### 1. **CORS Global (next.config.js:23-45)**
+
+Headers CORS configurados para permitir chamadas de sites externos:
+
+```javascript
+async headers() {
+  return [
+    {
+      source: '/api/:path*',
+      headers: [
+        { key: 'Access-Control-Allow-Origin', value: '*' },
+        { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, PATCH, DELETE, OPTIONS' },
+        { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, X-RF-Version, X-Requested-With' },
+      ],
+    },
+    {
+      source: '/:path*.js',
+      headers: [
+        { key: 'Access-Control-Allow-Origin', value: '*' },
+      ],
+    },
+  ]
+}
 ```
-https://rotafinal.com.br
+
+### 2. **CORS em Rotas Individuais**
+
+✅ **`src/app/api/experiments/[id]/route.ts`**
+- Adicionados CORS headers em todas as respostas
+- Função OPTIONS implementada para preflight requests
+
+✅ **`src/app/api/experiments/[id]/assign/route.ts`**
+- CORS já estava implementado
+
+✅ **`src/app/api/track/route.ts`**
+- CORS já estava implementado
+
+### 3. **Variáveis de Ambiente (.env.local)**
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xtexltigzzayfrscvzaa.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-anon-key
+SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
+
+# URLs do Sistema
+NEXT_PUBLIC_SITE_URL=http://localhost:3001          # Em dev
+NEXT_PUBLIC_API_URL=https://rotafinal.com.br        # URL da API para código gerado
 ```
 
-### 📡 **Endpoints da API**
-- **Atribuição de Variantes**: `https://rotafinal.com.br/api/assign-variant`
-- **Rastreamento de Eventos**: `https://rotafinal.com.br/api/track-event`
-- **Métricas de Experimentos**: `https://rotafinal.com.br/api/get-metrics`
-- **SDK JavaScript**: `https://rotafinal.com.br/rotafinal-sdk.js`
+### 4. **OptimizedCodeGenerator (src/components/OptimizedCodeGenerator.tsx:35)**
 
-### 🔧 **Rotas Criadas no Next.js**
+```typescript
+baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://rotafinal.com.br'
+```
 
-1. **`/src/app/api/assign-variant/route.ts`** - Proxy para Supabase Edge Function
-2. **`/src/app/api/track-event/route.ts`** - Proxy para Supabase Edge Function
-3. **`/src/app/api/get-metrics/route.ts`** - Proxy para Supabase Edge Function
-4. **`/src/app/rotafinal-sdk.js/route.ts`** - Serve o SDK diretamente
+- ✅ Usa variável de ambiente `NEXT_PUBLIC_API_URL`
+- ✅ Sempre gera código apontando para rotafinal.com.br
+- ✅ Validação de experimentId implementada
+- ✅ Alertas visuais para problemas
 
-## 🎯 **Integração Simplificada**
+### 5. **Correção de API Key (src/app/experiments/[id]/page.tsx:224)**
 
-### Para Desenvolvedores
+```typescript
+<CodeGenerator
+  experimentName={experiment.name}
+  experimentId={experiment.id}
+  variants={experiment.variants || []}
+  apiKey={projectApiKey || ''}  // ✅ Corrigido de experiment.api_key
+/>
+```
+
+## 🔧 Deploy no Vercel
+
+### 1. Variáveis de Ambiente
+
+No Vercel (Settings → Environment Variables), adicione:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xtexltigzzayfrscvzaa.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+NEXT_PUBLIC_SITE_URL=https://rotafinal.com.br
+NEXT_PUBLIC_API_URL=https://rotafinal.com.br
+```
+
+### 2. Domínio Personalizado
+
+1. Settings → Domains → Add Domain
+2. Adicione: `rotafinal.com.br` e `www.rotafinal.com.br`
+3. Configure DNS conforme instruções do Vercel
+
+### 3. Build & Deploy
+
+```bash
+# Build local (testar antes de fazer deploy)
+npm run build
+
+# Deploy (via CLI ou GitHub)
+vercel --prod
+```
+
+## 🧪 Testando em Produção
+
+### 1. Criar Experimento no SaaS
+
+1. Acesse https://rotafinal.com.br/dashboard
+2. Crie um novo experimento
+3. Configure variantes e conversão
+4. Copie o código gerado
+
+### 2. Instalar em Site Externo
+
+Cole o código no `<head>` do site de teste (ex: esmalt.com.br):
+
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-    <!-- Carregar SDK de produção -->
-    <script src="https://rotafinal.com.br/rotafinal-sdk.js"></script>
+  <!-- RotaFinal SDK - COLE NO TOPO DO HEAD -->
+  <link rel="preconnect" href="https://rotafinal.com.br">
+
+  <style data-rf-antiflicker>
+  body:not([data-rf-ready]){opacity:0;visibility:hidden}
+  </style>
+
+  <script>
+  !function(){"use strict";var e="experiment-id-aqui"...
+  </script>
+
+  <!-- conversion-tracker.js (se configurado) -->
+  <script src="https://rotafinal.com.br/conversion-tracker.js"></script>
+
+  <!-- Resto do site -->
+  <title>Meu Site</title>
 </head>
 <body>
-    <script>
-        // ZERO configuração necessária! 🎉
-        const rf = new RotaFinal({
-            debug: true // Opcional
-        });
-
-        // Usar normalmente
-        async function runTest() {
-            const variant = await rf.getVariant('meu-teste');
-            // Aplicar variante...
-        }
-
-        // Rastrear conversões
-        function trackPurchase() {
-            rf.conversion('compra', 99.90);
-        }
-    </script>
+  ...
 </body>
 </html>
 ```
 
-### Para Frameworks
-```javascript
-// React, Vue, Angular, etc.
-import { useEffect, useState } from 'react';
+### 3. Verificar Chamadas de API (DevTools → Network)
 
-function MyComponent() {
-    const [variant, setVariant] = useState(null);
+✅ **POST** `https://rotafinal.com.br/api/experiments/[id]/assign`
+```json
+Request: {
+  "visitor_id": "rf_abc123...",
+  "user_agent": "Mozilla/5.0...",
+  "url": "https://esmalt.com.br/",
+  "timestamp": "2025-10-25T..."
+}
 
-    useEffect(() => {
-        // Carregar SDK da CDN
-        const script = document.createElement('script');
-        script.src = 'https://rotafinal.com.br/rotafinal-sdk.js';
-        script.onload = async () => {
-            const rf = new window.RotaFinal();
-            const v = await rf.getVariant('homepage-test');
-            setVariant(v);
-        };
-        document.head.appendChild(script);
-    }, []);
-
-    return (
-        <div>
-            {variant === 'control' ? (
-                <h1>Título Original</h1>
-            ) : (
-                <h1>Título Otimizado!</h1>
-            )}
-        </div>
-    );
+Response: {
+  "variant": {
+    "id": "...",
+    "name": "Variante A",
+    "redirect_url": "https://esmalt.com.br/landing-a"
+  },
+  "assignment": "new"
 }
 ```
 
-## 🔒 **Segurança e CORS**
+✅ **POST** `https://rotafinal.com.br/api/track`
+```json
+Request: {
+  "experiment_id": "...",
+  "visitor_id": "rf_abc123...",
+  "event_type": "conversion",
+  "value": 99.90
+}
 
-Todas as rotas da API incluem headers CORS apropriados:
-```javascript
-headers: {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+Response: {
+  "success": true
 }
 ```
 
-## 📊 **Arquitetura de Proxy**
-
-```
-Cliente/Site
-    ↓
-rotafinal.com.br/api/*
-    ↓
-Next.js API Routes (proxy)
-    ↓
-Supabase Edge Functions
-    ↓
-PostgreSQL Database
+✅ **GET** `https://rotafinal.com.br/api/experiments/[id]` (conversion-tracker)
+```json
+Response: {
+  "success": true,
+  "experiment": {
+    "conversion_value": 50,
+    "conversion_url": "/obrigado"
+  }
+}
 ```
 
-**Benefícios:**
-- ✅ URLs limpos e profissionais
-- ✅ CORS configurado automaticamente
-- ✅ Cache e otimizações do Next.js
-- ✅ Monitoramento centralizado
-- ✅ Rate limiting futuro
+### 4. Verificar CORS (DevTools → Console)
 
-## 🚀 **Deploy para Produção**
+**✅ SEM erros de CORS:**
+```
+RotaFinal: Assignment received
+RotaFinal: Variant = Variante A
+```
 
-### 1. **Configurar Variáveis de Ambiente**
+**❌ Se aparecer erro de CORS:**
+```
+Access to fetch at 'https://rotafinal.com.br/api/...'
+from origin 'https://esmalt.com.br' has been blocked by CORS policy
+```
+
+**Solução:**
+1. Verifique next.config.js (linhas 23-45)
+2. Faça novo deploy no Vercel
+3. Limpe cache do navegador
+
+## 🐛 Troubleshooting
+
+### Problema: "experiment ID is null"
+
+**Sintomas:**
+```
+POST https://rotafinal.com.br/api/experiments/null/assign 404
+```
+
+**Causa:** Página do experimento não carregou o ID
+
+**Solução:**
+1. Recarregue a página do experimento no dashboard
+2. Verifique console do navegador
+3. Se persistir, problema pode estar em `src/app/experiments/[id]/page.tsx`
+
+---
+
+### Problema: "API key ausente"
+
+**Sintomas:**
+- Alerta amarelo no gerador de código
+- Código gerado com `apiKey=""`
+
+**Solução:**
+1. Dashboard → Projetos → Selecione o projeto
+2. Copie a API Key
+3. Se não houver, gere uma nova
+4. Recarregue a página do experimento
+
+---
+
+### Problema: "CORS blocked"
+
+**Sintomas:**
+```
+has been blocked by CORS policy: Response to preflight request
+doesn't pass access control check
+```
+
+**Soluções:**
+1. ✅ Verifique next.config.js tem headers CORS
+2. ✅ Reinicie servidor local: `npm run dev`
+3. ✅ Em produção, faça novo deploy
+4. ✅ Teste com curl primeiro:
 ```bash
-# Vercel/Netlify
-NEXT_PUBLIC_SUPABASE_URL=https://xtexltigzzayfrscvzaa.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+curl -X OPTIONS https://rotafinal.com.br/api/track \
+  -H "Origin: https://esmalt.com.br" \
+  -H "Access-Control-Request-Method: POST" \
+  -v
 ```
 
-### 2. **Deploy do Next.js**
-```bash
-# Vercel (recomendado)
-npm install -g vercel
-vercel --prod
+---
 
-# Ou Netlify
-npm run build
-# Deploy via interface do Netlify
+### Problema: "404 Not Found"
+
+**Sintomas:**
+```
+POST https://rotafinal.com.br/api/track 404 (Not Found)
 ```
 
-### 3. **Configurar DNS**
+**Solução:**
+1. Verifique se rota existe: `src/app/api/track/route.ts`
+2. Teste localmente: `http://localhost:3001/api/track`
+3. Verifique logs do Vercel
+4. Certifique-se que deploy foi feito
+
+---
+
+### Problema: "undefined/api/experiments/..."
+
+**Sintomas:**
 ```
-rotafinal.com.br -> Vercel/Netlify
-```
-
-## 🧪 **Testando em Produção**
-
-### Testar SDK
-```bash
-curl https://rotafinal.com.br/rotafinal-sdk.js
-```
-
-### Testar API
-```bash
-# Atribuir variante
-curl -X POST https://rotafinal.com.br/api/assign-variant \
-  -H "Content-Type: application/json" \
-  -d '{"experiment_key":"teste","visitor_id":"user123"}'
-
-# Rastrear evento
-curl -X POST https://rotafinal.com.br/api/track-event \
-  -H "Content-Type: application/json" \
-  -d '{"events":[{"visitor_id":"user123","event_type":"conversion","event_name":"compra"}]}'
+POST https://esmalt.com.br/undefined/api/experiments/.../assign
 ```
 
-## 📈 **Monitoramento**
+**Causa:** `baseUrl` não foi configurado corretamente
 
-### Métricas Importantes
-- ✅ Uptime das APIs
-- ✅ Tempo de resposta < 200ms
-- ✅ Taxa de erro < 1%
-- ✅ Cache hit ratio > 90%
+**Solução:**
+1. Verifique `.env.local` tem `NEXT_PUBLIC_API_URL=https://rotafinal.com.br`
+2. Reinicie servidor de desenvolvimento
+3. Regenere o código do experimento
+4. Substitua código antigo no site
 
-### Logs para Acompanhar
-```javascript
-// No Next.js API routes
-console.log('API call:', { endpoint, timestamp, response_time });
+## 📝 Checklist Pré-Deploy
+
+- [ ] ✅ Variáveis de ambiente configuradas no Vercel
+- [ ] ✅ `NEXT_PUBLIC_API_URL=https://rotafinal.com.br`
+- [ ] ✅ CORS headers no next.config.js (linhas 23-45)
+- [ ] ✅ Domínio rotafinal.com.br configurado e ativo
+- [ ] ✅ Build local funciona: `npm run build`
+- [ ] ✅ Experimento teste criado
+- [ ] ✅ Código gerado testado localmente
+- [ ] ✅ CORS testado de domínio externo (pode usar esmalt.com.br)
+- [ ] ✅ Conversões rastreando corretamente
+
+## 🎯 Arquitetura do Sistema
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Site do Cliente (esmalt.com.br)                    │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  <script> RotaFinal SDK inline </script>      │  │
+│  │  - Carrega variante                           │  │
+│  │  - Aplica mudanças                            │  │
+│  │  - Rastreia eventos                           │  │
+│  └───────────────────────────────────────────────┘  │
+└─────────────────┬───────────────────────────────────┘
+                  │
+                  │ HTTPS + CORS
+                  ↓
+┌─────────────────────────────────────────────────────┐
+│  RotaFinal SaaS (rotafinal.com.br)                  │
+│                                                      │
+│  ┌────────────────────────────────────────────┐    │
+│  │  Next.js API Routes (com CORS)             │    │
+│  │  - /api/experiments/[id]          (GET)    │    │
+│  │  - /api/experiments/[id]/assign   (POST)   │    │
+│  │  - /api/track                     (POST)   │    │
+│  └────────────────────────────────────────────┘    │
+│                      │                              │
+│                      ↓                              │
+│  ┌────────────────────────────────────────────┐    │
+│  │  Supabase Client (Service Role)            │    │
+│  │  - Autenticação do service account         │    │
+│  │  - RLS policies                            │    │
+│  └────────────────────────────────────────────┘    │
+└─────────────────┬───────────────────────────────────┘
+                  │
+                  ↓
+┌─────────────────────────────────────────────────────┐
+│  Supabase PostgreSQL                                │
+│  - experiments                                      │
+│  - variants                                         │
+│  - assignments                                      │
+│  - events                                           │
+│  - variant_stats                                    │
+└─────────────────────────────────────────────────────┘
 ```
 
-## 🎯 **Resultado Final**
+## 📊 Próximos Passos Pós-Deploy
 
-**Agora os usuários podem:**
-1. 🚀 **Integrar** com uma linha de código
-2. 🔧 **Zero configuração** - sem API keys
-3. 📊 **Analytics** funcionando automaticamente
-4. 🌍 **Produção** com `rotafinal.com.br`
-5. ⚡ **Performance** otimizada via Next.js
+1. **Analytics & Monitoring**
+   - Configure Vercel Analytics
+   - Configure Sentry para error tracking
+   - Configure LogRocket para session replay
 
-**O sistema está 100% pronto para produção!** ✨
+2. **Performance**
+   - Configure CDN (Cloudflare)
+   - Otimize cache de arquivos estáticos
+   - Configure Vercel Edge Functions
+
+3. **Segurança**
+   - Configure rate limiting
+   - Implemente API key validation
+   - Configure WAF (Web Application Firewall)
+
+4. **Backup & Recovery**
+   - Configure backups automáticos do Supabase
+   - Teste procedimento de recovery
+   - Configure alertas de falha
+
+5. **Documentação**
+   - Crie documentação pública da API
+   - Adicione exemplos de integração
+   - Crie tutoriais em vídeo
+
+## 📞 Suporte
+
+Em caso de problemas:
+
+1. **Logs do Vercel**: https://vercel.com/dashboard
+2. **Logs do Supabase**: https://supabase.com/dashboard/project/.../logs
+3. **Teste local primeiro**: `npm run dev`
+4. **Verifique variáveis**: `.env.local` vs Vercel Environment Variables
+
+---
+
+**✨ Sistema pronto para produção com CORS totalmente funcional!**

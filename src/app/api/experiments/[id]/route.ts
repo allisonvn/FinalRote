@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// Headers CORS para todas as respostas
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-RF-Version, X-Requested-With',
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: corsHeaders,
+  })
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +29,7 @@ export async function GET(
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Usuário não autenticado' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       )
     }
 
@@ -57,7 +71,7 @@ export async function GET(
     if (fetchError || !experiment) {
       return NextResponse.json(
         { error: 'Experimento não encontrado' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       )
     }
 
@@ -72,7 +86,7 @@ export async function GET(
     if (projectError || !project) {
       return NextResponse.json(
         { error: 'Projeto não encontrado' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       )
     }
 
@@ -93,20 +107,22 @@ export async function GET(
     if (!hasAccess) {
       return NextResponse.json(
         { error: 'Acesso negado' },
-        { status: 403 }
+        { status: 403, headers: corsHeaders }
       )
     }
 
     return NextResponse.json({
       success: true,
       experiment: experiment
+    }, {
+      headers: corsHeaders
     })
 
   } catch (error) {
     console.error('Erro ao buscar experimento:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
@@ -126,7 +142,7 @@ export async function PATCH(
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Usuário não autenticado' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       )
     }
 
@@ -150,7 +166,7 @@ export async function PATCH(
     if (fetchError || !experiment) {
       return NextResponse.json(
         { error: 'Experimento não encontrado' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       )
     }
 
@@ -170,7 +186,7 @@ export async function PATCH(
     if (!hasAccess) {
       return NextResponse.json(
         { error: 'Acesso negado' },
-        { status: 403 }
+        { status: 403, headers: corsHeaders }
       )
     }
 
@@ -202,7 +218,7 @@ export async function PATCH(
       console.error('Erro ao atualizar experimento:', updateError)
       return NextResponse.json(
         { error: 'Erro ao atualizar experimento: ' + updateError.message },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -215,7 +231,7 @@ export async function PATCH(
     console.error('Erro geral na atualização de experimento:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
@@ -234,7 +250,7 @@ export async function DELETE(
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Usuário não autenticado' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       )
     }
 
@@ -257,7 +273,7 @@ export async function DELETE(
     if (fetchError || !experiment) {
       return NextResponse.json(
         { error: 'Experimento não encontrado' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       )
     }
 
@@ -277,7 +293,7 @@ export async function DELETE(
     if (!hasAccess) {
       return NextResponse.json(
         { error: 'Acesso negado' },
-        { status: 403 }
+        { status: 403, headers: corsHeaders }
       )
     }
 
@@ -296,7 +312,7 @@ export async function DELETE(
         console.error(`Erro ao deletar ${t.name}:`, error)
         return NextResponse.json(
           { error: `Erro ao deletar ${t.name}: ${error.message}` },
-          { status: 500 }
+          { status: 500, headers: corsHeaders }
         )
       }
     }
@@ -311,7 +327,7 @@ export async function DELETE(
       console.error('Erro ao deletar experimento:', expDeleteError)
       return NextResponse.json(
         { error: 'Erro ao deletar experimento: ' + expDeleteError.message },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -323,7 +339,7 @@ export async function DELETE(
     console.error('Erro geral na exclusão de experimento:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
