@@ -108,7 +108,7 @@
     try {
       log('📡 Buscando dados do experimento:', experimentId);
       
-      const response = await fetch(`https://rotafinal.com.br/api/experiments/${experimentId}`, {
+      const response = await fetch(`https://rotafinal.com.br/api/experiments/${experimentId}/public`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
