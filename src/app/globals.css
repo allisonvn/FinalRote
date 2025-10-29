@@ -341,3 +341,40 @@ body { font-feature-settings: "rlig" 1, "calt" 1; }
 .chart-gradient-3 {
   background: linear-gradient(135deg, hsl(var(--chart-3) / 0.2), hsl(var(--chart-3) / 0.05));
 }
+
+/* Gradient Animation */
+@keyframes gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
+/* Premium Animations for Audiences Tab */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}

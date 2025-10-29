@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xtexltigzzayfrscvzaa.supabase.co'
+import { getExperimentMetrics } from '@/lib/analytics'
 
 // CORS headers para todas as respostas
 const corsHeaders = {
@@ -12,23 +11,19 @@ const corsHeaders = {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const params = new URLSearchParams(searchParams)
+    const range = searchParams.get('range') as '7d'|'30d'|'90d'|'1y' || '30d'
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/get-metrics?${params}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
-      }
-    })
+    console.log('📊 Buscando métricas para range:', range)
+    
+    const metrics = await getExperimentMetrics(range)
+    
+    console.log('📊 Métricas encontradas:', metrics.length)
 
-    const data = await response.json()
-
-    return NextResponse.json(data, { status: response.status, headers: corsHeaders })
+    return NextResponse.json(metrics, { headers: corsHeaders })
   } catch (error) {
-    console.error('Error proxying get-metrics:', error)
+    console.error('Error getting metrics:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers: corsHeaders }
     )
   }

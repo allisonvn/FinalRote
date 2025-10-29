@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Captura UTM - RotaFinal</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #3b82f6;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin: 25px 0;
+      padding: 15px;
+      background: #f9fafb;
+      border-left: 4px solid #3b82f6;
+      border-radius: 4px;
+    }
+    .utms {
+      background: #eff6ff;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      overflow-x: auto;
+    }
+    .button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px 5px 5px 0;
+      transition: background 0.3s;
+    }
+    .button:hover {
+      background: #2563eb;
+    }
+    .button.secondary {
+      background: #6b7280;
+    }
+    .button.secondary:hover {
+      background: #4b5563;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+      display: none;
+    }
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+      display: block;
+    }
+    .status.info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+      display: block;
+    }
+    .info-box {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      padding: 15px;
+      border-radius: 4px;
+      color: #92400e;
+      margin: 15px 0;
+    }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 13px;
+    }
+    .url-box {
+      background: #f0f0f0;
+      padding: 10px;
+      border-radius: 4px;
+      word-break: break-all;
+      font-size: 12px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Teste de Captura UTM - RotaFinal</h1>
+
+    <div class="info-box">
+      <strong>ℹ️ Como usar:</strong><br>
+      1. Acesse esta página com UTMs na URL (ex: <code>?utm_source=google&utm_campaign=test</code>)<br>
+      2. Os UTMs serão capturados automaticamente<br>
+      3. Clique nos botões para enviar eventos
+    </div>
+
+    <!-- Seção de URL Atual -->
+    <div class="section">
+      <h2>📍 URL Atual</h2>
+      <div class="url-box" id="current-url"></div>
+      <button class="button secondary" onclick="copyCurrentURL()">📋 Copiar URL</button>
+    </div>
+
+    <!-- Seção de UTMs Capturados -->
+    <div class="section">
+      <h2>📊 UTMs Capturados</h2>
+      <div class="utms" id="utm-display">Nenhum UTM capturado</div>
+      <button class="button secondary" onclick="reloadUTMs()">🔄 Recarregar UTMs</button>
+      <button class="button secondary" onclick="clearUTMs()">🗑️ Limpar UTMs</button>
+    </div>
+
+    <!-- Seção de Testes -->
+    <div class="section">
+      <h2>🚀 Enviar Eventos de Teste</h2>
+      <p>Clique nos botões abaixo para enviar diferentes tipos de eventos com os UTMs capturados:</p>
+      <button class="button" onclick="sendPageView()">📄 Page View</button>
+      <button class="button" onclick="sendClick()">🖱️ Click</button>
+      <button class="button" onclick="sendConversion()">✅ Conversão</button>
+      <button class="button secondary" onclick="sendCustomEvent()">⚙️ Evento Customizado</button>
+      <div class="status" id="event-status"></div>
+    </div>
+
+    <!-- Seção de URLs de Teste -->
+    <div class="section">
+      <h2>🔗 URLs de Teste com UTMs</h2>
+      <p>Clique em qualquer URL para testar a captura de UTMs:</p>
+      <button class="button secondary" onclick="navigateTo('utm_source=google&utm_campaign=test_campaign')">
+        Google Test
+      </button>
+      <button class="button secondary" onclick="navigateTo('utm_source=facebook&utm_campaign=summer_sale')">
+        Facebook Summer Sale
+      </button>
+      <button class="button secondary" onclick="navigateTo('utm_source=instagram&utm_campaign=brand_awareness&utm_medium=social')">
+        Instagram Brand
+      </button>
+      <button class="button secondary" onclick="navigateTo('utm_source=email&utm_campaign=newsletter&utm_medium=email')">
+        Email Newsletter
+      </button>
+    </div>
+
+    <!-- Status -->
+    <div class="status info" id="init-status"></div>
+  </div>
+
+  <!-- Script de Captura UTM -->
+  <script src="/rotafinal-utm-capture.js?api_key=test"></script>
+
+  <script>
+    // Exibir URL atual
+    document.getElementById('current-url').textContent = window.location.href;
+
+    // Função para atualizar display de UTMs
+    function reloadUTMs() {
+      const utms = window.RotaFinalUTM?.getAll?.() || {};
+      const utmCount = Object.keys(utms).length;
+      
+      if (utmCount === 0) {
+        document.getElementById('utm-display').innerHTML = 
+          '<div style="color: #999;">Nenhum UTM capturado. Acesse com parâmetros na URL: ?utm_source=google&utm_campaign=test</div>';
+      } else {
+        const html = Object.entries(utms)
+          .map(([key, value]) => `<div><strong>${key}:</strong> ${value}</div>`)
+          .join('');
+        document.getElementById('utm-display').innerHTML = html;
+      }
+    }
+
+    // Limpar UTMs
+    function clearUTMs() {
+      localStorage.removeItem('rf_utm_params');
+      reloadUTMs();
+      showStatus('✅ UTMs limpos com sucesso', 'success');
+    }
+
+    // Copiar URL
+    function copyCurrentURL() {
+      navigator.clipboard.writeText(window.location.href);
+      showStatus('✅ URL copiada para o clipboard', 'success');
+    }
+
+    // Navegar para URL com UTMs
+    function navigateTo(params) {
+      const url = new URL(window.location);
+      const newUrl = url.origin + url.pathname + '?' + params;
+      window.location.href = newUrl;
+    }
+
+    // Enviar eventos
+    async function sendEvent(eventType) {
+      try {
+        const utms = window.RotaFinalUTM?.getAll?.() || {};
+        
+        const response = await fetch('https://rotafinal.com.br/api/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_type: eventType,
+            visitor_id: 'test_visitor_' + Math.random().toString(36).substring(7),
+            properties: {
+              ...utms,
+              page: window.location.pathname
+            },
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        if (response.ok) {
+          showStatus(`✅ ${eventType} enviado com sucesso!`, 'success');
+        } else {
+          showStatus(`❌ Erro ao enviar ${eventType}`, 'error');
+        }
+      } catch (error) {
+        showStatus(`❌ Erro: ${error.message}`, 'error');
+      }
+    }
+
+    function sendPageView() {
+      sendEvent('pageview');
+    }
+
+    function sendClick() {
+      sendEvent('click');
+    }
+
+    function sendConversion() {
+      sendEvent('conversion');
+    }
+
+    function sendCustomEvent() {
+      sendEvent('custom_event');
+    }
+
+    // Mostrar status
+    function showStatus(message, type) {
+      const el = document.getElementById('event-status');
+      el.textContent = message;
+      el.className = 'status ' + type;
+    }
+
+    // Inicializar
+    window.addEventListener('DOMContentLoaded', () => {
+      reloadUTMs();
+      const utms = window.RotaFinalUTM?.getAll?.() || {};
+      if (Object.keys(utms).length > 0) {
+        document.getElementById('init-status').textContent = 
+          `ℹ️ ${Object.keys(utms).length} UTM(s) detectado(s) e salvos em localStorage`;
+      } else {
+        document.getElementById('init-status').textContent = 
+          'ℹ️ Nenhum UTM na URL atual. Teste com parâmetros como: ?utm_source=google&utm_campaign=test';
+      }
+    });
+  </script>
+</body>
+</html>

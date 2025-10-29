@@ -15,8 +15,8 @@ export function middleware(request: NextRequest) {
     pathname.includes('/robots.txt') ||
     pathname.includes('/sitemap.xml')
   ) {
-    // Retornar undefined para que o Next.js processe normalmente
-    return undefined
+    // Retornar NextResponse.next() para fazer bypass completo
+    return NextResponse.next()
   }
 
   // Criar resposta padrão apenas para rotas de aplicação

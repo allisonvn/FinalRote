@@ -19,6 +19,8 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
   const [notifEmail, setNotifEmail] = useState(true)
   const [notifSistema, setNotifSistema] = useState(true)
   const [salvando, setSalvando] = useState(false)
+  const [allowedDomainsCustom, setAllowedDomainsCustom] = useState('')
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -26,10 +28,38 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
       const storedIdioma = localStorage.getItem('preferencias.idioma') as any
       if (storedTema) setTema(storedTema)
       if (storedIdioma) setIdioma(storedIdioma)
-    } catch {}
-  }, [])
 
-  const aplicarTema = (valor: 'auto'|'claro'|'escuro') => {
+      // Carregar project_id do localStorage (ou de onde for salvo)
+      const projectId = localStorage.getItem('currentProjectId') // Assumindo que o projectId é salvo aqui
+      setCurrentProjectId(projectId)
+      
+      // Carregar domínios personalizados para o projeto atual
+      if (projectId) {
+        fetchCustomDomains(projectId)
+      }
+
+    } catch { }
+  }, [currentProjectId])
+
+  const fetchCustomDomains = async (projectId: string) => {
+    try {
+      // Substituir por chamada real ao backend/Supabase
+      const response = await fetch(`/api/settings/custom-domains?projectId=${projectId}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error('Erro ao buscar domínios personalizados:', data.error)
+        toast.error('Erro ao carregar domínios personalizados')
+      } else if (data && data.domains) {
+        setAllowedDomainsCustom(data.domains.join('\n')) // Juntar domínios por nova linha
+      }
+    } catch (error) {
+      console.error('Erro de rede ao buscar domínios personalizados:', error)
+      toast.error('Erro de rede ao carregar domínios personalizados')
+    }
+  }
+
+  const aplicarTema = (valor: 'auto' | 'claro' | 'escuro') => {
     setTema(valor)
     if (valor === 'auto') {
       document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -44,6 +74,24 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
     try {
       setSalvando(true)
       localStorage.setItem('preferencias.idioma', idioma)
+      // Salvar domínios personalizados
+      if (currentProjectId) {
+        const domainsArray = allowedDomainsCustom.split(/\s*,\s*|\n/).filter(d => d.trim() !== '')
+        const response = await fetch(`/api/settings/custom-domains`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: currentProjectId, domains: domainsArray })
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          console.error('Erro ao salvar domínios personalizados:', data.error)
+          toast.error('Erro ao salvar domínios personalizados')
+          setSalvando(false)
+          return
+        }
+      }
       toast.success('Configurações salvas com sucesso')
     } catch {
       toast.error('Não foi possível salvar as configurações')
@@ -106,6 +154,32 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="card-glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Globe2 className="w-4 h-4" /> Propagação de UTMs</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Domínios Permitidos para Propagação de UTMs</label>
+                  <Textarea
+                    value={allowedDomainsCustom}
+                    onChange={(e) => setAllowedDomainsCustom(e.target.value)}
+                    placeholder="Ex: pay.hotmart.com, meu-checkout.com.br"
+                    rows={5}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Insira os domínios (um por linha ou separados por vírgula) onde os parâmetros UTM devem ser propagados automaticamente. Isso é útil para páginas de checkout ou outros sites externos que você deseja rastrear.
+                    A lista padrão será utilizada se nenhum domínio for especificado aqui.
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={salvar} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</Button>
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
 
           <div className="space-y-6">

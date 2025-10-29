@@ -87,6 +87,22 @@ export function PremiumExperimentsTab({ experiments: initialExperiments, loading
   const [layout, setLayout] = useState<'grid' | 'list'>('grid')
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'status' | 'performance'>('recent')
+
+  // Mapeamentos para exibição em português
+  const statusLabels = {
+    'all': 'Todos os Status',
+    'draft': 'Rascunhos',
+    'running': 'Em Execução',
+    'paused': 'Pausados',
+    'completed': 'Concluídos'
+  }
+
+  const sortByLabels = {
+    'recent': 'Mais Recentes',
+    'name': 'Nome (A-Z)',
+    'status': 'Status',
+    'performance': 'Melhor Desempenho'
+  }
   const [showFilters, setShowFilters] = useState(false)
   const [selectedExperiment, setSelectedExperiment] = useState<any>(null)
   
@@ -301,345 +317,361 @@ export function PremiumExperimentsTab({ experiments: initialExperiments, loading
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="space-y-8">
-        {/* Header Premium */}
-        <div className="space-y-8">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
-            <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-4xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-2xl">
-                  <FlaskConical className="w-10 h-10 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-5xl font-black bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 bg-clip-text text-transparent">
-                    Experimentos A/B
-                  </h1>
-                  <p className="text-slate-600 text-xl font-medium">Centro de comando para otimização de conversões</p>
-                </div>
+    <div className="min-h-screen w-full overflow-x-hidden">
+      {/* HERO SECTION - Gradiente Extraordinário */}
+      <div className="relative w-full min-h-[85vh] overflow-hidden bg-gradient-to-br from-slate-900 via-purple-950 to-blue-950">
+        {/* Animated Background Layers */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-blue-600/40 rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute bottom-0 left-1/3 w-[400px] h-[400px] bg-cyan-500/20 rounded-full blur-[90px] animate-pulse" style={{ animationDelay: '2s' }} />
+        </div>
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/20 to-slate-900/40" />
+
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.15) 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }} />
+
+        <div className="relative z-10 w-full py-16 sm:py-20 lg:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 sm:space-y-16">
+            {/* Title Section */}
+            <div className="space-y-6">
+              <Badge className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-200 border border-purple-400/30 backdrop-blur-xl px-6 py-2.5 text-sm font-semibold shadow-lg">
+                <FlaskConical className="w-4 h-4 mr-2 animate-pulse" />
+                Otimize Sua Receita
+              </Badge>
+
+              <div className="space-y-4">
+                <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white leading-none tracking-tight">
+                  Transforme Dados em
+                  <span className="block mt-2 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent animate-gradient">
+                    Crescimento Real
+                  </span>
+                </h1>
+                <p className="text-xl sm:text-2xl text-purple-100/90 leading-relaxed max-w-3xl font-light">
+                  Decisões baseadas em dados que aumentam suas conversões. Teste, valide e escale o que realmente funciona.
+                </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
+            {/* Action Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Button
                 onClick={onNewExperiment}
-                className="h-14 px-10 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl font-bold text-lg"
+                className="group relative overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white border-0 shadow-2xl shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 h-14 px-10 font-bold text-lg hover:scale-105"
               >
-                <Plus className="w-6 h-6 mr-3" />
-                Novo Experimento
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Plus className="w-6 h-6 mr-3 relative z-10" />
+                <span className="relative z-10">Novo Experimento</span>
+                <Rocket className="w-5 h-5 ml-3 relative z-10 animate-pulse" />
+              </Button>
+            </div>
+
+            {/* Stats Grid - Glassmorphism */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {/* Total */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-8 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 col-span-1 sm:col-span-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm">
+                      <FlaskConical className="w-6 h-6 text-purple-300" />
+                    </div>
+                    {stats.total > 0 && (
+                      <Sparkles className="w-5 h-5 text-purple-300 animate-pulse" />
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm text-purple-200/80 font-medium mb-2">Total</p>
+                    <p className="text-4xl font-black text-white">{statsLoading ? '...' : stats.total}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ativos */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-8 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/20 col-span-1 sm:col-span-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur-sm">
+                      <Zap className="w-6 h-6 text-emerald-300" />
+                    </div>
+                    {stats.running > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 backdrop-blur-sm">
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                        <span className="text-xs font-bold text-emerald-300">AO VIVO</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm text-emerald-200/80 font-medium mb-2">Ativos</p>
+                    <p className="text-4xl font-black text-white">{statsLoading ? '...' : stats.running}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Concluídos */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-8 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20 col-span-1 sm:col-span-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm">
+                      <CheckCircle2 className="w-6 h-6 text-blue-300" />
+                    </div>
+                    {stats.completed > 0 && (
+                      <Trophy className="w-5 h-5 text-blue-300" />
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm text-blue-200/80 font-medium mb-2">Concluídos</p>
+                    <p className="text-4xl font-black text-white">{statsLoading ? '...' : stats.completed}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Taxa Média */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-8 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/20 col-span-1 sm:col-span-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 backdrop-blur-sm">
+                      <TrendingUp className="w-6 h-6 text-pink-300" />
+                    </div>
+                    {stats.avgConversionRate > 0 && (
+                      <div className="px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-sm">
+                        <span className="text-xs font-bold text-emerald-300">{stats.avgConversionRate.toFixed(1)}%</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm text-pink-200/80 font-medium mb-2">Conv. Média</p>
+                    <p className="text-4xl font-black text-white">{statsLoading ? '...' : `${stats.avgConversionRate.toFixed(1)}%`}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Receita */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-8 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/20 col-span-1 sm:col-span-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 backdrop-blur-sm">
+                      <DollarSign className="w-6 h-6 text-cyan-300" />
+                    </div>
+                    {stats.totalRevenue > 0 && (
+                      <TrendingUp className="w-5 h-5 text-cyan-300 animate-pulse" />
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm text-cyan-200/80 font-medium mb-2">Receita</p>
+                    <p className="text-4xl font-black text-white">
+                      {statsLoading ? '...' : stats.totalRevenue > 0 ? `R$ ${stats.totalRevenue > 1000 ? (stats.totalRevenue / 1000).toFixed(1) + 'k' : stats.totalRevenue.toFixed(0)}` : 'R$ 0'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Melhoria */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-8 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-amber-500/20 col-span-1 sm:col-span-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-sm">
+                      <Star className="w-6 h-6 text-amber-300" />
+                    </div>
+                    {stats.avgImprovement > 0 && (
+                      <div className="px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-sm">
+                        <span className="text-xs font-bold text-emerald-300">+{stats.avgImprovement.toFixed(0)}%</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm text-amber-200/80 font-medium mb-2">Melhoria</p>
+                    <p className="text-4xl font-black text-white">{statsLoading ? '...' : `+${stats.avgImprovement.toFixed(0)}%`}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENT SECTION */}
+      <div className="w-full bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+
+        {/* Barra de Filtros Extraordinária */}
+        <Card className="backdrop-blur-xl bg-white/90 border-0 shadow-2xl p-6">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+            <div className="relative flex-1 max-w-xl">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Input
+                placeholder="Buscar experimentos por nome ou descrição..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-12 h-12 border-2 border-slate-200 focus:border-purple-500 rounded-2xl text-base font-medium bg-white shadow-inner"
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            <Select value={status} onValueChange={(value: any) => setStatus(value)}>
+              <SelectTrigger className="h-12 w-full lg:w-48 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4" />
+                  <span className="text-sm font-semibold text-slate-700">{statusLabels[status as keyof typeof statusLabels]}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-2 shadow-2xl">
+                <SelectItem value="all" className="rounded-xl font-medium">Todos os Status</SelectItem>
+                <SelectItem value="draft" className="rounded-xl font-medium">Rascunhos</SelectItem>
+                <SelectItem value="running" className="rounded-xl font-medium">Em Execução</SelectItem>
+                <SelectItem value="paused" className="rounded-xl font-medium">Pausados</SelectItem>
+                <SelectItem value="completed" className="rounded-xl font-medium">Concluídos</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+              <SelectTrigger className="h-12 w-full lg:w-52 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span className="text-sm font-semibold text-slate-700">{sortByLabels[sortBy]}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-2 shadow-2xl">
+                <SelectItem value="recent" className="rounded-xl font-medium">Mais Recentes</SelectItem>
+                <SelectItem value="name" className="rounded-xl font-medium">Nome (A-Z)</SelectItem>
+                <SelectItem value="status" className="rounded-xl font-medium">Status</SelectItem>
+                <SelectItem value="performance" className="rounded-xl font-medium">Melhor Desempenho</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex border-2 border-slate-200 rounded-2xl overflow-hidden shadow-lg">
+              <Button
+                variant={layout === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setLayout('grid')}
+                className={cn(
+                  "rounded-none h-12 px-6",
+                  layout === 'grid'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
+                    : 'text-slate-600 hover:bg-slate-100'
+                )}
+              >
+                <Grid className="w-5 h-5" />
+              </Button>
+              <Button
+                variant={layout === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setLayout('list')}
+                className={cn(
+                  "rounded-none h-12 px-6 border-l-2 border-slate-200",
+                  layout === 'list'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
+                    : 'text-slate-600 hover:bg-slate-100'
+                )}
+              >
+                <List className="w-5 h-5" />
               </Button>
             </div>
           </div>
 
-          {/* Stats Cards Premium */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-6">
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 border-2 border-blue-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
-              {/* Indicador de carregamento */}
-              {statsLoading && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
-                  <Layers className="w-8 h-8 text-white" />
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-all duration-300">
-                  <ArrowUpRight className="w-5 h-5 text-blue-600" />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-black text-blue-900 mb-2">Total de Experimentos</p>
-                <p className="text-4xl font-black text-blue-700 transition-all duration-300">
-                  {statsLoading ? '...' : stats.total}
-                </p>
-                <p className="text-xs text-blue-600 flex items-center gap-1 mt-3">
-                  <TrendingUp className="w-3 h-3" />
-                  Últimos 30 dias
-                </p>
-              </div>
-            </Card>
-
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
-              {statsLoading && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-                  <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
-                  <Activity className="w-8 h-8 text-white" />
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-all duration-300">
-                  <ArrowUpRight className="w-5 h-5 text-green-600" />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-black text-green-900 mb-2">Ativos</p>
-                <p className="text-4xl font-black text-green-700 transition-all duration-300">
-                  {statsLoading ? '...' : stats.running}
-                </p>
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-3">
-                  <Play className="w-3 h-3" />
-                  Em execução
-                </p>
-              </div>
-            </Card>
-
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
-              {statsLoading && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-                  <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
-                  <Trophy className="w-8 h-8 text-white" />
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-all duration-300">
-                  <CheckCircle2 className="w-5 h-5 text-purple-600" />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-black text-purple-900 mb-2">Concluídos</p>
-                <p className="text-4xl font-black text-purple-700 transition-all duration-300">
-                  {statsLoading ? '...' : stats.completed}
-                </p>
-                <p className="text-xs text-purple-600 flex items-center gap-1 mt-3">
-                  <Award className="w-3 h-3" />
-                  Com resultados
-                </p>
-              </div>
-            </Card>
-
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 border-2 border-amber-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
-              {statsLoading && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-                  <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
-                  <TrendingUp className="w-8 h-8 text-white" />
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-all duration-300">
-                  <Percent className="w-5 h-5 text-amber-600" />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-black text-amber-900 mb-2">Conv. Média</p>
-                <p className="text-4xl font-black text-amber-700 transition-all duration-300">
-                  {statsLoading ? '...' : `${stats.avgConversionRate.toFixed(1)}%`}
-                </p>
-                <p className="text-xs text-amber-600 flex items-center gap-1 mt-3">
-                  <Target className="w-3 h-3" />
-                  Taxa global
-                </p>
-              </div>
-            </Card>
-
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 border-2 border-indigo-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
-              {statsLoading && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-                  <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
-                  <DollarSign className="w-8 h-8 text-white" />
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-all duration-300">
-                  <ArrowUpRight className="w-5 h-5 text-indigo-600" />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-black text-indigo-900 mb-2">Receita</p>
-                <p className="text-4xl font-black text-indigo-700 transition-all duration-300">
-                  {statsLoading ? '...' : `R$ ${(stats.totalRevenue / 1000).toFixed(0)}k`}
-                </p>
-                <p className="text-xs text-indigo-600 flex items-center gap-1 mt-3">
-                  <Sparkles className="w-3 h-3" />
-                  Impacto total
-                </p>
-              </div>
-            </Card>
-
-            <Card className="col-span-2 lg:col-span-1 p-8 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border-2 border-emerald-200 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group relative overflow-hidden">
-              {statsLoading && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-                  <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-16 h-16 rounded-4xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300">
-                  <Rocket className="w-8 h-8 text-white" />
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-all duration-300">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-black text-emerald-900 mb-2">Melhoria</p>
-                <p className="text-4xl font-black text-emerald-700 transition-all duration-300">
-                  {statsLoading ? '...' : `+${stats.avgImprovement.toFixed(0)}%`}
-                </p>
-                <p className="text-xs text-emerald-600 flex items-center gap-1 mt-3">
-                  <Star className="w-3 h-3" />
-                  Média geral
-                </p>
-              </div>
-            </Card>
-          </div>
-        </div>
-
-        {/* Barra de Filtros Melhorada */}
-        <Card className="p-6 bg-gradient-to-r from-white via-slate-50/50 to-blue-50/30 border border-slate-200/50 shadow-lg relative z-10">
-          <div className="space-y-6">
-            <div className="flex flex-col xl:flex-row gap-4">
-              {/* Busca */}
-              <div className="relative flex-1 max-w-lg">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Buscar experimentos..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="pl-10 h-12 text-sm border-2 border-slate-200 rounded-xl focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300 bg-white/90 backdrop-blur-sm"
-                />
-              </div>
-
-              {/* Filtros e Controles */}
-              <div className="flex flex-wrap gap-3 items-center">
-                {/* Filtro de Status */}
-                <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-                  <SelectTrigger className="w-48 h-12 border-2 border-slate-200 rounded-xl focus:border-primary transition-all duration-300 text-sm font-medium bg-white/90 backdrop-blur-sm hover:border-slate-300">
-                    <SelectValue placeholder="Filtrar por status" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999] rounded-xl border-border/60 shadow-xl bg-white/95 backdrop-blur-xl">
-                    <SelectItem value="all" className="rounded-lg">Todos os Status</SelectItem>
-                    <SelectItem value="draft" className="rounded-lg">Rascunho</SelectItem>
-                    <SelectItem value="running" className="rounded-lg">Executando</SelectItem>
-                    <SelectItem value="paused" className="rounded-lg">Pausado</SelectItem>
-                    <SelectItem value="completed" className="rounded-lg">Concluído</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* Ordenação */}
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                  <SelectTrigger className="w-44 h-12 border-2 border-slate-200 rounded-xl focus:border-primary transition-all duration-300 text-sm font-medium bg-white/90 backdrop-blur-sm hover:border-slate-300">
-                    <ArrowUpDown className="w-4 h-4 mr-2 text-slate-500" />
-                    <SelectValue placeholder="Ordenar por" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999] rounded-xl border-border/60 shadow-xl bg-white/95 backdrop-blur-xl">
-                    <SelectItem value="recent" className="rounded-lg">Mais recentes</SelectItem>
-                    <SelectItem value="name" className="rounded-lg">Nome A-Z</SelectItem>
-                    <SelectItem value="status" className="rounded-lg">Status</SelectItem>
-                    <SelectItem value="performance" className="rounded-lg">Desempenho</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* Botões de Visualização */}
-                <div className="flex gap-2 bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200/60 p-1">
-                  <Button
-                    variant={layout === 'grid' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setLayout('grid')}
-                    className="h-10 w-10 p-0 rounded-lg transition-all duration-300"
-                    title="Visualização em grade"
-                  >
-                    <Grid className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={layout === 'list' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setLayout('list')}
-                    className="h-10 w-10 p-0 rounded-lg transition-all duration-300"
-                    title="Visualização em lista"
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+          {hasActiveFilters && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 pt-6 border-t-2 border-slate-200">
+              <Badge variant="outline" className="text-base px-6 py-2 font-bold bg-purple-50 border-purple-300 text-purple-700">
+                {filteredExperiments.length} de {processedExperiments.length} experimentos
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold rounded-xl px-6 py-2 transition-all"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Limpar Filtros
+              </Button>
             </div>
-
-            {hasActiveFilters && (
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 border-t border-slate-200/60">
-                <div className="flex items-center gap-4">
-                  <p className="text-lg text-slate-600 font-semibold">
-                    {filteredExperiments.length} de {processedExperiments.length} experimentos encontrados
-                  </p>
-                  {query && (
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                      Busca: "{query}"
-                    </span>
-                  )}
-                  {status !== 'all' && (
-                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
-                      Status: {statusConfig[status as keyof typeof statusConfig]?.label}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl h-12 px-6 font-medium transition-all duration-200 hover:scale-105"
-                >
-                  <X className="w-5 h-5 mr-2" />
-                  Limpar filtros
-                </Button>
-              </div>
-            )}
-          </div>
+          )}
         </Card>
 
         {/* Lista de experimentos */}
         {loading ? (
           <div className={cn(
             layout === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8'
-              : 'space-y-8'
+              ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'
+              : 'space-y-4'
           )}>
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <Card key={i} className="p-10 animate-pulse">
-                <div className="space-y-6">
-                  <div className="h-6 bg-slate-200 rounded w-3/4"></div>
-                  <div className="h-5 bg-slate-200 rounded w-1/2"></div>
-                  <div className="space-y-3">
-                    <div className="h-4 bg-slate-200 rounded"></div>
-                    <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+              <div key={i} className="relative overflow-hidden backdrop-blur-xl bg-white/80 border-0 rounded-3xl p-6 shadow-xl">
+                <div className="space-y-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-200 to-blue-200 rounded-full"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-3/4"></div>
+                      <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-300 rounded-lg w-1/2"></div>
+                    </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl"></div>
+                    <div className="h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl"></div>
+                  </div>
+                  <div className="h-10 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-full"></div>
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
         ) : filteredExperiments.length === 0 ? (
-          <EmptyState
-            icon={FlaskConical}
-            title={hasActiveFilters ? 'Nenhum experimento encontrado' : 'Nenhum experimento criado'}
-            description={hasActiveFilters
-              ? 'Tente ajustar os filtros ou buscar por outros termos'
-              : 'Crie seu primeiro experimento A/B para começar a otimizar conversões'
-            }
-            action={
-              hasActiveFilters ? (
-                <Button onClick={clearFilters} variant="outline" className="rounded-2xl h-14 px-8 font-semibold">
+          <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-2xl p-16 text-center">
+            <div className="max-w-2xl mx-auto space-y-8">
+              <div className="relative inline-flex">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                <div className="relative p-8 rounded-full bg-gradient-to-br from-purple-50 to-blue-50 shadow-2xl">
+                  <FlaskConical className="w-24 h-24 text-purple-600" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-4xl font-black text-slate-900">
+                  {hasActiveFilters ? 'Nenhum experimento encontrado' : 'Comece sua Jornada'}
+                </h3>
+                <p className="text-xl text-slate-600 leading-relaxed max-w-lg mx-auto">
+                  {hasActiveFilters
+                    ? 'Não encontramos experimentos com os filtros aplicados. Tente ajustar os critérios de busca.'
+                    : 'Crie seu primeiro experimento A/B e comece a otimizar suas conversões com dados reais em tempo real.'}
+                </p>
+              </div>
+
+              {hasActiveFilters ? (
+                <Button
+                  onClick={clearFilters}
+                  variant="outline"
+                  className="border-2 border-slate-300 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 font-bold text-lg px-8 py-6 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
                   <X className="w-5 h-5 mr-2" />
-                  Limpar filtros
+                  Limpar Filtros
                 </Button>
               ) : (
-                <Button onClick={onNewExperiment} className="rounded-2xl h-14 px-8 bg-gradient-to-r from-blue-600 to-purple-600 font-semibold">
-                  <Plus className="w-5 h-5 mr-2" />
-                  Criar primeiro experimento
+                <Button
+                  onClick={onNewExperiment}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-lg px-10 py-6 rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all"
+                >
+                  <Rocket className="w-6 h-6 mr-3" />
+                  Criar Primeiro Experimento
+                  <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
                 </Button>
-              )
-            }
-          />
+              )}
+            </div>
+          </Card>
         ) : (
           <div className={cn(
             layout === 'grid'
@@ -662,6 +694,7 @@ export function PremiumExperimentsTab({ experiments: initialExperiments, loading
           </div>
         )}
       </div>
+      </div>
 
       {/* Modal de detalhes */}
       {showDetailsModal && selectedExperiment && (
@@ -674,6 +707,7 @@ export function PremiumExperimentsTab({ experiments: initialExperiments, loading
           }}
         />
       )}
+
     </div>
   )
 }
@@ -700,132 +734,71 @@ function PremiumExperimentCard({
 }) {
   const statusInfo = statusConfig[experiment.status as keyof typeof statusConfig]
   const StatusIcon = statusInfo.icon
-  const algorithmInfo = algorithmConfig[experiment.algorithm || 'uniform']
+  const algorithmKey = (experiment.algorithm || 'uniform') as keyof typeof algorithmConfig
+  const algorithmInfo = algorithmConfig[algorithmKey]
   const AlgorithmIcon = algorithmInfo?.icon || BarChart3
 
   if (layout === 'list') {
     return (
-      <Card className="p-10 hover:shadow-2xl transition-all duration-500 border-2 hover:border-blue-300 hover:scale-[1.01] bg-gradient-to-r from-white to-blue-50/30 z-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-8 flex-1">
-            <div className="w-20 h-20 rounded-4xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-2xl">
-              <FlaskConical className="w-10 h-10 text-white" />
-            </div>
+      <Card className="group relative overflow-hidden backdrop-blur-xl bg-white/95 border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 cursor-pointer">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="relative p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 flex-1">
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform">
+                  <FlaskConical className="w-7 h-7 text-purple-600" />
+                </div>
+                {experiment.status === 'running' && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-lg"></div>
+                )}
+              </div>
 
-            <div className="flex-1">
-              <div className="flex items-center gap-6 mb-4">
-                <h3 className="font-black text-3xl text-slate-900 hover:text-blue-600 transition-colors">
-                  {experiment.name}
-                </h3>
-                <Badge className={cn("text-white text-base px-4 py-2", statusInfo.color)}>
-                  <StatusIcon className="w-5 h-5 mr-2" />
-                  {statusInfo.label}
-                </Badge>
-                {algorithmInfo?.premium && (
-                  <Badge className="bg-gradient-to-r from-amber-400 to-orange-400 text-white text-base px-4 py-2">
-                    <Crown className="w-5 h-5 mr-2" />
-                    Premium
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+                    {experiment.name}
+                  </h3>
+                  <Badge className={cn("text-xs px-3 py-1 rounded-full font-semibold shadow-sm", statusInfo.color)}>
+                    {statusInfo.label}
                   </Badge>
-                )}
-              </div>
+                  {experiment.performance?.improvement !== undefined && experiment.performance.improvement > 0 && (
+                    <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 px-3 py-1">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      +{experiment.performance.improvement.toFixed(1)}%
+                    </Badge>
+                  )}
+                </div>
 
-              <p className="text-slate-600 text-lg mb-6 line-clamp-2">
-                {experiment.description || 'Experimento A/B para otimização de conversões'}
-              </p>
-
-              <div className="flex items-center gap-10 text-base">
-                <div className="flex items-center gap-3 text-slate-600">
-                  <Users className="w-6 h-6" />
-                  <span className="font-bold">{experiment.performance?.visitors.toLocaleString()} visitantes</span>
-                </div>
-                <div className="flex items-center gap-3 text-green-600">
-                  <TrendingUp className="w-6 h-6" />
-                  <span className="font-black">{experiment.performance?.conversionRate.toFixed(1)}% conversão</span>
-                </div>
-                <div className="flex items-center gap-3 text-blue-600">
-                  <AlgorithmIcon className="w-6 h-6" />
-                  <span className="font-bold">{algorithmInfo?.label}</span>
-                </div>
-                {experiment.performance?.improvement !== undefined && (
-                  <div className="flex items-center gap-3">
-                    {experiment.performance.improvement > 0 ? (
-                      <ArrowUpRight className="w-6 h-6 text-green-600" />
-                    ) : (
-                      <ArrowDownRight className="w-6 h-6 text-red-600" />
-                    )}
-                    <span className={cn(
-                      "font-black text-lg",
-                      experiment.performance.improvement > 0 ? "text-green-600" : "text-red-600"
-                    )}>
-                      {experiment.performance.improvement > 0 ? '+' : ''}{experiment.performance.improvement.toFixed(1)}%
-                    </span>
+                <div className="flex items-center gap-6 text-sm font-medium">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Users className="w-4 h-4" />
+                    <span>{experiment.performance?.visitors.toLocaleString()}</span>
                   </div>
-                )}
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Target className="w-4 h-4" />
+                    <span>{experiment.performance?.conversionRate.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Brain className="w-4 h-4" />
+                    <span>{algorithmInfo?.label}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-4">
-            {/* Botão de Toggle Status */}
-            {experiment.status !== 'completed' && (
+            <div className="flex gap-2">
               <Button
-                onClick={() => onToggleStatus(experiment.id, experiment.status)}
-                disabled={isToggling}
                 variant="outline"
-                className={`rounded-2xl h-14 px-8 font-bold ${
-                  experiment.status === 'running' 
-                    ? 'border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300'
-                    : 'border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300'
-                }`}
+                size="sm"
+                onClick={() => onViewDetails(experiment)}
+                className="border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 font-semibold rounded-xl shadow-sm hover:shadow-lg transition-all"
+                title="Ver detalhes"
               >
-                {isToggling ? (
-                  <>
-                    <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    {experiment.status === 'running' ? 'Pausando...' : 'Ativando...'}
-                  </>
-                ) : (
-                  <>
-                    {experiment.status === 'running' ? (
-                      <>
-                        <Pause className="w-5 h-5 mr-2" />
-                        Pausar
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-5 h-5 mr-2" />
-                        Ativar
-                      </>
-                    )}
-                  </>
-                )}
+                <Eye className="w-4 h-4 mr-2" />
+                Detalhes
               </Button>
-            )}
-            
-            <Button
-              onClick={() => onViewDetails(experiment)}
-              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-14 px-8 font-bold"
-            >
-              <Eye className="w-5 h-5 mr-2" />
-              Ver Detalhes
-            </Button>
-            <Button
-              onClick={() => onDelete(experiment.id, experiment.name)}
-              disabled={isDeleting}
-              variant="outline"
-              className="rounded-2xl border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 h-14 px-8 font-bold"
-            >
-              {isDeleting ? (
-                <>
-                  <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
-                  Deletando...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-5 h-5 mr-2" />
-                  Deletar
-                </>
-              )}
-            </Button>
+            </div>
           </div>
         </div>
       </Card>
@@ -833,169 +806,159 @@ function PremiumExperimentCard({
   }
 
   return (
-    <Card className="group relative overflow-hidden p-8 hover:shadow-2xl transition-all duration-500 border border-border/60 hover:border-primary/40 hover:scale-[1.02] bg-gradient-to-br from-white via-slate-50/50 to-blue-50/30 backdrop-blur-sm card-hover z-0">
-      <div className="space-y-6">
-        {/* Enhanced Header com ícone, título e status */}
+    <Card className="group relative overflow-hidden backdrop-blur-xl bg-white/95 border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] cursor-pointer">
+      {/* Gradient Overlay */}
+      <div className={cn(
+        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+        experiment.status === 'running'
+          ? "bg-gradient-to-br from-emerald-500/10 to-green-500/10"
+          : experiment.status === 'completed'
+          ? "bg-gradient-to-br from-blue-500/10 to-cyan-500/10"
+          : "bg-gradient-to-br from-purple-500/10 to-pink-500/10"
+      )} />
+
+      {/* Status Indicator */}
+      {experiment.status === 'running' && (
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl"></div>
+      )}
+
+      <div className="relative p-8 space-y-6">
+        {/* Header */}
         <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4 flex-1 min-w-0">
-            <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
-              <FlaskConical className="w-8 h-8 text-white" />
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform">
+                <FlaskConical className="w-8 h-8 text-purple-600" />
+              </div>
+              {experiment.status === 'running' && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-lg"></div>
+              )}
             </div>
+
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-xl text-slate-900 group-hover:text-primary transition-colors mb-1 truncate">
+              <h3 className="text-xl font-black text-slate-900 mb-1 truncate group-hover:text-purple-700 transition-colors">
                 {experiment.name}
               </h3>
-              <p className="text-sm text-slate-500 flex items-center gap-2">
-                <Layers className="w-4 h-4" />
-                {experiment.variants?.length || 0} variantes
+              <p className="text-sm text-slate-500 font-medium">
+                {experiment.variants?.length || 0} variantes • {algorithmInfo?.label}
               </p>
             </div>
           </div>
-          
-          {/* Enhanced Status badge */}
-          <Badge className={cn(
-            "text-white text-sm px-4 py-2 shadow-lg flex-shrink-0 rounded-full font-medium transition-all duration-200 hover:scale-105", 
-            statusInfo.color
-          )}>
-            <StatusIcon className="w-4 h-4 mr-1.5" />
+
+          <Badge className={cn("text-xs px-3 py-1.5 rounded-full font-semibold shadow-lg whitespace-nowrap", statusInfo.color)}>
             {statusInfo.label}
           </Badge>
         </div>
 
-        {/* Descrição */}
-        <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed">
-          {experiment.description || 'Experimento A/B para otimização de conversões e análise de performance detalhada.'}
+        {/* Description */}
+        <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
+          {experiment.description || 'Experimento A/B para otimização de conversões em tempo real.'}
         </p>
 
-        {/* Enhanced Métricas principais */}
+        {/* Metrics Grid */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200/60 hover:border-green-300 hover:shadow-md transition-all duration-200 group">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors duration-200">
-                <TrendingUp className="w-4 h-4 text-green-600" />
-              </div>
-              <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Conversão</span>
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="w-4 h-4 text-purple-600" />
+              <div className="text-xs text-purple-600 font-bold uppercase">Conversão</div>
             </div>
-            <span className="font-bold text-2xl text-green-700">
+            <div className="text-2xl font-black text-slate-900">
               {metricsLoading ? '...' : formatMetricValue(experiment.performance?.conversionRate || 0, 'conversion')}
-            </span>
+            </div>
           </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-5 rounded-2xl border border-blue-200/60 hover:border-blue-300 hover:shadow-md transition-all duration-200 group">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors duration-200">
-                <Users className="w-4 h-4 text-blue-600" />
-              </div>
-              <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Visitantes</span>
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-4 h-4 text-blue-600" />
+              <div className="text-xs text-blue-600 font-bold uppercase">Visitantes</div>
             </div>
-            <span className="font-bold text-2xl text-blue-700">
+            <div className="text-2xl font-black text-slate-900">
               {metricsLoading ? '...' : formatMetricValue(experiment.performance?.visitors || 0, 'visitors')}
-            </span>
-          </div>
-        </div>
-
-        {/* Enhanced Algoritmo e melhoria */}
-        <div className="flex justify-between items-center text-sm">
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl">
-            <AlgorithmIcon className="w-4 h-4 text-slate-600" />
-            <span className="font-medium text-slate-700">{algorithmInfo?.label}</span>
-            {algorithmInfo?.premium && (
-              <Crown className="w-4 h-4 text-amber-500" />
-            )}
-          </div>
-
-          {experiment.performance?.improvement !== undefined && (
-            <div className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200/60">
-              {experiment.performance.improvement > 0 ? (
-                <ArrowUpRight className="w-4 h-4 text-green-600" />
-              ) : (
-                <ArrowDownRight className="w-4 h-4 text-red-600" />
-              )}
-              <span className={cn(
-                "font-bold text-sm",
-                experiment.performance.improvement > 0 ? "text-green-600" : "text-red-600"
-              )}>
-                {formatMetricValue(experiment.performance.improvement, 'improvement')}
-              </span>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Enhanced Indicador de confiabilidade */}
-        {experiment.performance?.confidence && experiment.performance.confidence > 90 && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200/60 hover:border-amber-300 hover:shadow-md transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                <Shield className="w-4 h-4 text-amber-600" />
+        {/* Performance Indicator */}
+        {experiment.performance?.improvement !== undefined && (
+          <div className={cn(
+            "p-5 rounded-2xl border-2 shadow-lg",
+            experiment.performance.improvement > 0
+              ? "bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200"
+              : "bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {experiment.performance.improvement > 0 ? (
+                  <ArrowUpRight className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <ArrowDownRight className="w-5 h-5 text-slate-500" />
+                )}
+                <span className="text-xs font-bold text-slate-600 uppercase">Melhoria</span>
               </div>
-              <span className="text-sm font-semibold text-amber-900">
-                {experiment.performance.confidence.toFixed(0)}% confiável
+              <span className={cn(
+                "text-2xl font-black",
+                experiment.performance.improvement > 0 ? "text-emerald-600" : "text-slate-600"
+              )}>
+                {experiment.performance.improvement > 0 ? '+' : ''}{experiment.performance.improvement.toFixed(1)}%
               </span>
             </div>
           </div>
         )}
 
-        {/* Enhanced Botões de ação */}
-        <div className="pt-4 border-t border-slate-200/50 space-y-3">
-          {/* Botão de Toggle Status */}
-          {experiment.status !== 'completed' && (
+        {/* Actions */}
+        <div className="flex gap-2 pt-2">
+          {experiment.status === 'running' && (
             <Button
-              onClick={() => onToggleStatus(experiment.id, experiment.status)}
-              disabled={isToggling}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleStatus(experiment.id, experiment.status)
+              }}
+              size="sm"
               variant="outline"
-              className={`w-full rounded-xl transition-all duration-300 h-10 font-semibold text-sm ${
-                experiment.status === 'running' 
-                  ? 'border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300'
-                  : 'border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300'
-              }`}
+              disabled={isToggling}
+              className="border-2 border-amber-400 hover:border-amber-500 hover:bg-amber-50 text-amber-700 font-bold rounded-xl shadow-sm hover:shadow-lg transition-all px-4"
             >
-              {isToggling ? (
-                <>
-                  <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  {experiment.status === 'running' ? 'Pausando...' : 'Ativando...'}
-                </>
-              ) : (
-                <>
-                  {experiment.status === 'running' ? (
-                    <>
-                      <Pause className="w-4 h-4 mr-2" />
-                      Pausar Experimento
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 mr-2" />
-                      Ativar Experimento
-                    </>
-                  )}
-                </>
-              )}
+              <Pause className="w-4 h-4 mr-2" />
+              {isToggling ? 'Pausando...' : 'Pausar'}
             </Button>
           )}
-          
+          {(experiment.status === 'paused' || experiment.status === 'draft') && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleStatus(experiment.id, experiment.status)
+              }}
+              size="sm"
+              variant="outline"
+              disabled={isToggling}
+              className="border-2 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50 text-emerald-700 font-bold rounded-xl shadow-sm hover:shadow-lg transition-all px-4"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              {isToggling ? 'Ativando...' : 'Ativar'}
+            </Button>
+          )}
           <Button
-            onClick={() => onViewDetails(experiment)}
-            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 rounded-xl transition-all duration-300 h-12 font-semibold text-sm shadow-lg hover:shadow-xl ripple-effect"
+            onClick={(e) => {
+              e.stopPropagation()
+              onViewDetails(experiment)
+            }}
+            size="sm"
+            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
           >
             <Eye className="w-4 h-4 mr-2" />
-            Ver Detalhes
+            Detalhes
           </Button>
           <Button
-            onClick={() => onDelete(experiment.id, experiment.name)}
-            disabled={isDeleting}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(experiment.id, experiment.name)
+            }}
+            size="sm"
             variant="outline"
-            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl transition-all duration-300 h-10 font-semibold text-sm"
+            disabled={isDeleting}
+            className="border-2 border-red-400 hover:border-red-500 hover:bg-red-50 text-red-700 hover:text-red-800 font-bold rounded-xl shadow-sm hover:shadow-lg transition-all px-4"
           >
-            {isDeleting ? (
-              <>
-                <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
-                Deletando...
-              </>
-            ) : (
-              <>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Deletar Experimento
-              </>
-            )}
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       </div>

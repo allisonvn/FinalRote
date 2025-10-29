@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
       conversion_url: rawData.conversion_url || null,
       conversion_value: conversionValue,
       conversion_type: rawData.conversion_type || 'page_view'
+      // confidence_level usa valor padrão do banco (0.95)
     }
 
     logger.validation('Dados do experimento validados', experimentData)
@@ -182,6 +183,7 @@ export async function POST(request: NextRequest) {
       conversion_url: experimentData.conversion_url,
       conversion_value: experimentData.conversion_value,
       conversion_type: experimentData.conversion_type
+      // confidence_level usa valor padrão do banco (0.95)
     }
     
     // Log detalhado dos dados que serão inseridos
@@ -215,6 +217,7 @@ export async function POST(request: NextRequest) {
     logger.info('🔄 Tentando inserção direta para contornar cache')
     
     // Criar dados de inserção com todos os campos
+    // NOTA: confidence_level tem valor padrão no banco (0.95), então não precisamos incluí-lo
     const directInsertData = {
       name: insertData.name,
       project_id: insertData.project_id,
@@ -229,6 +232,7 @@ export async function POST(request: NextRequest) {
       conversion_value: insertData.conversion_value,
       conversion_type: insertData.conversion_type,
       duration_days: insertData.duration_days || rawData.duration_days || 14  // ✅ Duração planejada
+      // confidence_level não incluído - usa valor padrão do banco (0.95)
     }
     
     // Usar inserção direta que sabemos que funciona

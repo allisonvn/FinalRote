@@ -46,7 +46,9 @@ export function logError(error: Error, errorInfo?: Partial<ErrorInfo>) {
   if (process.env.NODE_ENV === 'development') {
     console.group('🚨 Error Logged')
     console.error('Error:', error)
-    console.error('Error Info:', errorData)
+    if (errorData.message || errorData.stack) {
+      console.error('Error Info:', errorData)
+    }
     console.groupEnd()
   }
 
@@ -83,9 +85,19 @@ export function setupGlobalErrorHandlers() {
   // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
     const error = event.reason
-    logError(error instanceof Error ? error : new Error(String(error)), {
-      errorBoundary: 'unhandledrejection',
-    })
+    try {
+      const errorObj = error instanceof Error 
+        ? error 
+        : typeof error === 'string' 
+          ? new Error(error)
+          : new Error(JSON.stringify(error))
+      
+      logError(errorObj, {
+        errorBoundary: 'unhandledrejection',
+      })
+    } catch (e) {
+      console.error('Error logging unhandled rejection:', e, 'Original:', error)
+    }
   })
 
   // Handle global errors

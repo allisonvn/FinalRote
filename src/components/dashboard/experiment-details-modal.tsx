@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { createClient } from '@/lib/supabase/client'
 import OptimizedCodeGenerator from '@/components/OptimizedCodeGenerator'
+import { analyzeExperiment } from '@/lib/statistics'
 import {
   X, Users, TrendingUp, BarChart3, Code, Settings,
   CheckCircle2, Clock, Activity, RefreshCw, Edit3,
@@ -34,7 +35,13 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
   // Função otimizada para buscar todos os dados necessários
   const loadExperimentData = async () => {
-    if (!experiment?.id) return
+    if (!experiment?.id) {
+      console.log('❌ Experiment ID não fornecido')
+      return
+    }
+
+    console.log('📊 Carregando dados do experimento:', experiment.id)
+    console.log('📋 Dados recebidos do experimento:', experiment)
 
     try {
       setLoading(true)
@@ -70,7 +77,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
       ])
 
       // Processar métricas totais
-      const totalMetrics = (statsData.data || []).reduce(
+      let totalMetrics = (statsData.data || []).reduce(
         (acc, curr) => ({
           visitors: acc.visitors + (curr.visitors || 0),
           conversions: acc.conversions + (curr.conversions || 0),
@@ -79,24 +86,84 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         { visitors: 0, conversions: 0, revenue: 0 }
       )
 
+      // Se variant_stats não tiver dados, buscar de assignments e conversions
+      if (totalMetrics.visitors === 0 && totalMetrics.conversions === 0) {
+        const { data: allAssignments } = await supabase
+          .from('assignments')
+          .select('id, variant_id')
+          .eq('experiment_id', experiment.id)
+
+        const { data: allConversions } = await supabase
+          .from('events')
+          .select('id, value as conversion_value')
+          .eq('experiment_id', experiment.id)
+          .eq('event_type', 'conversion')
+
+        const totalRevenue = (allConversions || []).reduce((sum, c) => sum + (Number(c.conversion_value) || 0), 0)
+        
+        totalMetrics = {
+          visitors: allAssignments?.length || 0,
+          conversions: allConversions?.length || 0,
+          revenue: totalRevenue === 0 && allConversions && allConversions.length > 0 && experiment.conversion_value
+            ? allConversions.length * Number(experiment.conversion_value)
+            : totalRevenue
+        }
+        
+        console.log('💰 Receita total calculada:', {
+          conversoes: allConversions?.length || 0,
+          totalRevenue,
+          conversion_value_experimento: experiment.conversion_value,
+          receita_final: totalMetrics.revenue
+        })
+      }
+
       totalMetrics.conversionRate = totalMetrics.visitors > 0
         ? (totalMetrics.conversions / totalMetrics.visitors) * 100
         : 0
 
+      console.log('📈 Métricas totais:', totalMetrics)
       setMetrics(totalMetrics)
 
       // Buscar stats individuais para cada variante
       const variantsWithStats = await Promise.all(
         (variantsData.data || []).map(async (variant) => {
+          // Tentar buscar de variant_stats primeiro
           const { data: variantStats } = await supabase
             .from('variant_stats')
             .select('visitors, conversions, revenue')
             .eq('variant_id', variant.id)
             .maybeSingle()
 
-          const visitors = variantStats?.visitors || 0
-          const conversions = variantStats?.conversions || 0
-          const revenue = variantStats?.revenue || 0
+          let visitors = variantStats?.visitors || 0
+          let conversions = variantStats?.conversions || 0
+          let revenue = variantStats?.revenue || 0
+
+          // Se variant_stats não tiver dados, buscar de assignments e conversions
+          if (!variantStats) {
+            const { data: assignments } = await supabase
+              .from('assignments')
+              .select('id')
+              .eq('variant_id', variant.id)
+            
+            const { data: conversions_data } = await supabase
+              .from('events')
+              .select('id, value as conversion_value')
+              .eq('variant_id', variant.id)
+              .eq('event_type', 'conversion')
+
+            visitors = assignments?.length || 0
+            conversions = conversions_data?.length || 0
+            
+            // Calcular receita das conversões registradas
+            revenue = (conversions_data || []).reduce((sum, c) => sum + (Number(c.conversion_value) || 0), 0)
+            
+            // Se não houver valor nas conversões, usar o valor padrão do experimento
+            if (revenue === 0 && conversions > 0 && experiment.conversion_value) {
+              revenue = conversions * Number(experiment.conversion_value)
+            }
+            
+            console.log(`💰 Variante ${variant.name}: ${conversions} conversões, receita = R$ ${revenue.toFixed(2)}`)
+          }
 
           return {
             ...variant,
@@ -108,6 +175,8 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         })
       )
 
+      console.log('🎯 Variantes encontradas:', variantsWithStats.length)
+      console.log('📊 Dados das variantes:', variantsWithStats)
       setVariants(variantsWithStats)
 
       // Setar API key se disponível
@@ -389,6 +458,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
                 algorithm={experiment.algorithm || 'uniform'}
                 conversionValue={experiment.conversion_value || 0}
                 conversionConfig={experiment.conversion_config}
+                projectId={experiment.project_id} // Passar projectId
               />
             </div>
           )}
@@ -482,6 +552,66 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
                         <p className="font-medium">
                           {new Date(experiment.created_at).toLocaleDateString('pt-BR')}
                         </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Configurações de Conversão */}
+                  <Card className="p-6">
+                    <h3 className="text-lg font-semibold mb-4">Configurações de Conversão</h3>
+                    <div className="space-y-3">
+                      {experiment.target_url && (
+                        <div>
+                          <p className="text-sm text-gray-500">URL Alvo</p>
+                          <p className="font-mono text-sm break-all">{experiment.target_url}</p>
+                        </div>
+                      )}
+                      {experiment.conversion_url && (
+                        <div>
+                          <p className="text-sm text-gray-500">URL de Conversão</p>
+                          <p className="font-mono text-sm break-all">{experiment.conversion_url}</p>
+                        </div>
+                      )}
+                      {experiment.conversion_type && (
+                        <div>
+                          <p className="text-sm text-gray-500">Tipo de Conversão</p>
+                          <p className="font-medium uppercase">{experiment.conversion_type}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm text-gray-500">Valor da Conversão</p>
+                        <p className="font-medium">R$ {(experiment.conversion_value || 0).toFixed(2)}</p>
+                      </div>
+                      {experiment.conversion_selector && (
+                        <div>
+                          <p className="text-sm text-gray-500">Seletor de Conversão</p>
+                          <p className="font-mono text-sm">{experiment.conversion_selector}</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Configurações do Experimento */}
+                  <Card className="p-6">
+                    <h3 className="text-lg font-semibold mb-4">Parâmetros do Experimento</h3>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Alocação de Tráfego</p>
+                          <p className="font-medium">{((experiment.traffic_allocation || 1) * 100).toFixed(0)}%</p>
+                        </div>
+                        {experiment.duration_days && (
+                          <div>
+                            <p className="text-sm text-gray-500">Duração Planejada</p>
+                            <p className="font-medium">{experiment.duration_days} dias</p>
+                          </div>
+                        )}
+                        {experiment.confidence_level && (
+                          <div>
+                            <p className="text-sm text-gray-500">Nível de Confiança</p>
+                            <p className="font-medium">{(experiment.confidence_level * 100).toFixed(0)}%</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>

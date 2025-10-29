@@ -95,6 +95,13 @@ export async function POST(request: NextRequest) {
       event_type: data.event_type,
       event_name: data.event_type,
       event_data: {
+        // ✅ UTMs - PRIORIDADE ALTA
+        utm_source: data.properties?.utm_source || null,
+        utm_medium: data.properties?.utm_medium || null,
+        utm_campaign: data.properties?.utm_campaign || null,
+        utm_term: data.properties?.utm_term || null,
+        utm_content: data.properties?.utm_content || null,
+        
         // ✅ Dados da variante
         variant: data.variant,
         variant_id: data.variant_id,

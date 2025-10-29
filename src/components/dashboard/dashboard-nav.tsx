@@ -62,12 +62,13 @@ export function DashboardNav({
       icon: <TrendingUp className="h-4 w-4" strokeWidth={1.75} />,
       description: realtime?.isConnected ? 'Relatórios em tempo real' : 'Relatórios e insights'
     },
-    {
-      key: 'audiences',
-      label: 'Audiências',
-      icon: <Users className="h-4 w-4" strokeWidth={1.75} />,
-      description: 'Segmentação de usuários'
-    },
+    // Temporariamente oculto - Audiências
+    // {
+    //   key: 'audiences',
+    //   label: 'Audiências',
+    //   icon: <Users className="h-4 w-4" strokeWidth={1.75} />,
+    //   description: 'Segmentação de usuários'
+    // },
     {
       key: 'events',
       label: 'Eventos',

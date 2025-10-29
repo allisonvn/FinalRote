@@ -30,34 +30,27 @@ export interface RevenueData {
   lift: number
 }
 
-const supabase = createClient()
-
 export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): Promise<DashboardStats> {
   try {
+    const supabase = createClient()
     // Tentar buscar da view materializada primeiro, se falhar, usar tabela experiments
     let experiments = null
     let expError = null
 
     try {
-      // Usar a função get_experiment_stats sem parâmetros para obter todos
-      const result = await supabase
-        .rpc('get_experiment_stats', { experiment_uuid: null })
-      
-      console.log('📊 Dados de get_experiment_stats:', result)
-      
-      experiments = result.data?.map(stat => ({
-        experiment_id: stat.experiment_id,
-        experiment_name: stat.experiment_name,
-        status: stat.status,
-        total_visitors: stat.total_visitors || 0,
-        total_conversions: stat.total_conversions || 0
-      })) || []
-      expError = result.error
-    } catch (viewError) {
-      console.log('Função RPC não disponível, usando tabela experiments diretamente', viewError)
-      const result = await supabase
-        .from('experiments')
-        .select('id, name, status, created_at')
+      // Buscar experimentos diretamente da tabela com timeout
+      const result = await Promise.race([
+        supabase
+          .from('experiments')
+          .select('id, name, status, created_at')
+          .order('created_at', { ascending: false }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 5000)
+        )
+      ]) as any
+
+      console.log('📊 Dados de experiments:', result)
+
       experiments = result.data?.map(exp => ({
         experiment_id: exp.id,
         experiment_name: exp.name,
@@ -66,20 +59,34 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
         total_conversions: 0
       })) || []
       expError = result.error
+    } catch (viewError: any) {
+      console.warn('⚠️ Erro ao buscar experimentos (continuando com fallback):', viewError?.message || viewError)
+      experiments = []
+      expError = viewError
     }
 
     if (expError) {
-      console.error('Erro ao buscar experimentos:', expError)
+      console.warn('⚠️ Erro ao buscar experimentos (continuando):', expError.message || expError)
       // Continuar com dados vazios em caso de erro
     }
 
     // Buscar total de eventos (visitantes únicos)
-    const { data: events, error: eventsError } = await supabase
-      .from('events')
-      .select('visitor_id', { count: 'exact' })
+    let events = null
+    let eventsError = null
+    try {
+      const result = await Promise.race([
+        supabase.from('events').select('visitor_id', { count: 'exact' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+      ]) as any
+      events = result.data
+      eventsError = result.error
+    } catch (error: any) {
+      console.warn('⚠️ Erro ao buscar eventos (ignorando):', error?.message)
+      eventsError = error
+    }
 
     if (eventsError) {
-      console.error('Erro ao buscar eventos:', eventsError)
+      console.warn('⚠️ Erro ao buscar eventos:', eventsError)
     }
 
     // Buscar total de conversões dos eventos
@@ -170,6 +177,7 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
 
 export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d'): Promise<ExperimentMetrics[]> {
   try {
+    const supabase = createClient()
     // Buscar experimentos com consulta otimizada (limite para performance)
     const { data: experiments, error } = await supabase
       .from('experiments')
@@ -191,18 +199,123 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
       return []
     }
 
-    // Retornar métricas básicas sem RPC para melhor performance
-    const metrics = experiments.map((exp) => ({
-      id: exp.id,
-      name: exp.name,
-      status: exp.status,
-      visitors: 0, // Será carregado sob demanda
-      conversions: 0,
-      conversionRate: 0,
-      improvement: 0,
-      significance: 0,
-      startDate: exp.created_at,
-      endDate: undefined
+    // Buscar estatísticas de cada experimento
+    const metrics = await Promise.all(experiments.map(async (exp) => {
+      // SEMPRE buscar de assignments e events para garantir dados reais
+      console.log(`📊 Buscando dados para experimento: ${exp.name}`)
+      
+      // Buscar variantes para identificar o controle
+      const { data: variants } = await supabase
+        .from('variants')
+        .select('id, is_control')
+        .eq('experiment_id', exp.id)
+
+      if (!variants || variants.length === 0) {
+        console.log(`⚠️ Sem variantes para experimento ${exp.name}`)
+        return {
+          id: exp.id,
+          name: exp.name,
+          status: exp.status,
+          visitors: 0,
+          conversions: 0,
+          conversionRate: 0,
+          improvement: 0,
+          significance: 0,
+          startDate: exp.created_at,
+          endDate: undefined
+        }
+      }
+
+      // Buscar dados direto das tabelas assignments e events
+      try {
+        const { data: assignments } = await supabase
+          .from('assignments')
+          .select('variant_id, visitor_id')
+          .eq('experiment_id', exp.id)
+
+        const { data: events } = await supabase
+          .from('events')
+          .select('visitor_id, variant_id, event_type')
+          .eq('experiment_id', exp.id)
+
+        console.log(`📊 Dados encontrados para ${exp.name}:`, {
+          assignments: assignments?.length || 0,
+          events: events?.length || 0
+        })
+
+        if (assignments && assignments.length > 0) {
+            const controlId = variants.find(v => v.is_control)?.id
+            
+            // Calcular visitantes e conversões por variante
+            const controlAssignments = assignments.filter(a => a.variant_id === controlId)
+            const variantAssignments = assignments.filter(a => a.variant_id !== controlId)
+            
+            const controlVisitorIds = new Set(controlAssignments.map(a => a.visitor_id))
+            const variantVisitorIds = new Set(variantAssignments.map(a => a.visitor_id))
+            
+            const controlVisitors = controlVisitorIds.size
+            const variantVisitors = variantVisitorIds.size
+            const totalVisitors = new Set(assignments.map(a => a.visitor_id)).size
+            
+            // Calcular conversões
+            const controlConversions = events?.filter(e => controlVisitorIds.has(e.visitor_id) && e.event_type === 'conversion').length || 0
+            const variantConversions = events?.filter(e => variantVisitorIds.has(e.visitor_id) && e.event_type === 'conversion').length || 0
+            const totalConversions = controlConversions + variantConversions
+            
+            // Calcular taxas
+            const controlRate = controlVisitors > 0 ? (controlConversions / controlVisitors) * 100 : 0
+            const variantRate = variantVisitors > 0 ? (variantConversions / variantVisitors) * 100 : 0
+            
+            // Calcular improvement
+            const improvement = controlRate > 0 ? ((variantRate - controlRate) / controlRate) * 100 : 0
+            
+            // Calcular significância
+            let significance = 0
+            if (controlVisitors > 30 && variantVisitors > 30) {
+              const p1 = variantRate / 100
+              const p2 = controlRate / 100
+              const n1 = variantVisitors
+              const n2 = controlVisitors
+              
+              const pooled_p = (variantConversions + controlConversions) / (n1 + n2)
+              const se = Math.sqrt(pooled_p * (1 - pooled_p) * (1/n1 + 1/n2))
+              const z = se > 0 ? (p1 - p2) / se : 0
+              
+              if (Math.abs(z) > 0) {
+                significance = Math.min(99.9, Math.max(0, 50 + (z * 15)))
+              }
+            }
+            
+            return {
+              id: exp.id,
+              name: exp.name,
+              status: exp.status,
+              visitors: totalVisitors,
+              conversions: totalConversions,
+              conversionRate: totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0,
+              improvement: Math.round(improvement * 10) / 10,
+              significance: Math.round(significance * 10) / 10,
+              startDate: exp.created_at,
+              endDate: undefined
+            }
+          }
+      } catch (err) {
+        console.error('Erro ao buscar dados:', err)
+      }
+
+      // Se não encontrou dados, retornar zero
+      return {
+        id: exp.id,
+        name: exp.name,
+        status: exp.status,
+        visitors: 0,
+        conversions: 0,
+        conversionRate: 0,
+        improvement: 0,
+        significance: 0,
+        startDate: exp.created_at,
+        endDate: undefined
+      }
     }))
 
     return metrics
@@ -216,6 +329,7 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
 // Dispositivo (device_type) breakdown por período
 export async function getDeviceBreakdown(range: '7d'|'30d'|'90d'|'1y' = '30d', experimentId?: string) {
   try {
+    const supabase = createClient()
     const days = range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
     // Se experimento for especificado, filtrar sessões apenas dos visitantes desse experimento
@@ -266,6 +380,7 @@ export async function getDeviceBreakdown(range: '7d'|'30d'|'90d'|'1y' = '30d', e
 // Funil básico por evento (page_view -> click -> conversion)
 export async function getFunnelData(range: '7d'|'30d'|'90d'|'1y' = '30d') {
   try {
+    const supabase = createClient()
     const days = range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
     const { data: events, error } = await supabase
@@ -299,6 +414,7 @@ export async function getFunnelData(range: '7d'|'30d'|'90d'|'1y' = '30d') {
 
 export async function getRevenueData(range: '7d'|'30d'|'90d'|'1y' = '120d' as any, experimentId?: string): Promise<RevenueData[]> {
   try {
+    const supabase = createClient()
     // Buscar eventos de conversão do período agrupados por semana
     const days = (range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : 120)
     let eventsQuery = supabase
@@ -403,6 +519,7 @@ export async function getRevenueData(range: '7d'|'30d'|'90d'|'1y' = '120d' as an
 
 export async function getVisitorTrends(range: '24h' | '7d' | '30d' | '90d' | '1y' = '30d', experimentId?: string) {
   try {
+    const supabase = createClient()
     // Mapear período para janela de tempo
     const days = range === '24h' ? 1 : range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
     // Buscar eventos do período selecionado
@@ -572,6 +689,7 @@ export interface AudienceSegment {
 // Função para buscar dados de campanhas baseadas em UTMs
 export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Promise<CampaignData[]> {
   try {
+    const supabase = createClient()
     const days = range === '7d' ? 7 : range === '1y' ? 365 : range === '30d' ? 30 : 90
     // Buscar sessões de visitantes com UTMs do período selecionado
     const { data: sessions, error } = await supabase
@@ -769,6 +887,7 @@ export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Pro
 // Função para buscar segmentos de audiência
 export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '60d'): Promise<AudienceSegment[]> {
   try {
+    const supabase = createClient()
     const days = range === '7d' ? 7 : range === '1y' ? 365 : range === '30d' ? 30 : range === '90d' ? 90 : 60
     // Buscar dados de sessões do período selecionado
     const { data: sessions, error } = await supabase

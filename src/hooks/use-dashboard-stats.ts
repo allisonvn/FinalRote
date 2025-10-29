@@ -38,29 +38,37 @@ export function useDashboardStats() {
         
         const supabase = createClient()
 
+        // Inicializar variáveis para evitar erros de referência
+        let experimentStats = null
+        let eventStats = null
+
         // Verificar se o cliente foi criado corretamente
-        if (!supabase || typeof supabase.from !== 'function') {
-          throw new Error('Cliente Supabase não foi inicializado corretamente')
-        }
+        if (supabase && typeof supabase.from === 'function') {
+          // Buscar estatísticas dos experimentos
+          const { data, error: expError } = await supabase
+            .from('experiments')
+            .select('id, name, status, created_at')
 
-        // Buscar estatísticas dos experimentos
-        const { data: experimentStats, error: expError } = await supabase
-          .from('experiments')
-          .select('id, name, status, created_at')
+          experimentStats = data
 
-        if (expError) {
-          console.error('Erro ao buscar experimentos:', expError)
-          // Não fazer throw, continuar com dados vazios
-        }
+          if (expError) {
+            console.error('Erro ao buscar experimentos:', expError?.message || expError)
+            // Não fazer throw, continuar com dados vazios
+          }
 
-        // Buscar estatísticas dos eventos
-        const { data: eventStats, error: eventError } = await supabase
-          .from('events')
-          .select('visitor_id, event_type, value, experiment_id')
+          // Buscar estatísticas dos eventos
+          const { data: eventData, error: eventError } = await supabase
+            .from('events')
+            .select('visitor_id, event_type, value, experiment_id')
 
-        if (eventError) {
-          console.error('Erro ao buscar eventos:', eventError)
-          // Não fazer throw, continuar com dados vazios
+          eventStats = eventData
+
+          if (eventError) {
+            console.error('Erro ao buscar eventos:', eventError?.message || eventError)
+            // Não fazer throw, continuar com dados vazios
+          }
+        } else {
+          console.warn('Cliente Supabase não foi inicializado corretamente')
         }
 
         // Calcular métricas dos experimentos (com fallback para dados vazios)
@@ -79,8 +87,58 @@ export function useDashboardStats() {
         // Calcular taxa de conversão média
         const avgConversionRate = uniqueVisitors > 0 ? (totalConversions / uniqueVisitors) * 100 : 0
 
-        // Calcular melhoria média (simulado por enquanto)
-        const avgImprovement = totalExperiments > 0 ? 20 : 0
+        // Buscar métricas de variant_stats para calcular melhoria média real
+        let avgImprovement = 0
+        if (totalExperiments > 0 && supabase && typeof supabase.from === 'function') {
+          try {
+            const { data: variantStats } = await supabase
+              .from('variant_stats')
+              .select('experiment_id, visitors, conversions, revenue')
+            
+            if (variantStats && variantStats.length > 0) {
+              // Agrupar por experimento
+              const experimentGroups = variantStats.reduce((acc, stat) => {
+                if (!acc[stat.experiment_id]) {
+                  acc[stat.experiment_id] = []
+                }
+                acc[stat.experiment_id].push(stat)
+                return acc
+              }, {} as Record<string, any[]>)
+
+              // Calcular melhoria para cada experimento
+              const improvements = Object.values(experimentGroups).map(group => {
+                if (group.length < 2) return 0
+                
+                // Ordenar por taxa de conversão
+                const sorted = group.sort((a, b) => {
+                  const rateA = a.visitors > 0 ? (a.conversions / a.visitors) : 0
+                  const rateB = b.visitors > 0 ? (b.conversions / b.visitors) : 0
+                  return rateB - rateA
+                })
+
+                const best = sorted[0]
+                const baseline = sorted[sorted.length - 1]
+                
+                const rateBaseline = baseline.visitors > 0 ? (baseline.conversions / baseline.visitors) : 0
+                const rateBest = best.visitors > 0 ? (best.conversions / best.visitors) : 0
+                
+                return rateBaseline > 0 ? ((rateBest - rateBaseline) / rateBaseline) * 100 : 0
+              })
+
+              // Calcular média
+              const validImprovements = improvements.filter(i => !isNaN(i) && isFinite(i))
+              avgImprovement = validImprovements.length > 0 
+                ? validImprovements.reduce((sum, i) => sum + Math.abs(i), 0) / validImprovements.length 
+                : 0
+            } else {
+              // Fallback: calcular baseado nos eventos
+              avgImprovement = totalEvents > 0 ? (totalConversions / totalEvents) * 100 : 0
+            }
+          } catch (err) {
+            console.error('Erro ao calcular melhoria média:', err)
+            avgImprovement = 0
+          }
+        }
 
         setStats({
           totalExperiments,

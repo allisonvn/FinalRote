@@ -14,7 +14,7 @@ import {
   TrendingUp, Users, Target, Brain, BarChart3,
   Eye, Play, Pause, CheckCircle2, SlidersHorizontal,
   FlaskConical, Settings, ArrowUpRight, ArrowDownRight,
-  Calendar, Filter
+  Calendar, Filter, Sparkles, Zap, Trophy, Rocket, ChevronRight, RefreshCw
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -316,167 +316,316 @@ export default function ProfessionalExperimentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="p-6 space-y-6">
-        {/* Header minimalista */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-medium text-gray-900">
-              Experimentos
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">Gerencie seus testes A/B</p>
-          </div>
-
-          <Button
-            onClick={() => router.push(config.app.newExperiment)}
-            className="bg-gray-900 hover:bg-gray-800 text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Experimento
-          </Button>
+    <div className="min-h-screen w-full overflow-x-hidden">
+      {/* HERO SECTION - Gradiente Extraordinário */}
+      <div className="relative w-full min-h-[50vh] overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-blue-900">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500/30 rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/40 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/2 w-[300px] h-[300px] bg-cyan-400/20 rounded-full blur-[90px] animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
 
-        {/* Stats minimalistas */}
-        <div className="grid grid-cols-4 gap-6">
-          <div className="border-l-2 border-gray-900 pl-4">
-            <div className="text-sm text-gray-500 mb-1">Total</div>
-            <div className="text-2xl font-medium text-gray-900">{stats.total}</div>
-          </div>
-          <div className="border-l-2 border-gray-400 pl-4">
-            <div className="text-sm text-gray-500 mb-1">Ativos</div>
-            <div className="text-2xl font-medium text-gray-900">{stats.running}</div>
-          </div>
-          <div className="border-l-2 border-gray-400 pl-4">
-            <div className="text-sm text-gray-500 mb-1">Concluídos</div>
-            <div className="text-2xl font-medium text-gray-900">{stats.completed}</div>
-          </div>
-          <div className="border-l-2 border-gray-400 pl-4">
-            <div className="text-sm text-gray-500 mb-1">Taxa Média</div>
-            <div className="text-2xl font-medium text-gray-900">{stats.avgConversionRate.toFixed(1)}%</div>
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.15) 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }} />
+
+        <div className="relative z-10 w-full py-12 sm:py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+            {/* Title Section */}
+            <div className="space-y-6">
+              <Badge className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-200 border border-purple-400/30 backdrop-blur-xl px-6 py-2.5 text-sm font-semibold shadow-lg">
+                <FlaskConical className="w-4 h-4 mr-2 animate-pulse" />
+                Centro de Experimentos
+              </Badge>
+
+              <div className="space-y-4">
+                <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white leading-none tracking-tight">
+                  Seus Testes
+                  <span className="block mt-2 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent animate-gradient">
+                    A/B Testing
+                  </span>
+                </h1>
+                <p className="text-xl sm:text-2xl text-purple-100/90 leading-relaxed max-w-3xl font-light">
+                  Gerencie, analise e otimize todos os seus experimentos em um só lugar
+                </p>
+              </div>
+            </div>
+
+            {/* Stats Grid - Glassmorphism */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {/* Total */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm">
+                      <FlaskConical className="w-6 h-6 text-purple-300" />
+                    </div>
+                    {stats.total > 0 && (
+                      <Sparkles className="w-5 h-5 text-purple-300 animate-pulse" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-purple-200/80 font-medium mb-1">Total</p>
+                    <p className="text-4xl font-black text-white">{stats.total}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ativos */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur-sm">
+                      <Zap className="w-6 h-6 text-emerald-300" />
+                    </div>
+                    {stats.running > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-sm">
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                        <span className="text-xs font-bold text-emerald-300">AO VIVO</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-emerald-200/80 font-medium mb-1">Ativos</p>
+                    <p className="text-4xl font-black text-white">{stats.running}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Concluídos */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm">
+                      <CheckCircle2 className="w-6 h-6 text-blue-300" />
+                    </div>
+                    {stats.completed > 0 && (
+                      <Trophy className="w-5 h-5 text-blue-300" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-200/80 font-medium mb-1">Concluídos</p>
+                    <p className="text-4xl font-black text-white">{stats.completed}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Taxa Média */}
+              <div className="group relative overflow-hidden rounded-3xl bg-white/10 border border-white/20 backdrop-blur-2xl p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 backdrop-blur-sm">
+                      <TrendingUp className="w-6 h-6 text-pink-300" />
+                    </div>
+                    {stats.avgImprovement > 0 && (
+                      <div className="px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-sm">
+                        <span className="text-xs font-bold text-emerald-300">+{stats.avgImprovement.toFixed(1)}%</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-pink-200/80 font-medium mb-1">Taxa Média</p>
+                    <p className="text-4xl font-black text-white">{stats.avgConversionRate.toFixed(1)}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <Button
+                onClick={() => router.push(config.app.newExperiment)}
+                className="group relative overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white border-0 shadow-2xl shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 h-12 font-bold hover:scale-105"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Plus className="w-5 h-5 mr-2 relative z-10" />
+                <span className="relative z-10">Novo Experimento</span>
+                <Rocket className="w-4 h-4 ml-2 relative z-10 animate-pulse" />
+              </Button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Filtros minimalistas */}
-        <div className="border-b border-gray-200 pb-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* CONTENT SECTION */}
+      <div className="w-full bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+
+        {/* Filtros Aprimorados */}
+        <Card className="backdrop-blur-xl bg-white/90 border-0 shadow-2xl p-6">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+            <div className="relative flex-1 max-w-xl">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <Input
-                placeholder="Buscar experimentos..."
+                placeholder="Buscar experimentos por nome ou descrição..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-10 border-gray-300 focus:border-gray-900"
+                className="pl-12 h-12 border-2 border-slate-200 focus:border-purple-500 rounded-2xl text-base font-medium bg-white shadow-inner"
               />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
             <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-              <SelectTrigger className="w-32 border-gray-300">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="h-12 w-full lg:w-40 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4" />
+                  <SelectValue placeholder="Status" />
+                </div>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="draft">Rascunho</SelectItem>
-                <SelectItem value="running">Ativo</SelectItem>
-                <SelectItem value="paused">Pausado</SelectItem>
-                <SelectItem value="completed">Concluído</SelectItem>
+              <SelectContent className="rounded-2xl border-2 shadow-2xl">
+                <SelectItem value="all" className="rounded-xl font-medium">Todos</SelectItem>
+                <SelectItem value="draft" className="rounded-xl font-medium">Rascunho</SelectItem>
+                <SelectItem value="running" className="rounded-xl font-medium">Ativo</SelectItem>
+                <SelectItem value="paused" className="rounded-xl font-medium">Pausado</SelectItem>
+                <SelectItem value="completed" className="rounded-xl font-medium">Concluído</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-32 border-gray-300">
-                <SelectValue />
+              <SelectTrigger className="h-12 w-full lg:w-44 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <SelectValue />
+                </div>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Recentes</SelectItem>
-                <SelectItem value="name">Nome</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-                <SelectItem value="performance">Performance</SelectItem>
+              <SelectContent className="rounded-2xl border-2 shadow-2xl">
+                <SelectItem value="recent" className="rounded-xl font-medium">Mais Recentes</SelectItem>
+                <SelectItem value="name" className="rounded-xl font-medium">Nome A-Z</SelectItem>
+                <SelectItem value="status" className="rounded-xl font-medium">Status</SelectItem>
+                <SelectItem value="performance" className="rounded-xl font-medium">Performance</SelectItem>
               </SelectContent>
             </Select>
 
-            <div className="flex border border-gray-300 rounded-md">
+            <div className="flex border-2 border-slate-200 rounded-2xl overflow-hidden shadow-lg">
               <Button
                 variant={layout === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setLayout('grid')}
                 className={cn(
-                  "rounded-r-none",
-                  layout === 'grid' ? 'bg-gray-900 text-white' : 'text-gray-600'
+                  "rounded-none h-12 px-6",
+                  layout === 'grid'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
+                    : 'text-slate-600 hover:bg-slate-100'
                 )}
               >
-                <Grid className="w-4 h-4" />
+                <Grid className="w-5 h-5" />
               </Button>
               <Button
                 variant={layout === 'list' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setLayout('list')}
                 className={cn(
-                  "rounded-l-none",
-                  layout === 'list' ? 'bg-gray-900 text-white' : 'text-gray-600'
+                  "rounded-none h-12 px-6 border-l-2 border-slate-200",
+                  layout === 'list'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
+                    : 'text-slate-600 hover:bg-slate-100'
                 )}
               >
-                <List className="w-4 h-4" />
+                <List className="w-5 h-5" />
               </Button>
             </div>
           </div>
 
           {hasActiveFilters && (
-            <div className="flex justify-between items-center mt-4">
-              <span className="text-sm text-gray-500">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 pt-6 border-t-2 border-slate-200">
+              <Badge variant="outline" className="text-base px-6 py-2 font-bold bg-purple-50 border-purple-300 text-purple-700">
                 {filteredExperiments.length} de {experiments.length} experimentos
-              </span>
+              </Badge>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={clearFilters}
-                className="text-gray-500 hover:text-gray-900"
+                className="border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold rounded-xl px-6 py-2 transition-all"
               >
-                <X className="w-4 h-4 mr-1" />
-                Limpar
+                <X className="w-4 h-4 mr-2" />
+                Limpar Filtros
               </Button>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Lista de experimentos */}
         {loading ? (
           <div className={cn(
             layout === 'grid'
               ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              : 'space-y-1'
+              : 'space-y-4'
           )}>
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="border border-gray-200 rounded-lg p-4 animate-pulse">
-                <div className="space-y-3">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+              <div key={i} className="relative overflow-hidden backdrop-blur-xl bg-white/80 border-0 rounded-3xl p-6 shadow-xl">
+                <div className="space-y-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-200 to-blue-200 rounded-full"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-3/4"></div>
+                      <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-300 rounded-lg w-1/2"></div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl"></div>
+                    <div className="h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl"></div>
+                  </div>
+                  <div className="h-10 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-full"></div>
                 </div>
               </div>
             ))}
           </div>
         ) : filteredExperiments.length === 0 ? (
-          <EmptyState
-            icon={FlaskConical}
-            title={hasActiveFilters ? 'Nenhum experimento encontrado' : 'Nenhum experimento criado'}
-            description={hasActiveFilters
-              ? 'Tente ajustar os filtros ou buscar por outros termos'
-              : 'Crie seu primeiro experimento A/B para começar a otimizar conversões'
-            }
-            action={
-              hasActiveFilters ? (
-                <Button onClick={clearFilters} variant="outline">
-                  <X className="w-4 h-4 mr-2" />
-                  Limpar filtros
+          <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-2xl p-16 text-center">
+            <div className="max-w-2xl mx-auto space-y-8">
+              <div className="relative inline-flex">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                <div className="relative p-8 rounded-full bg-gradient-to-br from-purple-50 to-blue-50 shadow-2xl">
+                  <FlaskConical className="w-24 h-24 text-transparent bg-gradient-to-br from-purple-600 to-blue-600 bg-clip-text" style={{ WebkitTextFillColor: 'transparent', backgroundClip: 'text' }} />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-4xl font-black text-slate-900">
+                  {hasActiveFilters ? 'Nenhum experimento encontrado' : 'Comece sua Jornada'}
+                </h3>
+                <p className="text-xl text-slate-600 leading-relaxed max-w-lg mx-auto">
+                  {hasActiveFilters
+                    ? 'Não encontramos experimentos com os filtros aplicados. Tente ajustar os critérios de busca.'
+                    : 'Crie seu primeiro experimento A/B e comece a otimizar suas conversões com dados reais em tempo real.'}
+                </p>
+              </div>
+
+              {hasActiveFilters ? (
+                <Button
+                  onClick={clearFilters}
+                  variant="outline"
+                  className="border-2 border-slate-300 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 font-bold text-lg px-8 py-6 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <X className="w-5 h-5 mr-2" />
+                  Limpar Filtros
                 </Button>
               ) : (
-                <Button onClick={() => router.push(config.app.newExperiment)} className="bg-gray-900 hover:bg-gray-800">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Criar primeiro experimento
+                <Button
+                  onClick={() => router.push(config.app.newExperiment)}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-lg px-10 py-6 rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all"
+                >
+                  <Rocket className="w-6 h-6 mr-3" />
+                  Criar Primeiro Experimento
+                  <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
                 </Button>
-              )
-            }
-          />
+              )}
+            </div>
+          </Card>
         ) : (
           <div className={cn(
             layout === 'grid'
@@ -493,6 +642,7 @@ export default function ProfessionalExperimentsPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* Modal de detalhes */}
@@ -506,6 +656,19 @@ export default function ProfessionalExperimentsPage() {
           }}
         />
       )}
+
+      {/* CSS Animations */}
+      <style jsx global>{`
+        @keyframes gradient {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: gradient 3s ease infinite;
+        }
+      `}</style>
     </div>
   )
 }
@@ -522,7 +685,8 @@ function ProfessionalExperimentCard({
 }) {
   const statusInfo = statusConfig[experiment.status]
   const StatusIcon = statusInfo.icon
-  const algorithmInfo = algorithmConfig[experiment.algorithm || 'uniform']
+  const algorithmKey = (experiment.algorithm || 'uniform') as keyof typeof algorithmConfig
+  const algorithmInfo = algorithmConfig[algorithmKey]
   const router = useRouter()
   const supabase = createClient()
 
@@ -583,101 +747,149 @@ function ProfessionalExperimentCard({
 
   if (layout === 'list') {
     return (
-      <div className="border-b border-gray-200 py-3 hover:bg-gray-50 transition-colors">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-            </div>
-
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
-                <h3 className="font-medium text-gray-900">
-                  {experiment.name}
-                </h3>
-                <span className={cn("text-xs px-2 py-1 rounded-full", statusInfo.color)}>
-                  {statusInfo.label}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-6 text-sm text-gray-500">
-                <span>{experiment.performance?.visitors.toLocaleString()}</span>
-                <span>{experiment.performance?.conversionRate.toFixed(1)}%</span>
-                <span>{algorithmInfo?.label}</span>
-                {experiment.performance?.improvement !== undefined && (
-                  <span className={cn(
-                    "font-medium",
-                    experiment.performance.improvement > 0 ? "text-gray-900" : "text-gray-600"
-                  )}>
-                    {experiment.performance.improvement > 0 ? '+' : ''}{experiment.performance.improvement.toFixed(1)}%
-                  </span>
+      <Card className="group relative overflow-hidden backdrop-blur-xl bg-white/95 border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 cursor-pointer">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="relative p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 flex-1">
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform">
+                  <FlaskConical className="w-7 h-7 text-purple-600" />
+                </div>
+                {experiment.status === 'running' && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-lg"></div>
                 )}
               </div>
+
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+                    {experiment.name}
+                  </h3>
+                  <Badge className={cn("text-xs px-3 py-1 rounded-full font-semibold shadow-sm", statusInfo.color)}>
+                    {statusInfo.label}
+                  </Badge>
+                  {experiment.performance?.improvement !== undefined && experiment.performance.improvement > 0 && (
+                    <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 px-3 py-1">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      +{experiment.performance.improvement.toFixed(1)}%
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-6 text-sm font-medium">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Users className="w-4 h-4" />
+                    <span>{experiment.performance?.visitors.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Target className="w-4 h-4" />
+                    <span>{experiment.performance?.conversionRate.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Brain className="w-4 h-4" />
+                    <span>{algorithmInfo?.label}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 font-semibold rounded-xl shadow-sm hover:shadow-lg transition-all"
+                onClick={handleConfigure}
+                title="Configurações"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Config
+              </Button>
+              <Button
+                onClick={handleViewDetails}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                size="sm"
+                title="Ver detalhes"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Detalhes
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
             </div>
           </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-600 hover:text-gray-900"
-              onClick={handleConfigure}
-              title="Configurações"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-            <Button
-              onClick={handleViewDetails}
-              variant="ghost"
-              size="sm"
-              className="text-gray-600 hover:text-gray-900"
-              title="Ver detalhes"
-            >
-              <Eye className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
-      <div className="space-y-4">
+    <Card className="group relative overflow-hidden backdrop-blur-xl bg-white/95 border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] cursor-pointer">
+      {/* Gradient Overlay */}
+      <div className={cn(
+        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+        experiment.status === 'running'
+          ? "bg-gradient-to-br from-emerald-500/10 to-green-500/10"
+          : experiment.status === 'completed'
+          ? "bg-gradient-to-br from-blue-500/10 to-cyan-500/10"
+          : "bg-gradient-to-br from-purple-500/10 to-pink-500/10"
+      )} />
+
+      {/* Status Indicator */}
+      {experiment.status === 'running' && (
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl"></div>
+      )}
+
+      <div className="relative p-6 space-y-6">
+        {/* Header */}
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform">
+                <FlaskConical className="w-8 h-8 text-purple-600" />
+              </div>
+              {experiment.status === 'running' && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-lg"></div>
+              )}
             </div>
-            <div>
-              <h3 className="font-medium text-gray-900 mb-1">
+
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xl font-black text-slate-900 mb-1 truncate group-hover:text-purple-700 transition-colors">
                 {experiment.name}
               </h3>
-              <p className="text-sm text-gray-500">
-                {experiment.variants?.length || 0} variantes
+              <p className="text-sm text-slate-500 font-medium">
+                {experiment.variants?.length || 0} variantes • {algorithmInfo?.label}
               </p>
             </div>
           </div>
 
-          <span className={cn("text-xs px-2 py-1 rounded-full", statusInfo.color)}>
+          <Badge className={cn("text-xs px-3 py-1.5 rounded-full font-semibold shadow-lg whitespace-nowrap", statusInfo.color)}>
             {statusInfo.label}
-          </span>
+          </Badge>
         </div>
 
-        <p className="text-sm text-gray-600 line-clamp-2">
-          {experiment.description || 'Experimento A/B para otimização de conversões.'}
+        {/* Description */}
+        <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
+          {experiment.description || 'Experimento A/B para otimização de conversões em tempo real.'}
         </p>
 
+        {/* Metrics Grid */}
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Conversão</div>
-            <div className="font-medium text-gray-900">
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-4 h-4 text-purple-600" />
+              <div className="text-xs text-purple-600 font-bold uppercase">Conversão</div>
+            </div>
+            <div className="text-2xl font-black text-slate-900">
               {experiment.performance?.conversionRate.toFixed(1)}%
             </div>
           </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Visitantes</div>
-            <div className="font-medium text-gray-900">
+
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-blue-600" />
+              <div className="text-xs text-blue-600 font-bold uppercase">Visitantes</div>
+            </div>
+            <div className="text-2xl font-black text-slate-900">
               {(experiment.performance?.visitors || 0) > 1000
                 ? `${Math.round((experiment.performance?.visitors || 0) / 1000)}k`
                 : experiment.performance?.visitors.toLocaleString()
@@ -686,33 +898,55 @@ function ProfessionalExperimentCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-sm pt-3 border-t border-gray-200">
-          <span className="text-gray-500">{algorithmInfo?.label}</span>
-          {experiment.performance?.improvement !== undefined && (
-            <span className="font-medium text-gray-900">
-              {experiment.performance.improvement > 0 ? '+' : ''}{experiment.performance.improvement.toFixed(1)}%
-            </span>
-          )}
-        </div>
+        {/* Performance Indicator */}
+        {experiment.performance?.improvement !== undefined && (
+          <div className={cn(
+            "p-4 rounded-2xl border-2 shadow-lg",
+            experiment.performance.improvement > 0
+              ? "bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200"
+              : "bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {experiment.performance.improvement > 0 ? (
+                  <ArrowUpRight className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <ArrowDownRight className="w-5 h-5 text-slate-500" />
+                )}
+                <span className="text-xs font-bold text-slate-600 uppercase">Melhoria</span>
+              </div>
+              <span className={cn(
+                "text-2xl font-black",
+                experiment.performance.improvement > 0 ? "text-emerald-600" : "text-slate-600"
+              )}>
+                {experiment.performance.improvement > 0 ? '+' : ''}{experiment.performance.improvement.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        )}
 
-        <div className="flex gap-2">
+        {/* Actions */}
+        <div className="flex gap-3 pt-2">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 text-gray-600 border-gray-300"
+            className="flex-1 border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 font-bold rounded-xl shadow-sm hover:shadow-lg transition-all"
             onClick={handleConfigure}
           >
-            Configurar
+            <Settings className="w-4 h-4 mr-2" />
+            Config
           </Button>
           <Button
             onClick={handleViewDetails}
             size="sm"
-            className="flex-1 bg-gray-900 hover:bg-gray-800 text-white"
+            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
           >
+            <Eye className="w-4 h-4 mr-2" />
             Detalhes
+            <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xtexltigzzayfrscvzaa.supabase.co'
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qptaizbqcgproqtvwvet.supabase.co'
 
 // CORS headers para todas as respostas
 const corsHeaders = {

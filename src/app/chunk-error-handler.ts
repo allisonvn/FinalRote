@@ -47,12 +47,15 @@ if (typeof window !== 'undefined') {
   // Interceptar erros de fetch para chunks
   const originalFetch = window.fetch
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    // Extrair URL primeiro para verificar antes de fazer a requisição
+    const url = typeof input === 'string' ? input : input.toString()
+    const isChunkOrStatic = url.includes('/_next/static/') || url.includes('/assets/')
+    
     try {
       const response = await originalFetch(input, init)
       
       // Verificar se é uma requisição para chunks do Next.js
-      const url = typeof input === 'string' ? input : input.toString()
-      if (url.includes('/_next/static/chunks/') && !response.ok) {
+      if (isChunkOrStatic && !response.ok) {
         console.warn(`Erro ao carregar chunk: ${url} - Status: ${response.status}`)
         
         // Se for erro 400 ou 404, tentar recarregar a página
@@ -66,7 +69,17 @@ if (typeof window !== 'undefined') {
       
       return response
     } catch (error) {
-      console.error('Erro no fetch:', error)
+      // Se for chunk ou recurso estático, logar e retornar resposta mockada
+      if (isChunkOrStatic) {
+        console.warn(`Erro ao carregar recurso estático: ${url}`, error)
+        return new Response(null, {
+          status: 404,
+          statusText: 'Not Found (mock)'
+        })
+      }
+      
+      // Para outras requisições (Supabase, API, etc), propagar o erro normalmente
+      // Não logar aqui pois pode ser um erro esperado da aplicação
       throw error
     }
   }
