@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
-import { Plus, BarChart3, Users, Target, TrendingUp, Activity, Settings, LogOut, MoreHorizontal, ArrowUpDown, Zap, Database, ArrowRight, ArrowLeft, Check, X, Globe, Eye, Clock, ChevronDown, Calendar, AlertCircle, MousePointer, Play, Pause, Flag, Layout, Trash2, Copy, Shuffle, Code, Lightbulb, Star, Filter, Upload, Sun, Moon, Shield, Bell, KeyRound, Globe2, User2, RefreshCw, Download, Save, Search, Trash, MousePointerClick, Goal, DollarSign } from 'lucide-react'
+import { useEffect, useRef, useState, useMemo, lazy, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
+import { Plus, BarChart3, Users, Target, TrendingUp, Activity, Settings, LogOut, MoreHorizontal, ArrowUpDown, Zap, Database, ArrowRight, ArrowLeft, Check, X, Globe, Eye, Clock, ChevronDown, Calendar, AlertCircle, MousePointer, Play, Pause, Flag, Layout, Trash2, Copy, Shuffle, Code, Lightbulb, Star, Filter, Upload, Sun, Moon, Shield, Bell, KeyRound, Globe2, User2, RefreshCw, Download, Save, Search, Trash, MousePointerClick, Goal, DollarSign, Sparkles } from 'lucide-react'
 import { ResponsiveContainer, BarChart as RBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,6 +26,21 @@ import { EmptyState } from '@/components/empty-state'
 import { safeTrafficAllocation } from '@/lib/numeric-utils'
 import { OverviewRedesigned } from '@/components/dashboard/overview-redesigned'
 import { AudiencesTabPremium } from '@/components/dashboard/audiences-tab-premium'
+import { AdvancedEventFilters, type EventFilters } from '@/components/dashboard/advanced-event-filters'
+import { SavedFiltersManager } from '@/components/dashboard/saved-filters-manager'
+import { useEvents } from '@/hooks/useEvents'
+import { subDays, eachDayOfInterval } from 'date-fns'
+import { cn } from '@/lib/utils'
+
+// 🚀 Lazy load componentes pesados para melhor performance e code splitting
+const EventTrendsChart = lazy(() => import('@/components/dashboard/event-trends-chart').then(mod => ({ default: mod.EventTrendsChart })))
+const UTMAnalysisTable = lazy(() => import('@/components/dashboard/utm-analysis-table').then(mod => ({ default: mod.UTMAnalysisTable })))
+
+// Import skeleton components para loading states
+import {
+  ChartSkeleton,
+  TableSkeleton
+} from '@/components/dashboard/loading-skeletons'
 
 interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; redirect_url?: string; description?: string; config?: any; weight?: number }
 interface Experiment {
@@ -57,6 +73,7 @@ interface Stats {
 }
 
 export default function Dashboard() {
+  const router = useRouter()
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const { updateVariant: updateVariantInDB, updateVariants } = useSupabaseExperiments()
   // Projetos removidos
@@ -656,21 +673,7 @@ export default function Dashboard() {
           created_at,
           updated_at,
           project_id,
-          variants (
-            id,
-            name,
-            description,
-            is_control,
-            traffic_percentage,
-            redirect_url,
-            changes,
-            css_changes,
-            js_changes,
-            visitors,
-            conversions,
-            conversion_rate,
-            is_active
-          )
+          variants:variants(*)
         `)
         .order('created_at', { ascending: false })
         .limit(50) // Limitar para melhor performance
@@ -683,7 +686,9 @@ export default function Dashboard() {
       const { data: experimentsData, error: experimentsError } = await query
 
       if (experimentsError) {
-        console.error('Erro ao carregar experimentos:', experimentsError)
+        // Melhorar serialização do erro para logging
+        const errorMessage = experimentsError.message || JSON.stringify(experimentsError, Object.getOwnPropertyNames(experimentsError))
+        console.error('Erro ao carregar experimentos:', errorMessage, experimentsError)
         throw experimentsError
       }
 
@@ -712,7 +717,14 @@ export default function Dashboard() {
       console.log('📊 Estatísticas em tempo real:', realtimeStats)
       
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
+      // Melhorar serialização do erro para logging
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null
+        ? JSON.stringify(error, Object.getOwnPropertyNames(error))
+        : String(error)
+      
+      console.error('Erro ao carregar dados:', errorMessage, error)
       // Em caso de erro, mostrar lista vazia
       console.log('❌ Erro ao carregar experimentos, mostrando lista vazia')
       setExperiments([])
@@ -808,7 +820,7 @@ export default function Dashboard() {
     const variants = (exp.variants || []).map((v: any) => ({
       name: v.name,
       key: v.name.toLowerCase(),
-      url: v.redirect_url ?? null,
+      url: v.config?.redirect_url ?? v.redirect_url ?? null,
       isControl: v.is_control,
       traffic_percentage: v.traffic_percentage || 50,
       description: v.description ?? null
@@ -2195,7 +2207,364 @@ ${baseCode}
 
   // ===== Events Content =====
   const renderEventsContent = () => {
-    return <EventsSection />
+    return <EventsTabContent />
+  }
+
+  // Componente de conteúdo da aba Eventos (baseado na página dashboard/events)
+  const EventsTabContent = () => {
+    const supabase = createClient()
+    const [realTimeEnabled, setRealTimeEnabled] = useState(false)
+    const [experimentsList, setExperimentsList] = useState<Array<{ id: string; name: string }>>([])
+    // Buscar project_id do localStorage ou usar o padrão (inicialização síncrona)
+    const getInitialProjectId = () => {
+      if (typeof window === 'undefined') return null
+      let projectId = localStorage.getItem('currentProjectId')
+      
+      // Se não houver project_id no localStorage, usar o padrão que tem dados
+      if (!projectId) {
+        projectId = '00000000-0000-0000-0000-000000000002'
+        localStorage.setItem('currentProjectId', projectId)
+      }
+      
+      return projectId
+    }
+
+    const [currentProjectId, setCurrentProjectId] = useState<string | null>(getInitialProjectId())
+
+    // Escutar mudanças no localStorage
+    useEffect(() => {
+      const handleStorageChange = () => {
+        const newProjectId = localStorage.getItem('currentProjectId')
+        setCurrentProjectId(newProjectId)
+      }
+      
+      window.addEventListener('storage', handleStorageChange)
+      
+      // Também escutar mudanças no mesmo contexto (quando atualizado via setItem)
+      const interval = setInterval(() => {
+        const newProjectId = localStorage.getItem('currentProjectId')
+        if (newProjectId !== currentProjectId) {
+          setCurrentProjectId(newProjectId)
+        }
+      }, 1000)
+      
+      return () => {
+        window.removeEventListener('storage', handleStorageChange)
+        clearInterval(interval)
+      }
+    }, [currentProjectId])
+
+    // Filtros avançados
+    const [filters, setFilters] = useState<EventFilters>({
+      search: '',
+      eventType: 'all',
+      experimentId: 'all',
+      dateFrom: undefined,
+      dateTo: undefined,
+      visitorId: '',
+      device: '',
+      browser: '',
+      country: '',
+      utmSource: '',
+      utmMedium: '',
+      utmCampaign: '',
+      minValue: undefined,
+      maxValue: undefined
+    })
+
+    // Hook customizado para buscar eventos (só chama se projectId estiver definido)
+    const { events, stats, loading, hasMore, loadMore, refresh } = useEvents(filters, {
+      pageSize: 50,
+      realTime: realTimeEnabled,
+      projectId: currentProjectId || '00000000-0000-0000-0000-000000000002'
+    })
+
+    // Buscar experimentos
+    useEffect(() => {
+      const fetchExperiments = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('experiments')
+            .select('id, name')
+            .eq('status', 'running')
+            .order('created_at', { ascending: false })
+
+          if (error) {
+            console.warn('Experiments table not available:', error.message || 'Unknown error')
+            setExperimentsList([])
+            return
+          }
+
+          setExperimentsList(data || [])
+        } catch (err) {
+          console.warn('Could not fetch experiments:', err instanceof Error ? err.message : 'Unknown error')
+          setExperimentsList([])
+        }
+      }
+
+      fetchExperiments()
+    }, [supabase])
+
+    // Preparar dados para gráfico de tendências
+    const { timeSeriesData, distributionData, periodChange } = useMemo(() => {
+      const dateRange = 14
+      const endDate = new Date()
+      const startDate = subDays(endDate, dateRange - 1)
+
+      const days = eachDayOfInterval({ start: startDate, end: endDate })
+
+      const timeSeriesData = days.map(day => {
+        const dayStr = `${day.getDate().toString().padStart(2, '0')}/${(day.getMonth() + 1).toString().padStart(2, '0')}`
+        const dayEvents = events.filter(e => {
+          const eventDate = new Date(e.created_at)
+          return eventDate.toDateString() === day.toDateString()
+        })
+
+        return {
+          date: dayStr,
+          page_views: dayEvents.filter(e => e.event_type === 'page_view' || e.event_type === 'pageview').length,
+          clicks: dayEvents.filter(e => e.event_type === 'click').length,
+          conversions: dayEvents.filter(e => e.event_type === 'conversion').length,
+          total: dayEvents.length
+        }
+      })
+
+      const distributionData = [
+        { name: 'Visualizações', value: stats.page_views, color: '#3b82f6' },
+        { name: 'Cliques', value: stats.clicks, color: '#10b981' },
+        { name: 'Conversões', value: stats.conversions, color: '#8b5cf6' },
+        { name: 'Personalizados', value: stats.custom, color: '#f59e0b' }
+      ]
+
+      // Debug: verificar se os dados estão chegando
+      if (stats.total_events > 0) {
+        console.log('📊 Stats carregados:', stats)
+        console.log('📈 Distribution data:', distributionData)
+        console.log('📅 Events count:', events.length)
+      }
+
+      const midPoint = Math.floor(timeSeriesData.length / 2)
+      const firstHalf = timeSeriesData.slice(0, midPoint)
+      const secondHalf = timeSeriesData.slice(midPoint)
+
+      const firstHalfTotal = firstHalf.reduce((sum, day) => sum + day.total, 0)
+      const secondHalfTotal = secondHalf.reduce((sum, day) => sum + day.total, 0)
+
+      const firstHalfAvg = firstHalf.length > 0 ? firstHalfTotal / firstHalf.length : 0
+      const secondHalfAvg = secondHalf.length > 0 ? secondHalfTotal / secondHalf.length : 0
+
+      const periodChange = firstHalfAvg > 0
+        ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100
+        : 0
+
+      return { timeSeriesData, distributionData, periodChange }
+    }, [events, stats])
+
+    const handleResetFilters = () => {
+      setFilters({
+        search: '',
+        eventType: 'all',
+        experimentId: 'all',
+        dateFrom: undefined,
+        dateTo: undefined,
+        visitorId: '',
+        device: '',
+        browser: '',
+        country: '',
+        utmSource: '',
+        utmMedium: '',
+        utmCampaign: '',
+        minValue: undefined,
+        maxValue: undefined
+      })
+    }
+
+    if (loading && events.length === 0) {
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-6">
+            <div className="relative inline-flex">
+              <div className="w-24 h-24 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Sparkles className="w-12 h-12 text-blue-400 animate-pulse" />
+              </div>
+            </div>
+            <p className="text-white/80 text-xl font-semibold">Carregando eventos...</p>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="min-h-screen bg-background">
+        {/* 🎯 HERO SECTION - FULL WIDTH */}
+        <div className="relative w-full min-h-[45vh] overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950">
+          <div className="absolute inset-0">
+            <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-blue-600/40 rounded-full blur-[120px] animate-pulse" />
+            <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+          </div>
+
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/20 to-slate-900/40" />
+
+          <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.15) 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }} />
+
+          <div className="relative z-10 w-full py-16 lg:py-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+              <div className="space-y-4">
+                <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-200 border border-blue-400/30 backdrop-blur-xl px-4 py-2 text-sm font-semibold shadow-lg shadow-blue-500/20">
+                  <Zap className="w-4 h-4 mr-2 animate-pulse" />
+                  Análise de Campanhas
+                </Badge>
+
+                <div className="space-y-3">
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-none tracking-tight">
+                    Eventos e
+                    <span className="block mt-2 bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
+                      Campanhas UTM
+                    </span>
+                  </h1>
+                  <p className="text-lg sm:text-xl text-blue-100/90 leading-relaxed max-w-2xl font-light">
+                    Análise completa de eventos com foco em performance de campanhas de marketing e rastreamento de conversões
+                  </p>
+                </div>
+              </div>
+
+              {/* Mini Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-400/20 backdrop-blur-2xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
+                      <Activity className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-blue-200/80 font-medium">Total</p>
+                      <p className="text-2xl font-black text-white">{stats.total_events.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-400/20 backdrop-blur-2xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500/20 to-green-500/20">
+                      <Eye className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-emerald-200/80 font-medium">Views</p>
+                      <p className="text-2xl font-black text-white">{stats.page_views.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500/10 to-teal-500/10 border border-green-400/20 backdrop-blur-2xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-teal-500/20">
+                      <MousePointer className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-green-200/80 font-medium">Cliques</p>
+                      <p className="text-2xl font-black text-white">{stats.clicks.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/20 backdrop-blur-2xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                      <Target className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-purple-200/80 font-medium">Conversões</p>
+                      <p className="text-2xl font-black text-white">{stats.conversions.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CONTENT SECTION - CENTERED */}
+        <div className="w-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+
+            {/* Header com botão de atualizar */}
+            <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-6">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 mb-2">Análise Completa de Campanhas</h2>
+                  <p className="text-base text-slate-600">Performance detalhada das suas campanhas UTM com métricas de conversão e rastreamento</p>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refresh}
+                  className="border-2"
+                >
+                  <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
+                  Atualizar
+                </Button>
+              </div>
+            </Card>
+
+            {/* Filters */}
+            <div className="flex gap-4 items-start">
+              <div className="flex-1">
+                <AdvancedEventFilters
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  onReset={handleResetFilters}
+                  experiments={experimentsList}
+                  totalEvents={stats.total_events}
+                  filteredCount={events.length}
+                />
+              </div>
+              <SavedFiltersManager
+                currentFilters={filters}
+                onLoadFilter={setFilters}
+              />
+            </div>
+
+            {/* UTM Analysis Table - Main Content */}
+            <Suspense fallback={<TableSkeleton />}>
+              <UTMAnalysisTable events={events} />
+            </Suspense>
+
+            {/* Trends Chart */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-1 w-1 rounded-full bg-blue-600" />
+                <h3 className="text-2xl font-bold text-slate-900">Tendências e Distribuição</h3>
+              </div>
+              <Suspense fallback={<ChartSkeleton />}>
+                <EventTrendsChart
+                  timeSeriesData={timeSeriesData}
+                  distributionData={distributionData}
+                  totalEvents={stats.total_events}
+                  periodChange={periodChange}
+                />
+              </Suspense>
+            </div>
+
+          </div>
+        </div>
+
+        <style jsx global>{`
+          @keyframes gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+
+          .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+          }
+        `}</style>
+      </div>
+    )
   }
 
   const EventsSection = () => {
@@ -3186,7 +3555,7 @@ ${baseCode}
                     {exp.test_type === 'split_url' && (
                       <div className="mb-2">
                         <Button size="sm" variant="outline" onClick={() => {
-                          const urls = (exp.variants||[]).map(v => v.redirect_url).filter(Boolean) as string[]
+                          const urls = (exp.variants||[]).map(v => v.config?.redirect_url || v.redirect_url).filter(Boolean) as string[]
                           if (urls.length === 0) { toast.error('Nenhuma URL definida para as variantes'); return }
                           urls.forEach(u => window.open(u, '_blank'))
                         }}>Abrir todas as URLs</Button>
@@ -3196,19 +3565,37 @@ ${baseCode}
                       <div key={v.id+"-url"} className="flex items-center gap-2">
                         <span className="text-xs w-16 shrink-0 {v.is_control ? 'text-primary' : ''}">{v.is_control ? 'Controle' : 'Variante'}</span>
                         <Input
-                          value={v.redirect_url || ''}
+                          value={v.config?.redirect_url || v.redirect_url || ''}
                           onChange={async (e) => {
                             const url = e.target.value
                             
                             // Atualizar estado local imediatamente
                             setSelectedExperiment(se => {
                               if (!se || !se.variants) return se
-                              const updated = se.variants.map((vv, i) => i === idx ? { ...vv, redirect_url: url } : vv)
+                              const updated = se.variants.map((vv, i) => {
+                                if (i === idx) {
+                                  return { 
+                                    ...vv, 
+                                    redirect_url: url,
+                                    config: { ...((vv as any).config || {}), redirect_url: url }
+                                  }
+                                }
+                                return vv
+                              })
                               return { ...se, variants: updated }
                             })
                             setExperiments(prev => prev.map(ex => {
                               if (ex.id !== exp.id || !ex.variants) return ex
-                              const updated = ex.variants.map((vv, i) => i === idx ? { ...vv, redirect_url: url } : vv)
+                              const updated = ex.variants.map((vv, i) => {
+                                if (i === idx) {
+                                  return { 
+                                    ...vv, 
+                                    redirect_url: url,
+                                    config: { ...((vv as any).config || {}), redirect_url: url }
+                                  }
+                                }
+                                return vv
+                              })
                               return { ...ex, variants: updated }
                             }))
                             
@@ -3224,8 +3611,8 @@ ${baseCode}
                           disabled={exp.test_type !== 'split_url' || v.is_control}
                           className="h-8 text-sm"
                         />
-                        {v.redirect_url && (
-                          <a href={v.redirect_url} target="_blank" className="text-xs text-primary underline">
+                        {(v.config?.redirect_url || v.redirect_url) && (
+                          <a href={v.config?.redirect_url || v.redirect_url} target="_blank" className="text-xs text-primary underline">
                             Abrir
                           </a>
                         )}

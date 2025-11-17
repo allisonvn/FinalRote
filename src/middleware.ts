@@ -2,13 +2,18 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  
+  // Bypass completo para todos os arquivos do Next.js (estáticos, chunks, HMR, etc.)
+  if (pathname.startsWith('/_next/')) {
+    return NextResponse.next()
+  }
+  
   const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
-
-  const pathname = request.nextUrl.pathname
   const isAuthRoute = pathname.startsWith('/auth')
   const isProtectedRoute = ['/dashboard', '/experiments', '/analytics', '/settings'].some(route =>
     pathname.startsWith(route)

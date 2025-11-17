@@ -293,15 +293,8 @@ export async function POST(request: NextRequest) {
             description: 'Versão original',
             is_control: true,
             traffic_percentage: 50.00,
-            redirect_url: null,
-            changes: {},
-            css_changes: null,
-            js_changes: null,
-            visitors: 0,
-            conversions: 0,
-            conversion_rate: 0.0000,
             is_active: true,
-            user_id: user.id
+            config: {} // Armazenar dados adicionais no campo config (jsonb)
           },
           {
             experiment_id: newExperiment.id,
@@ -309,15 +302,8 @@ export async function POST(request: NextRequest) {
             description: 'Versão alternativa',
             is_control: false,
             traffic_percentage: 50.00,
-            redirect_url: null,
-            changes: {},
-            css_changes: null,
-            js_changes: null,
-            visitors: 0,
-            conversions: 0,
-            conversion_rate: 0.0000,
             is_active: true,
-            user_id: user.id
+            config: {} // Armazenar dados adicionais no campo config (jsonb)
           }
         ]
 
@@ -327,7 +313,7 @@ export async function POST(request: NextRequest) {
           const { data: variants, error: variantsError } = await (userClient as any)
             .from('variants')
             .insert(defaultVariants)
-            .select('id, name, description, is_control, traffic_percentage, redirect_url, visitors, conversions, conversion_rate')
+            .select('id, name, description, is_control, traffic_percentage, config, is_active')
 
           if (variantsError) {
             logger.database('insert', 'variants', null, variantsError)
@@ -415,9 +401,8 @@ export async function GET(request: NextRequest) {
           description,
           is_control,
           traffic_percentage,
-          visitors,
-          conversions,
-          conversion_rate
+          config,
+          is_active
         )
       `)
       .eq('user_id', user.id)
@@ -451,9 +436,8 @@ export async function GET(request: NextRequest) {
           description,
           is_control,
           traffic_percentage,
-          visitors,
-          conversions,
-          conversion_rate
+          config,
+          is_active
         )
       `)
       .eq('projects.organization_members.user_id', user.id)

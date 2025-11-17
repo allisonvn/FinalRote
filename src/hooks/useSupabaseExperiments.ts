@@ -86,21 +86,7 @@ export function useSupabaseExperiments() {
         .from('experiments')
         .select(`
           *,
-          variants (
-            id,
-            name,
-            description,
-            is_control,
-            traffic_percentage,
-            redirect_url,
-            changes,
-            css_changes,
-            js_changes,
-            visitors,
-            conversions,
-            conversion_rate,
-            is_active
-          )
+          variants:variants(*)
         `)
 
       // Aplicar filtros
@@ -190,8 +176,15 @@ export function useSupabaseExperiments() {
 
       setExperiments(experimentsWithMetrics as Experiment[])
     } catch (err) {
-      console.error('Erro ao carregar experimentos:', err)
-      setError(err instanceof Error ? err.message : 'Falha ao carregar experimentos')
+      // Melhorar serialização do erro para logging
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : typeof err === 'object' && err !== null
+        ? JSON.stringify(err, Object.getOwnPropertyNames(err))
+        : String(err)
+      
+      console.error('Erro ao carregar experimentos:', errorMessage, err)
+      setError(errorMessage || 'Falha ao carregar experimentos')
       toast.error('Erro ao carregar experimentos')
     } finally {
       setLoading(false)
@@ -274,6 +267,7 @@ export function useSupabaseExperiments() {
 
       // Criar variantes padrão
       // ✅ CORREÇÃO: Variante de controle usa a URL da página configurada na etapa 01
+      // ✅ CORREÇÃO: Usar campo config (jsonb) para armazenar dados adicionais
       const variants = [
         { 
           experiment_id: newExp.id, 
@@ -281,14 +275,11 @@ export function useSupabaseExperiments() {
           description: 'Versão original - URL da página configurada no setup',
           is_control: true,
           traffic_percentage: 50.00,
-          redirect_url: data.target_url?.trim() || null,  // ✅ Usar URL da etapa 01 como controle
-          changes: conversionConfig,  // ✅ Adicionar config de conversão
-          css_changes: null,
-          js_changes: null,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0.0000,
-          is_active: true
+          is_active: true,
+          config: {
+            redirect_url: data.target_url?.trim() || null,
+            ...conversionConfig
+          }
         },
         { 
           experiment_id: newExp.id, 
@@ -296,14 +287,11 @@ export function useSupabaseExperiments() {
           description: 'Versão alternativa - configurar URL na próxima etapa',
           is_control: false,
           traffic_percentage: 50.00,
-          redirect_url: null,  // ✅ Usuário configura manualmente na etapa de variantes
-          changes: conversionConfig,  // ✅ Adicionar config de conversão
-          css_changes: null,
-          js_changes: null,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0.0000,
-          is_active: true
+          is_active: true,
+          config: {
+            redirect_url: null,
+            ...conversionConfig
+          }
         }
       ]
 
@@ -432,9 +420,40 @@ export function useSupabaseExperiments() {
   // Atualizar variante (incluindo URL)
   const updateVariant = useCallback(async (variantId: string, updates: Partial<Variant>) => {
     try {
+      // Separar campos que existem na tabela dos que vão no config
+      const { redirect_url, changes, css_changes, js_changes, visitors, conversions, conversion_rate, user_id, ...directFields } = updates
+      
+      // Preparar update direto (apenas campos que existem)
+      const directUpdate: any = {}
+      if (directFields.name !== undefined) directUpdate.name = directFields.name
+      if (directFields.description !== undefined) directUpdate.description = directFields.description
+      if (directFields.is_control !== undefined) directUpdate.is_control = directFields.is_control
+      if (directFields.traffic_percentage !== undefined) directUpdate.traffic_percentage = directFields.traffic_percentage
+      if (directFields.is_active !== undefined) directUpdate.is_active = directFields.is_active
+      
+      // Buscar config atual para mesclar
+      const { data: currentVariant } = await supabase
+        .from('variants')
+        .select('config')
+        .eq('id', variantId)
+        .single()
+      
+      // Mesclar campos extras no config
+      const currentConfig = (currentVariant?.config as any) || {}
+      const newConfig: any = { ...currentConfig }
+      
+      if (redirect_url !== undefined) newConfig.redirect_url = redirect_url
+      if (changes !== undefined) newConfig.changes = changes
+      if (css_changes !== undefined) newConfig.css_changes = css_changes
+      if (js_changes !== undefined) newConfig.js_changes = js_changes
+      
+      if (Object.keys(newConfig).length > 0) {
+        directUpdate.config = newConfig
+      }
+      
       const { error } = await supabase
         .from('variants')
-        .update(updates)
+        .update(directUpdate)
         .eq('id', variantId)
 
       if (error) throw error
@@ -463,18 +482,30 @@ export function useSupabaseExperiments() {
       // Atualizar cada variante individualmente
       const updatePromises = variants.map(variant => {
         if (variant.id) {
+          // Separar campos diretos dos que vão no config
+          const { redirect_url, changes, css_changes, js_changes, visitors, conversions, conversion_rate, user_id, ...directFields } = variant
+          
+          // Preparar update direto
+          const directUpdate: any = {}
+          if (directFields.name !== undefined) directUpdate.name = directFields.name
+          if (directFields.description !== undefined) directUpdate.description = directFields.description
+          if (directFields.traffic_percentage !== undefined) directUpdate.traffic_percentage = directFields.traffic_percentage
+          if (directFields.is_active !== undefined) directUpdate.is_active = directFields.is_active
+          
+          // Mesclar campos extras no config
+          const newConfig: any = {}
+          if (redirect_url !== undefined) newConfig.redirect_url = redirect_url
+          if (changes !== undefined) newConfig.changes = changes
+          if (css_changes !== undefined) newConfig.css_changes = css_changes
+          if (js_changes !== undefined) newConfig.js_changes = js_changes
+          
+          if (Object.keys(newConfig).length > 0) {
+            directUpdate.config = newConfig
+          }
+          
           return supabase
             .from('variants')
-            .update({
-              name: variant.name,
-              description: variant.description,
-              redirect_url: variant.redirect_url,
-              traffic_percentage: variant.traffic_percentage,
-              changes: variant.changes,
-              css_changes: variant.css_changes,
-              js_changes: variant.js_changes,
-              is_active: variant.is_active
-            })
+            .update(directUpdate)
             .eq('id', variant.id)
         }
         return Promise.resolve()
@@ -605,14 +636,13 @@ export function useSupabaseExperiments() {
           description: v.description,
           is_control: v.is_control,
           traffic_percentage: v.traffic_percentage,
-          redirect_url: v.redirect_url,
-          changes: v.changes,
-          css_changes: v.css_changes,
-          js_changes: v.js_changes,
-          visitors: 0,
-          conversions: 0,
-          conversion_rate: 0.0000,
-          is_active: true
+          is_active: v.is_active ?? true,
+          config: v.config || {
+            redirect_url: v.redirect_url || null,
+            changes: v.changes || {},
+            css_changes: v.css_changes || null,
+            js_changes: v.js_changes || null
+          }
         }))
 
         const { error: variantsError } = await supabase
