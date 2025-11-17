@@ -57,20 +57,24 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Preparar dados do evento
+        // Preparar dados do evento (suporta tanto properties quanto event_data)
+        const eventProperties = event.properties || event.event_data || {}
         const eventData: any = {
           experiment_id: experimentId,
           visitor_id: event.visitor_id,
           event_type: event.event_type,
           event_name: event.event_name,
-          event_data: event.properties || {},
-          value: event.value || null,
+          event_data: eventProperties,
+          properties: eventProperties, // Manter ambos para compatibilidade
+          value: event.value || eventProperties.conversion_value || null,
           created_at: event.timestamp || new Date().toISOString()
         }
 
-        // Adicionar variant_id se disponível
+        // Adicionar variant_id se disponível (do evento ou das properties)
         if (event.variant_id) {
           eventData.variant_id = event.variant_id
+        } else if (eventProperties.variant_id) {
+          eventData.variant_id = eventProperties.variant_id
         }
 
         // Inserir evento
