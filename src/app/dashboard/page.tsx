@@ -31,6 +31,7 @@ import { SavedFiltersManager } from '@/components/dashboard/saved-filters-manage
 import { useEvents } from '@/hooks/useEvents'
 import { subDays, eachDayOfInterval } from 'date-fns'
 import { cn } from '@/lib/utils'
+import SettingsPanel from '@/components/settings/SettingsPanel'
 
 // 🚀 Lazy load componentes pesados para melhor performance e code splitting
 const EventTrendsChart = lazy(() => import('@/components/dashboard/event-trends-chart').then(mod => ({ default: mod.EventTrendsChart })))
@@ -255,125 +256,7 @@ export default function Dashboard() {
   }
 
   const renderSettingsContent = () => (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie sua conta, preferências e integrações</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="space-y-6 lg:col-span-2">
-          <Card className="card-glass">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><User2 className="w-4 h-4" /> Perfil</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Nome</label>
-                  <Input value={cfgNome} onChange={(e) => setCfgNome(e.target.value)} className="mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Email</label>
-                  <Input value={cfgEmail} disabled className="mt-1" />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={salvarCfg} disabled={cfgSalvando}>{cfgSalvando ? 'Salvando...' : 'Salvar alterações'}</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-glass">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Shield className="w-4 h-4" /> Segurança</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Senha atual</label>
-                  <Input type="password" className="mt-1" placeholder="••••••••" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Nova senha</label>
-                  <Input type="password" className="mt-1" placeholder="Mínimo 8 caracteres" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Confirmar</label>
-                  <Input type="password" className="mt-1" placeholder="Repita a senha" />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={() => toast.info('Em breve: alteração de senha')}>Atualizar senha</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="card-glass">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Globe2 className="w-4 h-4" /> Preferências</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Tema</label>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <Button variant={cfgTema==='auto'?'default':'outline'} onClick={() => aplicarTema('auto')} className="w-full flex items-center gap-2">
-                    <Sun className="w-4 h-4" /> Automático
-                  </Button>
-                  <Button variant={cfgTema==='claro'?'default':'outline'} onClick={() => aplicarTema('claro')} className="w-full flex items-center gap-2">
-                    <Sun className="w-4 h-4" /> Claro
-                  </Button>
-                  <Button variant={cfgTema==='escuro'?'default':'outline'} onClick={() => aplicarTema('escuro')} className="w-full flex items-center gap-2">
-                    <Moon className="w-4 h-4" /> Escuro
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Idioma</label>
-                <Select value={cfgIdioma} onValueChange={(v) => setCfgIdioma(v as any)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Notificações</label>
-                <div className="mt-2 space-y-2 text-sm">
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={cfgNotifEmail} onChange={(e) => setCfgNotifEmail(e.target.checked)} /> Email</label>
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={cfgNotifSistema} onChange={(e) => setCfgNotifSistema(e.target.checked)} /> Notificações do sistema</label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-glass">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><KeyRound className="w-4 h-4" /> Integrações & API</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium">Chave de API</label>
-                <div className="mt-2 flex items-center gap-2">
-                  <Input value={cfgApiKey} readOnly className="font-mono" />
-                  <Button variant="outline" onClick={copiarChave}><Copy className="w-4 h-4 mr-1" /> Copiar</Button>
-                  <Button variant="outline" onClick={regenerarChave}><RefreshCw className="w-4 h-4 mr-1" /> Regenerar</Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Guarde sua chave com segurança. Ela permite acesso aos recursos da API.</p>
-              </div>
-              <div className="pt-2 border-t">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Bell className="w-4 h-4" />
-                  Receba alertas semanais sobre seus experimentos por email
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+    <SettingsPanel />
   )
 
   const exportJSON = () => {
