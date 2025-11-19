@@ -13,8 +13,8 @@ if (!RESEND_API_KEY) {
   console.warn('RESEND_API_KEY not configured. Emails will not be sent.');
 }
 
-// Instância do cliente Resend
-export const resend = new Resend(RESEND_API_KEY);
+// Instância do cliente Resend (cria com chave vazia se não configurada para evitar erro no build)
+export const resend = new Resend(RESEND_API_KEY || 'dummy-key-for-build');
 
 // Tipos de email
 export type EmailTemplate =
