@@ -21,29 +21,13 @@ const nextConfig = {
   reactStrictMode: true,
 
   // Headers CORS para permitir chamadas de sites externos (SaaS)
-  // IMPORTANTE: Ordem importa - rotas mais específicas primeiro
+  // IMPORTANTE: NÃO definir Content-Type para arquivos estáticos - Next.js faz isso automaticamente
+  // Definir Content-Type manualmente pode causar erros 400
   async headers() {
     return [
       {
-        // Headers para arquivos CSS do Next.js (mais específico primeiro)
-        source: '/_next/static/css/:path*.css',
-        headers: [
-          { key: 'Content-Type', value: 'text/css; charset=utf-8' },
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-        ],
-      },
-      {
-        // Headers para chunks JavaScript do Next.js (mais específico primeiro)
-        source: '/_next/static/chunks/:path*.js',
-        headers: [
-          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-        ],
-      },
-      {
-        // Headers para outros assets estáticos do Next.js
+        // Headers para arquivos estáticos do Next.js
+        // NÃO definir Content-Type aqui - Next.js já faz isso corretamente
         source: '/_next/static/:path*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
