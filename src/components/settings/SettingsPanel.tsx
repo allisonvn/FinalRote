@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,80 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
   const [allowedDomainsCustom, setAllowedDomainsCustom] = useState('')
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
 
+  const fetchCustomDomains = useCallback(async (projectId: string) => {
+    if (!projectId) {
+      console.warn('fetchCustomDomains chamado sem projectId')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/settings/custom-domains?projectId=${projectId}`)
+      
+      // Ler o texto da resposta primeiro para debug
+      const responseText = await response.text()
+      
+      if (!response.ok) {
+        // Tentar fazer parse do JSON
+        let errorData: any = null
+        let errorMessage = `Erro ${response.status}: ${response.statusText || 'Erro desconhecido'}`
+        
+        if (responseText) {
+          try {
+            errorData = JSON.parse(responseText)
+          } catch {
+            // Não é JSON válido, usar o texto bruto
+            errorMessage = responseText || errorMessage
+          }
+        }
+        
+        // Extrair mensagem de erro do objeto parseado
+        if (errorData && typeof errorData === 'object') {
+          errorMessage = errorData.error || errorData.message || errorMessage
+        }
+        
+        // Log usando template literal para evitar problemas com objetos vazios
+        console.error(
+          `Erro ao buscar domínios personalizados - Status: ${response.status}, ` +
+          `StatusText: ${response.statusText}, ProjectId: ${projectId}, ` +
+          `Mensagem: ${errorMessage}, Response: ${responseText.substring(0, 200)}`
+        )
+        
+        toast.error(errorMessage)
+        return
+      }
+
+      // Parse do JSON de sucesso
+      let data: any = null
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        const parseErrorMsg = parseError instanceof Error ? parseError.message : String(parseError)
+        console.error(
+          `Erro ao fazer parse da resposta de sucesso - Response: ${responseText.substring(0, 200)}, ` +
+          `Erro: ${parseErrorMsg}`
+        )
+        toast.error('Resposta inválida do servidor')
+        return
+      }
+      
+      // Processar domínios
+      if (data && Array.isArray(data.domains)) {
+        setAllowedDomainsCustom(data.domains.length > 0 ? data.domains.join('\n') : '')
+      } else {
+        // Se não houver domínios, definir como string vazia
+        setAllowedDomainsCustom('')
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : 'N/A'
+      console.error(
+        `Erro de rede ao buscar domínios personalizados - ProjectId: ${projectId}, ` +
+        `Erro: ${errorMessage}, Stack: ${errorStack}`
+      )
+      toast.error('Erro de rede ao carregar domínios personalizados')
+    }
+  }, [])
+
   useEffect(() => {
     try {
       const storedTema = localStorage.getItem('preferencias.tema') as any
@@ -30,34 +104,18 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
       if (storedIdioma) setIdioma(storedIdioma)
 
       // Carregar project_id do localStorage (ou de onde for salvo)
-      const projectId = localStorage.getItem('currentProjectId') // Assumindo que o projectId é salvo aqui
+      const projectId = localStorage.getItem('currentProjectId')
       setCurrentProjectId(projectId)
-      
-      // Carregar domínios personalizados para o projeto atual
-      if (projectId) {
-        fetchCustomDomains(projectId)
-      }
-
     } catch { }
-  }, [currentProjectId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Executar apenas uma vez na montagem
 
-  const fetchCustomDomains = async (projectId: string) => {
-    try {
-      // Substituir por chamada real ao backend/Supabase
-      const response = await fetch(`/api/settings/custom-domains?projectId=${projectId}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        console.error('Erro ao buscar domínios personalizados:', data.error)
-        toast.error('Erro ao carregar domínios personalizados')
-      } else if (data && data.domains) {
-        setAllowedDomainsCustom(data.domains.join('\n')) // Juntar domínios por nova linha
-      }
-    } catch (error) {
-      console.error('Erro de rede ao buscar domínios personalizados:', error)
-      toast.error('Erro de rede ao carregar domínios personalizados')
+  // Efeito separado para recarregar domínios quando o projectId mudar externamente
+  useEffect(() => {
+    if (currentProjectId) {
+      fetchCustomDomains(currentProjectId)
     }
-  }
+  }, [currentProjectId, fetchCustomDomains])
 
   const aplicarTema = (valor: 'auto' | 'claro' | 'escuro') => {
     setTema(valor)

@@ -13,18 +13,24 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const projectId = searchParams.get('projectId')
-
-  if (!projectId) {
-    return NextResponse.json({ error: 'Project ID é obrigatório' }, { status: 400, headers: corsHeaders })
-  }
-
   try {
+    const { searchParams } = new URL(request.url)
+    const projectId = searchParams.get('projectId')
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'Project ID é obrigatório' },
+        { status: 400, headers: corsHeaders }
+      )
+    }
+
     // Verificar se a chave de serviço está disponível
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('SUPABASE_SERVICE_ROLE_KEY não está definida')
-      return NextResponse.json({ error: 'Configuração do servidor incompleta' }, { status: 500, headers: corsHeaders })
+      return NextResponse.json(
+        { error: 'Configuração do servidor incompleta' },
+        { status: 500, headers: corsHeaders }
+      )
     }
 
     const supabase = createServiceClient()
@@ -35,33 +41,53 @@ export async function GET(request: NextRequest) {
       .eq('project_id', projectId)
       .single()
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
-      console.error('Erro ao buscar domínios personalizados:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
-      return NextResponse.json({ 
+    if (error) {
+      // PGRST116 significa que não há registros encontrados - isso é OK, retornamos array vazio
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { domains: [] },
+          { status: 200, headers: corsHeaders }
+        )
+      }
+      
+      // Outros erros são tratados como erro real
+      const errorResponse = { 
         error: 'Erro ao buscar domínios personalizados', 
-        code: error.code,
-        message: error.message 
-      }, { status: 500, headers: corsHeaders })
+        code: error.code || 'UNKNOWN',
+        message: error.message || 'Erro desconhecido'
+      }
+      
+      console.error(
+        `Erro ao buscar domínios personalizados - Code: ${error.code}, ` +
+        `Message: ${error.message}, Details: ${error.details}, ` +
+        `Hint: ${error.hint}, ProjectId: ${projectId}`
+      )
+      
+      return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders })
     }
 
+    // Se não houver erro, retornar os domínios (ou array vazio se não houver)
     const domains = data?.allowed_domains_custom || []
-    return NextResponse.json({ domains }, { status: 200, headers: corsHeaders })
+    
+    // Garantir que domains é um array válido
+    const validDomains = Array.isArray(domains) ? domains : []
+    
+    const responseData = { domains: validDomains }
+    
+    return NextResponse.json(responseData, { status: 200, headers: corsHeaders })
 
   } catch (error: any) {
-    console.error('Erro inesperado ao buscar domínios personalizados:', {
-      message: error?.message || String(error),
-      stack: error?.stack,
-      name: error?.name
-    })
-    return NextResponse.json({ 
+    const errorResponse = {
       error: 'Erro interno do servidor',
-      message: error?.message || String(error)
-    }, { status: 500, headers: corsHeaders })
+      message: error?.message || String(error) || 'Erro desconhecido'
+    }
+    
+    console.error(
+      `Erro inesperado ao buscar domínios personalizados - ` +
+      `Name: ${error?.name}, Message: ${error?.message}, Stack: ${error?.stack}`
+    )
+    
+    return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders })
   }
 }
 
@@ -89,12 +115,10 @@ export async function POST(request: NextRequest) {
       )
 
     if (error) {
-      console.error('Erro ao salvar domínios personalizados:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
+      console.error(
+        `Erro ao salvar domínios personalizados - Code: ${error.code}, ` +
+        `Message: ${error.message}, Details: ${error.details}, Hint: ${error.hint}`
+      )
       return NextResponse.json({ 
         error: 'Erro ao salvar domínios personalizados',
         code: error.code,
@@ -105,11 +129,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Domínios personalizados salvos com sucesso' }, { status: 200, headers: corsHeaders })
 
   } catch (error: any) {
-    console.error('Erro inesperado ao salvar domínios personalizados:', {
-      message: error?.message || String(error),
-      stack: error?.stack,
-      name: error?.name
-    })
+    console.error(
+      `Erro inesperado ao salvar domínios personalizados - ` +
+      `Name: ${error?.name}, Message: ${error?.message}, Stack: ${error?.stack}`
+    )
     return NextResponse.json({ 
       error: 'Erro interno do servidor',
       message: error?.message || String(error)
