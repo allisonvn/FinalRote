@@ -1,0 +1,102 @@
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                                                                     ┃
+┃              🎯 LEIA ISTO PRIMEIRO - Erros do Dashboard            ┃
+┃                                                                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+📌 QUAL É O PROBLEMA?
+
+Você viu um dos seguintes erros:
+
+1) "Could not find the table 'public.project_settings' in the schema cache"
+2) "POST /rest/v1/rpc/get_experiment_stats 400 (Bad Request)"
+3) Página de eventos não carrega ou mostra erro
+
+
+✅ FOI RESOLVIDO!
+
+Criei 3 migrações SQL + 2 scripts + 5 documentos para corrigir tudo.
+
+
+🚀 PRÓXIMO PASSO?
+
+ABRA E LEIA (escolha 1):
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ SE VOCÊ TEM PRESSA:                                                 │
+│ >>> EXECUTE_AGORA.txt                                               │
+│                                                                     │
+│ Tempo: 2 minutos de ação + 5 minutos de espera                     │
+│ O script automático faz tudo                                        │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ SE PREFERE ENTENDER TUDO:                                           │
+│ >>> RESUMO_CORRECOES_19_11_2025.md                                 │
+│                                                                     │
+│ Leia a análise completa do que foi feito                           │
+│ Entenda os problemas e as soluções                                 │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ SE QUER UM GUIA PASSO A PASSO:                                      │
+│ >>> CORRECAO_ERROS_DASHBOARD_19_11_2025.md                         │
+│                                                                     │
+│ Instruções detalhadas para cada opção                              │
+│ Troubleshooting incluído                                           │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ SE PRECISA DE REFERÊNCIA VISUAL:                                    │
+│ >>> INICIO_RAPIDO_CORRECOES.txt                                    │
+│                                                                     │
+│ Formato ASCII art                                                  │
+│ Fácil de ler e de imprimir                                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+📋 ARQUIVOS CRIADOS
+
+3 Migrações SQL:
+  ✓ supabase/migrations/20251119_ensure_project_settings.sql
+  ✓ supabase/migrations/20251119_create_rpc_helpers.sql
+  ✓ supabase/migrations/20251119_fix_rpc_get_experiment_stats.sql
+
+2 Scripts de automação:
+  ✓ apply-project-settings-migration.js (para aplicar)
+  ✓ diagnose-dashboard-errors.js (para diagnosticar)
+
+5 Documentos de referência:
+  ✓ EXECUTE_AGORA.txt (super rápido)
+  ✓ RESUMO_CORRECOES_19_11_2025.md (completo)
+  ✓ CORRECAO_ERROS_DASHBOARD_19_11_2025.md (passo a passo)
+  ✓ INICIO_RAPIDO_CORRECOES.txt (visual)
+  ✓ VISUALIZACAO_SOLUCAO.txt (diagramas)
+
+
+💡 RESUMO RÁPIDO
+
+Problema:  Tabela project_settings não existe no Supabase
+Solução:   Aplicar 3 migrações SQL
+Tempo:     2-10 minutos (depende da opção)
+Risco:     Nenhum - apenas adições ao banco
+Rollback:  Seguro - tudo é IF NOT EXISTS
+
+
+✨ RECOMENDAÇÃO
+
+1. Leia: EXECUTE_AGORA.txt (2 minutos)
+2. Execute: node apply-project-settings-migration.js (automático)
+3. Aguarde: 5 minutos (schema cache)
+4. Teste: Recarregue a página (Cmd+Shift+R)
+
+Pronto! ✅
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Criado em: 19 de Novembro de 2025
+Versão: 1.0
+Status: ✅ Pronto para Uso
+

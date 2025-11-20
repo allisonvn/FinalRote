@@ -1,0 +1,149 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    🚀 INÍCIO RÁPIDO - CORREÇÃO DE ERROS                      ║
+║                         Dashboard Rota Final v1.0                             ║
+║                         19 de Novembro de 2025                                ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📍 VOCÊ ESTÁ VENDO ESTES ERROS?
+├─ ❌ "Could not find the table 'public.project_settings'"
+├─ ❌ "POST /rest/v1/rpc/get_experiment_stats 400 (Bad Request)"
+└─ ❌ Página de eventos não carrega ou fica em branco?
+
+✅ SOLUÇÃO (3 OPÇÕES)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ OPÇÃO 1: SCRIPT AUTOMÁTICO (Mais Rápido)                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. Abra o terminal                                                          │
+│ 2. Execute:                                                                 │
+│                                                                             │
+│    cd /Users/allisonnascimento/Desktop/site/rotafinal                       │
+│    node apply-project-settings-migration.js                                │
+│                                                                             │
+│ 3. Aguarde a mensagem ✅ Processo concluído!                               │
+│ 4. Recarregue a página (Cmd+Shift+R)                                       │
+│                                                                             │
+│ ⏱️ Tempo: 2-5 minutos                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ OPÇÃO 2: CONSOLE SUPABASE (Se o script não funcionar)                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. Vá para: https://app.supabase.com/project/_/sql/new                      │
+│    (Substitua _ pelo seu project ID)                                        │
+│                                                                             │
+│ 2. Para CADA arquivo abaixo:                                               │
+│    a) Abra o arquivo no seu computador                                      │
+│    b) Copie TODO o conteúdo (Ctrl+A, Ctrl+C)                              │
+│    c) Cole no console Supabase (Ctrl+V)                                    │
+│    d) Clique em "Run" (ícone de play)                                      │
+│    e) Aguarde aparecer ✅ Sucesso                                          │
+│                                                                             │
+│ ARQUIVOS (em ordem):                                                        │
+│ ✓ supabase/migrations/20251119_ensure_project_settings.sql                 │
+│ ✓ supabase/migrations/20251119_create_rpc_helpers.sql                      │
+│ ✓ supabase/migrations/20251119_fix_rpc_get_experiment_stats.sql            │
+│                                                                             │
+│ 3. Recarregue a página (Cmd+Shift+R)                                       │
+│                                                                             │
+│ ⏱️ Tempo: 5-10 minutos                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ OPÇÃO 3: SUPABASE CLI (Se você tem CLI instalada)                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. Execute:                                                                 │
+│                                                                             │
+│    cd /Users/allisonnascimento/Desktop/site/rotafinal                       │
+│    supabase login                        # Se não está logado               │
+│    supabase link --project-ref SEU_ID    # Link ao projeto                 │
+│    supabase db push                      # Aplicar migrações               │
+│                                                                             │
+│ 2. Recarregue a página (Cmd+Shift+R)                                       │
+│                                                                             │
+│ ⏱️ Tempo: 3-5 minutos                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+🔍 COMO SABER SE FUNCIONOU?
+
+Recarregue a página (Cmd+Shift+R ou Ctrl+F5) e verifique:
+
+✅ Página de eventos carrega normalmente
+✅ Gráficos de tendências mostram dados
+✅ Nenhum erro vermelho no console (F12)
+✅ Nenhuma mensagem de erro na interface
+
+Se ainda houver problemas:
+
+1. Aguarde 5 minutos (schema cache do Supabase precisa atualizar)
+2. Tente novamente recarregar a página
+3. Execute o diagnóstico:
+   
+   node diagnose-dashboard-errors.js
+
+4. Leia a documentação completa:
+   
+   CORRECAO_ERROS_DASHBOARD_19_11_2025.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ℹ️ INFORMAÇÕES ADICIONAIS
+
+Arquivos criados para você:
+
+📄 Scripts:
+   • apply-project-settings-migration.js      - Aplicar migrações
+   • diagnose-dashboard-errors.js             - Diagnosticar problemas
+
+📚 Documentação:
+   • RESUMO_CORRECOES_19_11_2025.md           - Visão geral
+   • CORRECAO_ERROS_DASHBOARD_19_11_2025.md   - Guia completo
+   • CORRECAO_PROJECT_SETTINGS_TABLE.md       - Detalhes técnicos
+   • INICIO_RAPIDO_CORRECOES.txt              - Este arquivo
+
+🔧 Migrações SQL:
+   • supabase/migrations/20251119_ensure_project_settings.sql
+   • supabase/migrations/20251119_create_rpc_helpers.sql
+   • supabase/migrations/20251119_fix_rpc_get_experiment_stats.sql
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❓ PERGUNTAS FREQUENTES
+
+P: Qual opção devo escolher?
+R: Comece pela OPÇÃO 1 (script automático). Se não funcionar, use a OPÇÃO 2.
+
+P: Quanto tempo leva?
+R: 2-10 minutos dependendo da opção escolhida.
+
+P: Isso vai apagar meus dados?
+R: Não! As migrações apenas adicionam tabelas e funções. Seus dados são seguros.
+
+P: Preciso fazer algo depois?
+R: Não. Depois de aplicar, o sistema volta ao normal automaticamente.
+
+P: E se der erro?
+R: Execute: node diagnose-dashboard-errors.js
+   Ele vai dizer exatamente qual é o problema.
+
+P: Posso fazer isso em produção?
+R: Sim, é seguro. Mas recomenda-se fazer em staging primeiro.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ RESUMO ULTRA-RÁPIDO
+
+Fazer isto AGORA:
+
+    cd /Users/allisonnascimento/Desktop/site/rotafinal
+    node apply-project-settings-migration.js
+
+Depois: Recarregue a página (Cmd+Shift+R)
+
+Pronto! ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Criado em: 19 de Novembro de 2025
+Documentação: pt-BR (Português Brasileiro)
+

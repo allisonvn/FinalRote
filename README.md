@@ -101,6 +101,19 @@ npm run dev
 2. Run migrations
 3. Configure RLS policies
 
+## 🔧 Troubleshooting Recente (19/11/2025)
+
+Se você está vendo erros como:
+- `"Could not find the table 'public.project_settings' in the schema cache"`
+- `POST /rest/v1/rpc/get_experiment_stats 400 (Bad Request)`
+
+**Solução rápida:**
+```bash
+node apply-project-settings-migration.js
+```
+
+Mais detalhes em: `CORRECAO_ERROS_DASHBOARD_19_11_2025.md`
+
 ## 📝 Comandos Úteis
 
 ```bash

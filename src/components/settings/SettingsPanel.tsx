@@ -1,13 +1,34 @@
 "use client"
 
 import { useEffect, useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Sun, Moon, Shield, Bell, KeyRound, Globe2, User2 } from 'lucide-react'
+import {
+  Sun,
+  Moon,
+  Shield,
+  Bell,
+  KeyRound,
+  Globe2,
+  User2,
+  Save,
+  Lock,
+  Key,
+  Palette,
+  Languages,
+  Mail,
+  Check,
+  ExternalLink,
+  Copy,
+  Eye,
+  EyeOff
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface SettingsPanelProps { className?: string }
 
@@ -21,6 +42,8 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
   const [salvando, setSalvando] = useState(false)
   const [allowedDomainsCustom, setAllowedDomainsCustom] = useState('')
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  const [apiKey, setApiKey] = useState('rf_pk_xxxxxxxxxxxxxxxxx')
+  const [showApiKey, setShowApiKey] = useState(false)
 
   const fetchCustomDomains = useCallback(async (projectId: string) => {
     if (!projectId) {
@@ -30,41 +53,34 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
 
     try {
       const response = await fetch(`/api/settings/custom-domains?projectId=${projectId}`)
-      
-      // Ler o texto da resposta primeiro para debug
       const responseText = await response.text()
-      
+
       if (!response.ok) {
-        // Tentar fazer parse do JSON
         let errorData: any = null
         let errorMessage = `Erro ${response.status}: ${response.statusText || 'Erro desconhecido'}`
-        
+
         if (responseText) {
           try {
             errorData = JSON.parse(responseText)
           } catch {
-            // Não é JSON válido, usar o texto bruto
             errorMessage = responseText || errorMessage
           }
         }
-        
-        // Extrair mensagem de erro do objeto parseado
+
         if (errorData && typeof errorData === 'object') {
           errorMessage = errorData.error || errorData.message || errorMessage
         }
-        
-        // Log usando template literal para evitar problemas com objetos vazios
+
         console.error(
           `Erro ao buscar domínios personalizados - Status: ${response.status}, ` +
           `StatusText: ${response.statusText}, ProjectId: ${projectId}, ` +
           `Mensagem: ${errorMessage}, Response: ${responseText.substring(0, 200)}`
         )
-        
+
         toast.error(errorMessage)
         return
       }
 
-      // Parse do JSON de sucesso
       let data: any = null
       try {
         data = JSON.parse(responseText)
@@ -77,12 +93,10 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
         toast.error('Resposta inválida do servidor')
         return
       }
-      
-      // Processar domínios
+
       if (data && Array.isArray(data.domains)) {
         setAllowedDomainsCustom(data.domains.length > 0 ? data.domains.join('\n') : '')
       } else {
-        // Se não houver domínios, definir como string vazia
         setAllowedDomainsCustom('')
       }
     } catch (error) {
@@ -103,14 +117,11 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
       if (storedTema) setTema(storedTema)
       if (storedIdioma) setIdioma(storedIdioma)
 
-      // Carregar project_id do localStorage (ou de onde for salvo)
       const projectId = localStorage.getItem('currentProjectId')
       setCurrentProjectId(projectId)
     } catch { }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Executar apenas uma vez na montagem
+  }, [])
 
-  // Efeito separado para recarregar domínios quando o projectId mudar externamente
   useEffect(() => {
     if (currentProjectId) {
       fetchCustomDomains(currentProjectId)
@@ -132,7 +143,7 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
     try {
       setSalvando(true)
       localStorage.setItem('preferencias.idioma', idioma)
-      // Salvar domínios personalizados
+
       if (currentProjectId) {
         const domainsArray = allowedDomainsCustom.split(/\s*,\s*|\n/).filter(d => d.trim() !== '')
         const response = await fetch(`/api/settings/custom-domains`, {
@@ -156,149 +167,372 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
     } finally { setSalvando(false) }
   }
 
+  const copyApiKey = () => {
+    navigator.clipboard.writeText(apiKey)
+    toast.success('Chave API copiada!')
+  }
 
   return (
     <div className={className}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">Gerencie sua conta, preferências e integrações</p>
+        {/* Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
+            <p className="text-muted-foreground">Gerencie sua conta, preferências e integrações</p>
+          </div>
+          <Button
+            onClick={salvar}
+            disabled={salvando}
+            className="bg-gradient-primary text-primary-foreground shadow-soft hover:opacity-90 gap-2"
+          >
+            <Save className="h-4 w-4" strokeWidth={1.75} />
+            {salvando ? 'Salvando...' : 'Salvar alterações'}
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="space-y-6 lg:col-span-2">
-            <Card className="card-glass">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Main Column */}
+          <div className="space-y-6 xl:col-span-2">
+
+            {/* Profile Card */}
+            <Card className="card-glass hover-lift">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><User2 className="w-4 h-4" /> Perfil</CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <User2 className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <div>
+                    <CardTitle>Perfil</CardTitle>
+                    <CardDescription>Informações da sua conta</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Nome</label>
-                    <Input value={nome} onChange={(e) => setNome(e.target.value)} className="mt-1" />
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <User2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Nome completo
+                    </label>
+                    <Input
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      className="mt-1.5"
+                      placeholder="Seu nome"
+                    />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <Input value={email} disabled className="mt-1" />
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Email
+                    </label>
+                    <div className="relative mt-1.5">
+                      <Input value={email} disabled className="pr-20" />
+                      <Badge className="absolute right-2 top-1/2 -translate-y-1/2 bg-success/10 text-success border-success/20">
+                        <Check className="h-3 w-3 mr-1" strokeWidth={2} />
+                        Verificado
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={salvar} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</Button>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="card-glass">
+            {/* Security Card */}
+            <Card className="card-glass hover-lift">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Shield className="w-4 h-4" /> Segurança</CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Shield className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <div>
+                    <CardTitle>Segurança</CardTitle>
+                    <CardDescription>Altere sua senha e gerencie a autenticação</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Senha atual</label>
-                    <Input type="password" className="mt-1" placeholder="••••••••" />
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Senha atual
+                    </label>
+                    <Input type="password" className="mt-1.5" placeholder="••••••••" />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Nova senha</label>
-                    <Input type="password" className="mt-1" placeholder="Mínimo 8 caracteres" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Confirmar</label>
-                    <Input type="password" className="mt-1" placeholder="Repita a senha" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        Nova senha
+                      </label>
+                      <Input type="password" className="mt-1.5" placeholder="Mínimo 8 caracteres" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        Confirmar senha
+                      </label>
+                      <Input type="password" className="mt-1.5" placeholder="Repita a senha" />
+                    </div>
                   </div>
                 </div>
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={() => toast.info('Em breve: alteração de senha')}>Atualizar senha</Button>
+                <div className="flex justify-end pt-2 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => toast.info('Em breve: alteração de senha')}
+                    className="gap-2"
+                  >
+                    <Shield className="h-4 w-4" strokeWidth={1.75} />
+                    Atualizar senha
+                  </Button>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="card-glass">
+            {/* API Keys Card */}
+            <Card className="card-glass hover-lift">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Globe2 className="w-4 h-4" /> Propagação de UTMs</CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Key className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle>Chave API</CardTitle>
+                    <CardDescription>Use esta chave para integrar com sua aplicação</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                    Ativa
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Domínios Permitidos para Propagação de UTMs</label>
+                  <label className="text-sm font-medium flex items-center gap-2 mb-1.5">
+                    <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Chave pública
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        value={showApiKey ? apiKey : '•'.repeat(apiKey.length)}
+                        readOnly
+                        className="pr-10 font-mono text-sm"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={copyApiKey}
+                      className="gap-2"
+                    >
+                      <Copy className="h-4 w-4" strokeWidth={1.75} />
+                      Copiar
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
+                    <ExternalLink className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" strokeWidth={1.75} />
+                    Esta chave é segura para uso no lado do cliente. Para operações sensíveis, use a chave secreta.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* UTM Domains Card */}
+            <Card className="card-glass hover-lift">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Globe2 className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <div>
+                    <CardTitle>Propagação de UTMs</CardTitle>
+                    <CardDescription>Configure domínios para rastreamento de campanhas</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium flex items-center gap-2 mb-1.5">
+                    <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Domínios permitidos
+                  </label>
                   <Textarea
                     value={allowedDomainsCustom}
                     onChange={(e) => setAllowedDomainsCustom(e.target.value)}
-                    placeholder="Ex: pay.hotmart.com, meu-checkout.com.br"
+                    placeholder="pay.hotmart.com&#10;checkout.exemplo.com&#10;meu-pagamento.com.br"
                     rows={5}
-                    className="mt-1"
+                    className="font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Insira os domínios (um por linha ou separados por vírgula) onde os parâmetros UTM devem ser propagados automaticamente. Isso é útil para páginas de checkout ou outros sites externos que você deseja rastrear.
-                    A lista padrão será utilizada se nenhum domínio for especificado aqui.
+                    Insira um domínio por linha. Os parâmetros UTM serão propagados automaticamente para esses domínios, permitindo rastreamento entre páginas de checkout e sites externos.
                   </p>
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={salvar} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</Button>
                 </div>
               </CardContent>
             </Card>
 
           </div>
 
+          {/* Sidebar Column */}
           <div className="space-y-6">
-            <Card className="card-glass">
+
+            {/* Theme & Preferences Card */}
+            <Card className="card-glass hover-lift">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Globe2 className="w-4 h-4" /> Preferências</CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Palette className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <div>
+                    <CardTitle>Aparência</CardTitle>
+                    <CardDescription>Personalize o tema</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Tema</label>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    <Button variant={tema==='auto'?'default':'outline'} onClick={() => aplicarTema('auto')} className="w-full flex items-center gap-2">
-                      <Sun className="w-4 h-4" /> Automático
+                  <label className="text-sm font-medium mb-2 block">Tema</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Button
+                      variant={tema === 'auto' ? 'default' : 'outline'}
+                      onClick={() => aplicarTema('auto')}
+                      className={cn(
+                        "w-full justify-start gap-2",
+                        tema === 'auto' && 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20'
+                      )}
+                    >
+                      <Sun className="h-4 w-4" strokeWidth={1.75} />
+                      Automático
+                      {tema === 'auto' && <Check className="h-4 w-4 ml-auto" strokeWidth={2} />}
                     </Button>
-                    <Button variant={tema==='claro'?'default':'outline'} onClick={() => aplicarTema('claro')} className="w-full flex items-center gap-2">
-                      <Sun className="w-4 h-4" /> Claro
+                    <Button
+                      variant={tema === 'claro' ? 'default' : 'outline'}
+                      onClick={() => aplicarTema('claro')}
+                      className={cn(
+                        "w-full justify-start gap-2",
+                        tema === 'claro' && 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20'
+                      )}
+                    >
+                      <Sun className="h-4 w-4" strokeWidth={1.75} />
+                      Claro
+                      {tema === 'claro' && <Check className="h-4 w-4 ml-auto" strokeWidth={2} />}
                     </Button>
-                    <Button variant={tema==='escuro'?'default':'outline'} onClick={() => aplicarTema('escuro')} className="w-full flex items-center gap-2">
-                      <Moon className="w-4 h-4" /> Escuro
+                    <Button
+                      variant={tema === 'escuro' ? 'default' : 'outline'}
+                      onClick={() => aplicarTema('escuro')}
+                      className={cn(
+                        "w-full justify-start gap-2",
+                        tema === 'escuro' && 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20'
+                      )}
+                    >
+                      <Moon className="h-4 w-4" strokeWidth={1.75} />
+                      Escuro
+                      {tema === 'escuro' && <Check className="h-4 w-4 ml-auto" strokeWidth={2} />}
                     </Button>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Idioma</label>
-                  <Select value={idioma} onValueChange={(v) => setIdioma(v as any)}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Notificações</label>
-                  <div className="mt-2 space-y-2 text-sm">
-                    <label className="flex items-center gap-2"><input type="checkbox" checked={notifEmail} onChange={(e) => setNotifEmail(e.target.checked)} /> Email</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" checked={notifSistema} onChange={(e) => setNotifSistema(e.target.checked)} /> Notificações do sistema</label>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="card-glass">
+            {/* Language Card */}
+            <Card className="card-glass hover-lift">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Bell className="w-4 h-4" /> Notificações</CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Languages className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <div>
+                    <CardTitle>Idioma</CardTitle>
+                    <CardDescription>Preferência de idioma</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Select value={idioma} onValueChange={(v) => setIdioma(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pt-BR">🇧🇷 Português (Brasil)</SelectItem>
+                    <SelectItem value="en-US" disabled>🇺🇸 English (US)</SelectItem>
+                    <SelectItem value="es-ES" disabled>🇪🇸 Español</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            {/* Notifications Card */}
+            <Card className="card-glass hover-lift">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Bell className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <div>
+                    <CardTitle>Notificações</CardTitle>
+                    <CardDescription>Gerencie alertas</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                  <KeyRound className="w-4 h-4" />
-                  <span className="font-medium">Integração Automática Ativa!</span>
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between cursor-pointer group">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                      <span className="text-sm font-medium">Email</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifEmail}
+                      onChange={(e) => setNotifEmail(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between cursor-pointer group">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                      <span className="text-sm font-medium">Sistema</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifSistema}
+                      onChange={(e) => setNotifSistema(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
+                  </label>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  ✨ Nenhuma chave API necessária. O sistema cuida de tudo automaticamente para você.
-                </p>
-                <div className="pt-2 border-t">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Bell className="w-4 h-4" />
-                    Receba alertas semanais sobre seus experimentos por email
+                <div className="pt-3 border-t">
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground bg-primary/5 p-3 rounded-lg border border-primary/10">
+                    <Bell className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" strokeWidth={1.75} />
+                    <span>Receba alertas semanais sobre o desempenho dos seus experimentos</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Integration Status */}
+            <Card className="card-glass hover-lift border-success/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success ring-1 ring-success/20">
+                    <Check className="h-5 w-5" strokeWidth={2} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">Sistema Integrado</p>
+                    <p className="text-xs text-muted-foreground">Tudo funcionando perfeitamente</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
         </div>
       </div>

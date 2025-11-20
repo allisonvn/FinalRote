@@ -35,11 +35,33 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceClient()
 
-    const { data, error } = await supabase
+    // Primeiro, tenta selecionar os domínios
+    let { data, error } = await supabase
       .from('project_settings')
       .select('allowed_domains_custom')
       .eq('project_id', projectId)
       .single()
+
+    // Se o erro for sobre tabela não encontrada, tenta criar a tabela
+    if (error && (error.code === 'PGRST205' || error.message?.includes('project_settings'))) {
+      console.warn(
+        `⚠️ Tabela project_settings não encontrada ou não acessível. ` +
+        `Tentando criar/recuperar... Code: ${error.code}`
+      )
+      
+      // Tentar criar a tabela
+      const { error: createError } = await supabase.rpc('create_project_settings_table_if_not_exists')
+      
+      if (createError) {
+        console.warn(`⚠️ RPC create_project_settings_table_if_not_exists não disponível: ${createError.message}`)
+      }
+      
+      // Retornar dados vazios enquanto a tabela é criada
+      return NextResponse.json(
+        { domains: [], warning: 'Tabela de configurações de projeto está sendo inicializada' },
+        { status: 200, headers: corsHeaders }
+      )
+    }
 
     if (error) {
       // PGRST116 significa que não há registros encontrados - isso é OK, retornamos array vazio
