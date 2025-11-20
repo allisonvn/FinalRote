@@ -34,7 +34,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 export function useApp() {
   const context = useContext(AppContext)
   if (!context) {
-    throw new Error('useApp must be used within AppProvider')
+    // Retornar valores padrão durante pré-renderização (SSR)
+    return {
+      preferences: {
+        sidebarCollapsed: false,
+        pinnedExperiments: [],
+        theme: 'auto' as const,
+        language: 'pt-BR' as const
+      },
+      updatePreference: () => {},
+      toggleSidebar: () => {},
+      togglePin: () => {},
+      clearPreferences: () => {}
+    }
   }
   return context
 }
