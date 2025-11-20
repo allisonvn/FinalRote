@@ -13,38 +13,31 @@ import {
   Moon,
   Shield,
   Bell,
-  KeyRound,
   Globe2,
   User2,
   Save,
   Lock,
-  Key,
   Palette,
   Languages,
   Mail,
   Check,
-  ExternalLink,
-  Copy,
-  Eye,
-  EyeOff,
   Settings,
-  Zap,
   TrendingUp,
   CreditCard,
   Users,
   Activity,
-  Download,
-  Upload,
-  RefreshCw,
   AlertCircle,
   Crown,
-  Sparkles
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  Info
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SettingsPanelProps { className?: string }
 
-type TabType = 'account' | 'security' | 'api' | 'preferences' | 'billing'
+type TabType = 'account' | 'security' | 'preferences' | 'billing'
 
 export default function SettingsPanel({ className }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('account')
@@ -57,8 +50,6 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
   const [salvando, setSalvando] = useState(false)
   const [allowedDomainsCustom, setAllowedDomainsCustom] = useState('')
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
-  const [apiKey, setApiKey] = useState('rf_pk_xxxxxxxxxxxxxxxxx')
-  const [showApiKey, setShowApiKey] = useState(false)
 
   const fetchCustomDomains = useCallback(async (projectId: string) => {
     if (!projectId) {
@@ -151,7 +142,7 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
       document.documentElement.classList.toggle('dark', valor === 'escuro')
     }
     localStorage.setItem('preferencias.tema', valor)
-    toast.success('Tema atualizado')
+    toast.success('Tema atualizado com sucesso!')
   }
 
   const salvar = async () => {
@@ -176,94 +167,133 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
           return
         }
       }
-      toast.success('Configurações salvas com sucesso')
+      toast.success('Configurações salvas com sucesso!')
     } catch {
       toast.error('Não foi possível salvar as configurações')
     } finally { setSalvando(false) }
   }
 
-  const copyApiKey = () => {
-    navigator.clipboard.writeText(apiKey)
-    toast.success('Chave API copiada!')
-  }
-
   const tabs = [
-    { id: 'account' as TabType, label: 'Conta', icon: User2 },
-    { id: 'security' as TabType, label: 'Segurança', icon: Shield },
-    { id: 'api' as TabType, label: 'API & Integrações', icon: Key },
-    { id: 'preferences' as TabType, label: 'Preferências', icon: Settings },
-    { id: 'billing' as TabType, label: 'Plano & Faturamento', icon: CreditCard },
+    { id: 'account' as TabType, label: 'Conta', icon: User2, gradient: 'from-blue-500 to-cyan-500' },
+    { id: 'security' as TabType, label: 'Segurança', icon: Shield, gradient: 'from-red-500 to-pink-500' },
+    { id: 'preferences' as TabType, label: 'Preferências', icon: Settings, gradient: 'from-purple-500 to-indigo-500' },
+    { id: 'billing' as TabType, label: 'Plano & Faturamento', icon: CreditCard, gradient: 'from-amber-500 to-orange-500' },
   ]
 
   return (
     <div className={cn("max-w-7xl mx-auto", className)}>
-      {/* Hero Header */}
-      <div className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-border/50">
-        <div className="absolute inset-0 bg-grid-slate opacity-30" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+      {/* Premium Hero Header */}
+      <div className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-slate-900 dark:via-slate-800/50 dark:to-slate-900 border border-slate-200/60 dark:border-slate-700/60 shadow-2xl shadow-primary/5">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-grid-slate opacity-[0.15]" />
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-primary/20 via-blue-500/10 to-transparent rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-gradient-to-tr from-indigo-500/10 via-purple-500/10 to-transparent rounded-full blur-3xl" />
 
-        <div className="relative px-8 py-10">
-          <div className="flex items-start justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-lg ring-4 ring-primary/10">
-                  <Settings className="h-7 w-7" strokeWidth={1.75} />
+        <div className="relative px-10 py-12">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div className="space-y-6">
+              {/* Title Section */}
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary to-blue-600 rounded-2xl blur-xl opacity-60 animate-pulse" />
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-blue-500 to-indigo-600 shadow-2xl shadow-primary/50 ring-4 ring-white/20 dark:ring-slate-800/20">
+                    <Settings className="h-8 w-8 text-white" strokeWidth={2} />
+                  </div>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                  <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 dark:from-white dark:via-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
                     Configurações
                   </h1>
-                  <p className="text-muted-foreground mt-1">Gerencie sua conta e personalize sua experiência</p>
+                  <p className="text-slate-600 dark:text-slate-400 mt-1.5 text-base">
+                    Personalize sua experiência e gerencie sua conta
+                  </p>
                 </div>
               </div>
 
-              {/* Stats Cards */}
-              <div className="flex gap-4 pt-2">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background/50 backdrop-blur border border-border/50">
-                  <Activity className="h-4 w-4 text-primary" strokeWidth={1.75} />
-                  <span className="text-sm font-medium">Última atividade: há 2h</span>
+              {/* Stats Pills */}
+              <div className="flex flex-wrap gap-3">
+                <div className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-900/5 hover:shadow-xl hover:scale-105 transition-all duration-300">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
+                    <Activity className="h-4 w-4 text-white" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Última atividade</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">há 2 horas</div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background/50 backdrop-blur border border-border/50">
-                  <Users className="h-4 w-4 text-success" strokeWidth={1.75} />
-                  <span className="text-sm font-medium">3 projetos ativos</span>
+
+                <div className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-900/5 hover:shadow-xl hover:scale-105 transition-all duration-300">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30">
+                    <Users className="h-4 w-4 text-white" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Projetos ativos</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">3 projetos</div>
+                  </div>
                 </div>
-                <Badge className="px-4 py-2 bg-gradient-to-r from-amber-500/10 to-amber-600/10 text-amber-600 border-amber-500/20">
-                  <Crown className="h-3.5 w-3.5 mr-1.5" strokeWidth={2} />
-                  Plano Pro
-                </Badge>
+
+                <div className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 backdrop-blur-xl border border-amber-300/50 dark:border-amber-600/50 shadow-xl shadow-amber-500/30 hover:shadow-2xl hover:scale-105 transition-all duration-300">
+                  <Crown className="h-4 w-4 text-white" strokeWidth={2.5} />
+                  <div className="text-sm font-bold text-white">Plano Pro</div>
+                </div>
               </div>
             </div>
 
-            <Button
-              onClick={salvar}
-              disabled={salvando}
-              size="lg"
-              className="bg-gradient-primary text-primary-foreground shadow-lg hover:opacity-90 gap-2"
-            >
-              <Save className="h-4 w-4" strokeWidth={1.75} />
-              {salvando ? 'Salvando...' : 'Salvar alterações'}
-            </Button>
+            {/* Action Button */}
+            <div className="lg:flex-shrink-0">
+              <Button
+                onClick={salvar}
+                disabled={salvando}
+                size="lg"
+                className="relative group h-14 px-8 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 hover:from-primary/90 hover:via-blue-600/90 hover:to-indigo-600/90 text-white shadow-2xl shadow-primary/30 hover:shadow-primary/50 border-0 transition-all duration-300 hover:scale-105"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 rounded-lg transition-opacity" />
+                <Save className="h-5 w-5 mr-2" strokeWidth={2} />
+                <span className="font-semibold text-base">
+                  {salvando ? 'Salvando...' : 'Salvar alterações'}
+                </span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="mb-8">
-        <div className="border-b border-border/50">
-          <div className="flex gap-2 overflow-x-auto pb-px">
+      {/* Premium Tabs Navigation */}
+      <div className="mb-10">
+        <div className="relative">
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'flex items-center gap-2 px-6 py-3 text-sm font-medium transition-all whitespace-nowrap rounded-t-lg',
+                  'group relative flex items-center gap-3 px-6 py-4 text-sm font-semibold transition-all duration-300 whitespace-nowrap rounded-2xl',
                   activeTab === tab.id
-                    ? 'bg-background text-primary border-b-2 border-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl shadow-slate-900/10 scale-105'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 hover:scale-102'
                 )}
               >
-                <tab.icon className="h-4 w-4" strokeWidth={1.75} />
-                {tab.label}
+                {activeTab === tab.id && (
+                  <div className={cn(
+                    "absolute inset-0 rounded-2xl opacity-10 bg-gradient-to-br",
+                    tab.gradient
+                  )} />
+                )}
+                <div className={cn(
+                  "relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300",
+                  activeTab === tab.id
+                    ? `bg-gradient-to-br ${tab.gradient} shadow-lg text-white`
+                    : 'bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                )}>
+                  <tab.icon className="h-4.5 w-4.5" strokeWidth={2} />
+                </div>
+                <span className="relative">{tab.label}</span>
+                {activeTab === tab.id && (
+                  <div className={cn(
+                    "absolute -bottom-2 left-1/2 -translate-x-1/2 h-1 w-12 rounded-full bg-gradient-to-r",
+                    tab.gradient
+                  )} />
+                )}
               </button>
             ))}
           </div>
@@ -274,393 +304,239 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
       <div className="space-y-6">
         {/* Account Tab */}
         {activeTab === 'account' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Profile Card */}
-              <Card className="card-glass hover-lift border-border/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                        <User2 className="h-6 w-6" strokeWidth={1.75} />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">Informações do Perfil</CardTitle>
-                        <CardDescription>Atualize seus dados pessoais</CardDescription>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                      <Check className="h-3 w-3 mr-1" strokeWidth={2} />
-                      Verificado
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="text-sm font-semibold flex items-center gap-2 mb-2">
-                        <User2 className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
-                        Nome completo
-                      </label>
-                      <Input
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                        className="h-11"
-                        placeholder="Seu nome"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-semibold flex items-center gap-2 mb-2">
-                        <Mail className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
-                        Email
-                      </label>
-                      <Input value={email} disabled className="h-11 bg-muted/50" />
-                    </div>
-                  </div>
+          <div className="space-y-6">
+            {/* Profile Card */}
+            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-500/10 via-transparent to-transparent rounded-full blur-3xl" />
 
-                  <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50">
-                    <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" strokeWidth={1.75} />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Seu email está verificado</p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">Você receberá notificações importantes neste endereço.</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* UTM Domains Card */}
-              <Card className="card-glass hover-lift border-border/50">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                      <Globe2 className="h-6 w-6" strokeWidth={1.75} />
+              <CardHeader className="relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl blur-lg opacity-50" />
+                      <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-xl shadow-blue-500/30">
+                        <User2 className="h-7 w-7 text-white" strokeWidth={2} />
+                      </div>
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Propagação de UTMs</CardTitle>
-                      <CardDescription>Configure domínios para rastreamento de campanhas</CardDescription>
+                      <CardTitle className="text-xl font-bold">Informações do Perfil</CardTitle>
+                      <CardDescription className="text-base mt-1">Gerencie seus dados pessoais</CardDescription>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-semibold flex items-center gap-2 mb-2">
-                      <Globe2 className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
-                      Domínios permitidos
+                  <Badge className="px-4 py-2 bg-gradient-to-r from-green-500/10 to-emerald-600/10 text-green-700 dark:text-green-400 border-green-500/30 shadow-lg shadow-green-500/10">
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" strokeWidth={2.5} />
+                    <span className="font-semibold">Verificado</span>
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="relative space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2.5">
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <User2 className="h-4 w-4 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                      Nome completo
                     </label>
-                    <Textarea
-                      value={allowedDomainsCustom}
-                      onChange={(e) => setAllowedDomainsCustom(e.target.value)}
-                      placeholder="pay.hotmart.com&#10;checkout.exemplo.com&#10;meu-pagamento.com.br"
-                      rows={6}
-                      className="font-mono text-sm resize-none"
+                    <Input
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      placeholder="Digite seu nome completo"
                     />
-                    <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                      <Sparkles className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary" strokeWidth={1.75} />
-                      Insira um domínio por linha. Os parâmetros UTM serão propagados automaticamente para esses domínios.
+                  </div>
+                  <div className="space-y-2.5">
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                      Email
+                    </label>
+                    <Input
+                      value={email}
+                      disabled
+                      className="h-12 text-base bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700"
+                    />
+                  </div>
+                </div>
+
+                <div className="relative flex items-start gap-3.5 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50/30 dark:from-blue-950/30 dark:to-cyan-950/10 border border-blue-200/60 dark:border-blue-800/40 shadow-lg shadow-blue-900/5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30">
+                    <Info className="h-5 w-5 text-white" strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-bold text-blue-900 dark:text-blue-100">Email verificado com sucesso!</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                      Você receberá notificações importantes e atualizações neste endereço de email.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Account Status */}
-              <Card className="card-glass border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Status da Conta</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-muted-foreground">Email verificado</span>
-                    <Check className="h-4 w-4 text-success" strokeWidth={2} />
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-muted-foreground">2FA ativado</span>
-                    <Check className="h-4 w-4 text-success" strokeWidth={2} />
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-muted-foreground">Plano ativo</span>
-                    <Badge className="bg-success/10 text-success border-success/20 text-xs">Pro</Badge>
-                  </div>
-                  <div className="pt-3 border-t">
-                    <div className="text-xs text-muted-foreground">Membro desde</div>
-                    <div className="text-sm font-medium mt-0.5">Janeiro 2024</div>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* UTM Domains Card */}
+            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+              <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-tr from-purple-500/10 via-transparent to-transparent rounded-full blur-3xl" />
 
-              {/* Quick Actions */}
-              <Card className="card-glass border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Ações Rápidas</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start gap-2" size="sm">
-                    <Download className="h-4 w-4" strokeWidth={1.75} />
-                    Exportar dados
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2" size="sm">
-                    <Upload className="h-4 w-4" strokeWidth={1.75} />
-                    Importar configurações
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2 text-destructive hover:text-destructive" size="sm">
-                    <AlertCircle className="h-4 w-4" strokeWidth={1.75} />
-                    Excluir conta
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+              <CardHeader className="relative">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl blur-lg opacity-50" />
+                    <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xl shadow-purple-500/30">
+                      <Globe2 className="h-7 w-7 text-white" strokeWidth={2} />
+                    </div>
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-bold">Propagação de UTMs</CardTitle>
+                    <CardDescription className="text-base mt-1">Configure domínios para rastreamento avançado</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="relative space-y-5">
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <Globe2 className="h-4 w-4 text-purple-600 dark:text-purple-400" strokeWidth={2.5} />
+                    Domínios permitidos
+                  </label>
+                  <Textarea
+                    value={allowedDomainsCustom}
+                    onChange={(e) => setAllowedDomainsCustom(e.target.value)}
+                    placeholder="pay.hotmart.com&#10;checkout.exemplo.com&#10;pagamento.meusite.com.br"
+                    rows={7}
+                    className="font-mono text-sm resize-none border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
+                  />
+                  <div className="flex items-start gap-2.5 p-4 rounded-xl bg-purple-50 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-800/30">
+                    <Sparkles className="h-4.5 w-4.5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" strokeWidth={2} />
+                    <p className="text-xs text-purple-900 dark:text-purple-100 leading-relaxed">
+                      <span className="font-semibold">Dica:</span> Insira um domínio por linha. Os parâmetros UTM serão propagados automaticamente, permitindo rastreamento completo entre páginas e checkouts externos.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {/* Security Tab */}
         {activeTab === 'security' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="card-glass hover-lift border-border/50">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                    <Lock className="h-6 w-6" strokeWidth={1.75} />
+          <div className="max-w-3xl">
+            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-red-500/10 via-transparent to-transparent rounded-full blur-3xl" />
+
+              <CardHeader className="relative">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl blur-lg opacity-50" />
+                    <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-pink-600 shadow-xl shadow-red-500/30">
+                      <Lock className="h-7 w-7 text-white" strokeWidth={2} />
+                    </div>
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Alterar Senha</CardTitle>
-                    <CardDescription>Mantenha sua conta segura</CardDescription>
+                    <CardTitle className="text-xl font-bold">Alterar Senha</CardTitle>
+                    <CardDescription className="text-base mt-1">Mantenha sua conta sempre segura</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-semibold flex items-center gap-2 mb-2">
-                    <Lock className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
+              <CardContent className="relative space-y-6">
+                <div className="space-y-2.5">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-red-600 dark:text-red-400" strokeWidth={2.5} />
                     Senha atual
                   </label>
-                  <Input type="password" className="h-11" placeholder="••••••••" />
+                  <Input
+                    type="password"
+                    className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                    placeholder="Digite sua senha atual"
+                  />
                 </div>
-                <div>
-                  <label className="text-sm font-semibold flex items-center gap-2 mb-2">
-                    <Lock className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
-                    Nova senha
-                  </label>
-                  <Input type="password" className="h-11" placeholder="Mínimo 8 caracteres" />
-                </div>
-                <div>
-                  <label className="text-sm font-semibold flex items-center gap-2 mb-2">
-                    <Lock className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
-                    Confirmar nova senha
-                  </label>
-                  <Input type="password" className="h-11" placeholder="Repita a senha" />
-                </div>
-                <div className="flex justify-end pt-2">
-                  <Button
-                    onClick={() => toast.info('Em breve: alteração de senha')}
-                    className="gap-2"
-                  >
-                    <Shield className="h-4 w-4" strokeWidth={1.75} />
-                    Atualizar senha
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="card-glass hover-lift border-border/50">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                    <Shield className="h-6 w-6" strokeWidth={1.75} />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">Autenticação em Duas Etapas</CardTitle>
-                    <CardDescription>Proteção adicional para sua conta</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3 p-4 rounded-lg bg-success/10 border border-success/20">
-                  <Check className="h-5 w-5 text-success mt-0.5 flex-shrink-0" strokeWidth={2} />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-success-foreground">2FA Ativado</p>
-                    <p className="text-xs text-success-foreground/80">Sua conta está protegida com autenticação em duas etapas.</p>
-                  </div>
-                </div>
-                <Button variant="outline" className="w-full gap-2">
-                  <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
-                  Reconfigurar 2FA
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* API Tab */}
-        {activeTab === 'api' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <Card className="card-glass hover-lift border-border/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                        <Key className="h-6 w-6" strokeWidth={1.75} />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">Chaves API</CardTitle>
-                        <CardDescription>Gerencie suas credenciais de integração</CardDescription>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                      <Zap className="h-3 w-3 mr-1" strokeWidth={2} />
-                      Ativa
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <label className="text-sm font-semibold flex items-center gap-2 mb-2">
-                      <KeyRound className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
-                      Chave pública
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2.5">
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-red-600 dark:text-red-400" strokeWidth={2.5} />
+                      Nova senha
                     </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          value={showApiKey ? apiKey : '•'.repeat(apiKey.length)}
-                          readOnly
-                          className="pr-10 font-mono text-sm h-11 bg-muted/50"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                        >
-                          {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={copyApiKey}
-                        className="gap-2 px-4"
-                      >
-                        <Copy className="h-4 w-4" strokeWidth={1.75} />
-                        Copiar
-                      </Button>
-                    </div>
-                    <div className="flex items-start gap-2 mt-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
-                      <ExternalLink className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" strokeWidth={1.75} />
-                      <p className="text-xs text-muted-foreground">
-                        Esta chave é segura para uso no lado do cliente. Para operações sensíveis, use a chave secreta disponível no painel de desenvolvedor.
-                      </p>
-                    </div>
+                    <Input
+                      type="password"
+                      className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      placeholder="Mínimo 8 caracteres"
+                    />
                   </div>
-
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-semibold">Estatísticas de Uso</h4>
-                      <Badge variant="outline" className="text-xs">Últimos 30 dias</Badge>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                        <div className="text-2xl font-bold text-primary">1,234</div>
-                        <div className="text-xs text-muted-foreground mt-1">Requisições</div>
-                      </div>
-                      <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                        <div className="text-2xl font-bold text-success">99.9%</div>
-                        <div className="text-xs text-muted-foreground mt-1">Uptime</div>
-                      </div>
-                      <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                        <div className="text-2xl font-bold text-blue-600">45ms</div>
-                        <div className="text-xs text-muted-foreground mt-1">Latência média</div>
-                      </div>
-                    </div>
+                  <div className="space-y-2.5">
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-red-600 dark:text-red-400" strokeWidth={2.5} />
+                      Confirmar senha
+                    </label>
+                    <Input
+                      type="password"
+                      className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      placeholder="Repita a nova senha"
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-6">
-              <Card className="card-glass border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Documentação</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start gap-2" size="sm">
-                    <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
-                    Guia de início rápido
+                </div>
+                <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <Button
+                    onClick={() => toast.info('Funcionalidade em desenvolvimento')}
+                    className="h-12 px-8 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-xl shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300 hover:scale-105"
+                  >
+                    <Shield className="h-5 w-5 mr-2" strokeWidth={2} />
+                    <span className="font-semibold">Atualizar senha</span>
                   </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2" size="sm">
-                    <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
-                    Referência da API
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2" size="sm">
-                    <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
-                    Exemplos de código
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="card-glass border-success/20 bg-success/5">
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success ring-2 ring-success/20 flex-shrink-0">
-                      <Check className="h-5 w-5" strokeWidth={2} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm text-success-foreground">Sistema Integrado</p>
-                      <p className="text-xs text-success-foreground/80 mt-1">Todas as integrações estão funcionando perfeitamente</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {/* Preferences Tab */}
         {activeTab === 'preferences' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="card-glass hover-lift border-border/50">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                    <Palette className="h-6 w-6" strokeWidth={1.75} />
+            {/* Theme Card */}
+            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-purple-500/10 via-transparent to-transparent rounded-full blur-2xl" />
+
+              <CardHeader className="relative">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl blur-lg opacity-50" />
+                    <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xl shadow-purple-500/30">
+                      <Palette className="h-7 w-7 text-white" strokeWidth={2} />
+                    </div>
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Aparência</CardTitle>
-                    <CardDescription>Personalize a interface do sistema</CardDescription>
+                    <CardTitle className="text-xl font-bold">Aparência</CardTitle>
+                    <CardDescription className="text-base mt-1">Personalize o tema do sistema</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-semibold mb-3 block">Tema da interface</label>
+              <CardContent className="relative space-y-5">
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Tema da interface</label>
                   <div className="grid grid-cols-1 gap-3">
                     {[
-                      { value: 'auto' as const, icon: Sun, label: 'Automático', desc: 'Segue o sistema' },
-                      { value: 'claro' as const, icon: Sun, label: 'Claro', desc: 'Sempre claro' },
-                      { value: 'escuro' as const, icon: Moon, label: 'Escuro', desc: 'Sempre escuro' }
+                      { value: 'auto' as const, icon: Zap, label: 'Automático', desc: 'Segue as preferências do sistema', gradient: 'from-slate-500 to-slate-600' },
+                      { value: 'claro' as const, icon: Sun, label: 'Claro', desc: 'Tema claro o tempo todo', gradient: 'from-amber-400 to-orange-500' },
+                      { value: 'escuro' as const, icon: Moon, label: 'Escuro', desc: 'Tema escuro o tempo todo', gradient: 'from-indigo-500 to-purple-600' }
                     ].map((option) => (
                       <button
                         key={option.value}
                         onClick={() => aplicarTema(option.value)}
                         className={cn(
-                          "flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left",
+                          "group relative flex items-center gap-4 p-5 rounded-2xl border-2 transition-all duration-300 text-left hover:scale-102",
                           tema === option.value
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border/50 hover:border-border hover:bg-secondary/50'
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/20 shadow-xl shadow-purple-500/10'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-lg'
                         )}
                       >
                         <div className={cn(
-                          "flex h-10 w-10 items-center justify-center rounded-lg",
-                          tema === option.value ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                          "relative flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300 shadow-lg",
+                          tema === option.value
+                            ? `bg-gradient-to-br ${option.gradient} text-white shadow-${option.value === 'auto' ? 'slate' : option.value === 'claro' ? 'amber' : 'purple'}-500/40`
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
                         )}>
-                          <option.icon className="h-5 w-5" strokeWidth={1.75} />
+                          <option.icon className="h-6 w-6" strokeWidth={2} />
                         </div>
                         <div className="flex-1">
-                          <div className="font-medium">{option.label}</div>
-                          <div className="text-xs text-muted-foreground">{option.desc}</div>
+                          <div className="font-bold text-base text-slate-900 dark:text-white">{option.label}</div>
+                          <div className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">{option.desc}</div>
                         </div>
                         {tema === option.value && (
-                          <Check className="h-5 w-5 text-primary" strokeWidth={2} />
+                          <CheckCircle2 className="h-6 w-6 text-purple-600 dark:text-purple-400" strokeWidth={2.5} />
                         )}
                       </button>
                     ))}
@@ -670,73 +546,89 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
             </Card>
 
             <div className="space-y-6">
-              <Card className="card-glass hover-lift border-border/50">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                      <Languages className="h-6 w-6" strokeWidth={1.75} />
+              {/* Language Card */}
+              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+                <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-500/10 via-transparent to-transparent rounded-full blur-2xl" />
+
+                <CardHeader className="relative">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl blur-lg opacity-50" />
+                      <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-xl shadow-blue-500/30">
+                        <Languages className="h-7 w-7 text-white" strokeWidth={2} />
+                      </div>
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Idioma</CardTitle>
-                      <CardDescription>Escolha seu idioma preferido</CardDescription>
+                      <CardTitle className="text-xl font-bold">Idioma</CardTitle>
+                      <CardDescription className="text-base mt-1">Escolha seu idioma</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative">
                   <Select value={idioma} onValueChange={(v) => setIdioma(v as any)}>
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pt-BR">🇧🇷 Português (Brasil)</SelectItem>
-                      <SelectItem value="en-US" disabled>🇺🇸 English (US)</SelectItem>
-                      <SelectItem value="es-ES" disabled>🇪🇸 Español</SelectItem>
+                      <SelectItem value="pt-BR" className="text-base">🇧🇷 Português (Brasil)</SelectItem>
+                      <SelectItem value="en-US" disabled className="text-base">🇺🇸 English (US)</SelectItem>
+                      <SelectItem value="es-ES" disabled className="text-base">🇪🇸 Español</SelectItem>
                     </SelectContent>
                   </Select>
                 </CardContent>
               </Card>
 
-              <Card className="card-glass hover-lift border-border/50">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/10">
-                      <Bell className="h-6 w-6" strokeWidth={1.75} />
+              {/* Notifications Card */}
+              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+                <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-green-500/10 via-transparent to-transparent rounded-full blur-2xl" />
+
+                <CardHeader className="relative">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl blur-lg opacity-50" />
+                      <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-xl shadow-green-500/30">
+                        <Bell className="h-7 w-7 text-white" strokeWidth={2} />
+                      </div>
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Notificações</CardTitle>
-                      <CardDescription>Gerencie seus alertas</CardDescription>
+                      <CardTitle className="text-xl font-bold">Notificações</CardTitle>
+                      <CardDescription className="text-base mt-1">Gerencie seus alertas</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <label className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-secondary/50 cursor-pointer transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-5 w-5 text-primary" strokeWidth={1.75} />
+                <CardContent className="relative space-y-3">
+                  <label className="group flex items-center justify-between p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700 hover:bg-green-50/50 dark:hover:bg-green-950/10 cursor-pointer transition-all duration-300 hover:shadow-lg">
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
+                        <Mail className="h-5 w-5 text-white" strokeWidth={2.5} />
+                      </div>
                       <div>
-                        <div className="font-medium text-sm">Notificações por Email</div>
-                        <div className="text-xs text-muted-foreground">Receba atualizações importantes</div>
+                        <div className="font-bold text-sm text-slate-900 dark:text-white">Email</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Atualizações importantes</div>
                       </div>
                     </div>
                     <input
                       type="checkbox"
                       checked={notifEmail}
                       onChange={(e) => setNotifEmail(e.target.checked)}
-                      className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 text-green-600 focus:ring-green-500/30 cursor-pointer transition-all"
                     />
                   </label>
-                  <label className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-secondary/50 cursor-pointer transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Bell className="h-5 w-5 text-primary" strokeWidth={1.75} />
+                  <label className="group flex items-center justify-between p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700 hover:bg-green-50/50 dark:hover:bg-green-950/10 cursor-pointer transition-all duration-300 hover:shadow-lg">
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30">
+                        <Bell className="h-5 w-5 text-white" strokeWidth={2.5} />
+                      </div>
                       <div>
-                        <div className="font-medium text-sm">Notificações do Sistema</div>
-                        <div className="text-xs text-muted-foreground">Alertas em tempo real</div>
+                        <div className="font-bold text-sm text-slate-900 dark:text-white">Sistema</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Alertas em tempo real</div>
                       </div>
                     </div>
                     <input
                       type="checkbox"
                       checked={notifSistema}
                       onChange={(e) => setNotifSistema(e.target.checked)}
-                      className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 text-green-600 focus:ring-green-500/30 cursor-pointer transition-all"
                     />
                   </label>
                 </CardContent>
@@ -749,53 +641,69 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
         {activeTab === 'billing' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <Card className="card-glass hover-lift border-border/50">
-                <CardHeader>
+              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5" />
+                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-amber-400/10 via-transparent to-transparent rounded-full blur-3xl" />
+
+                <CardHeader className="relative">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 text-amber-600 ring-2 ring-amber-500/20">
-                        <Crown className="h-6 w-6" strokeWidth={1.75} />
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl blur-lg opacity-60 animate-pulse" />
+                        <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-2xl shadow-amber-500/40">
+                          <Crown className="h-7 w-7 text-white" strokeWidth={2} />
+                        </div>
                       </div>
                       <div>
-                        <CardTitle className="text-lg">Plano Atual</CardTitle>
-                        <CardDescription>Gerencie sua assinatura</CardDescription>
+                        <CardTitle className="text-xl font-bold">Plano Atual</CardTitle>
+                        <CardDescription className="text-base mt-1">Gerencie sua assinatura</CardDescription>
                       </div>
                     </div>
-                    <Badge className="px-4 py-2 bg-gradient-to-r from-amber-500/10 to-amber-600/10 text-amber-600 border-amber-500/20">
+                    <Badge className="px-5 py-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-white border-0 shadow-xl shadow-amber-500/40 text-base font-bold">
+                      <Crown className="h-4 w-4 mr-1.5" strokeWidth={2.5} />
                       Plano Pro
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="p-6 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-4xl font-bold">R$ 199</span>
-                      <span className="text-muted-foreground">/mês</span>
+                <CardContent className="relative space-y-8">
+                  <div className="relative p-8 rounded-3xl bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950/20 dark:via-orange-950/10 dark:to-amber-950/20 border-2 border-amber-200/60 dark:border-amber-800/40 shadow-2xl shadow-amber-500/10">
+                    <div className="absolute -top-3 -right-3 px-4 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
+                      Ativo
                     </div>
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-success" strokeWidth={2} />
-                        <span>Até 100.000 visitantes/mês</span>
+                    <div className="flex items-baseline gap-3 mb-6">
+                      <span className="text-5xl font-black bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">R$ 199</span>
+                      <span className="text-xl font-semibold text-slate-600 dark:text-slate-400">/mês</span>
+                    </div>
+                    <div className="space-y-3.5">
+                      <div className="flex items-center gap-3 text-base">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
+                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                        </div>
+                        <span className="font-semibold text-slate-900 dark:text-white">Até 100.000 visitantes por mês</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-success" strokeWidth={2} />
-                        <span>Experimentos ilimitados</span>
+                      <div className="flex items-center gap-3 text-base">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
+                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                        </div>
+                        <span className="font-semibold text-slate-900 dark:text-white">Experimentos ilimitados</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-success" strokeWidth={2} />
-                        <span>Suporte prioritário</span>
+                      <div className="flex items-center gap-3 text-base">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
+                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                        </div>
+                        <span className="font-semibold text-slate-900 dark:text-white">Suporte prioritário 24/7</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-3">
-                    <Button className="flex-1 gap-2">
-                      <TrendingUp className="h-4 w-4" strokeWidth={1.75} />
+                  <div className="flex gap-4">
+                    <Button className="flex-1 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 text-base font-semibold">
+                      <TrendingUp className="h-5 w-5 mr-2" strokeWidth={2} />
                       Fazer upgrade
                     </Button>
-                    <Button variant="outline" className="gap-2">
-                      <AlertCircle className="h-4 w-4" strokeWidth={1.75} />
-                      Cancelar plano
+                    <Button variant="outline" className="h-14 px-6 border-2 hover:bg-red-50 dark:hover:bg-red-950/20 hover:border-red-300 dark:hover:border-red-700 hover:text-red-600 dark:hover:text-red-400 transition-all text-base font-semibold">
+                      <AlertCircle className="h-5 w-5 mr-2" strokeWidth={2} />
+                      Cancelar
                     </Button>
                   </div>
                 </CardContent>
@@ -803,33 +711,37 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
             </div>
 
             <div className="space-y-6">
-              <Card className="card-glass border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Próximo Pagamento</CardTitle>
+              {/* Next Payment Card */}
+              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-500/10 via-transparent to-transparent rounded-full blur-2xl" />
+
+                <CardHeader className="relative pb-4">
+                  <CardTitle className="text-lg font-bold">Próximo Pagamento</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="text-2xl font-bold">R$ 199,00</div>
-                      <div className="text-sm text-muted-foreground">20 de Dezembro, 2024</div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full gap-2">
-                      <CreditCard className="h-4 w-4" strokeWidth={1.75} />
-                      Alterar forma de pagamento
-                    </Button>
+                <CardContent className="relative space-y-4">
+                  <div>
+                    <div className="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">R$ 199,00</div>
+                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">20 de Dezembro, 2024</div>
                   </div>
+                  <Button variant="outline" size="sm" className="w-full h-11 border-2 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold">
+                    <CreditCard className="h-4 w-4 mr-2" strokeWidth={2} />
+                    Alterar pagamento
+                  </Button>
                 </CardContent>
               </Card>
 
-              <Card className="card-glass border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Histórico</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start gap-2" size="sm">
-                    <Download className="h-4 w-4" strokeWidth={1.75} />
-                    Ver faturas
-                  </Button>
+              {/* Success Status Card */}
+              <Card className="relative overflow-hidden border-green-200/60 dark:border-green-800/40 bg-gradient-to-br from-green-50 to-emerald-50/30 dark:from-green-950/20 dark:to-emerald-950/10 shadow-xl shadow-green-500/10">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-xl shadow-green-500/40 flex-shrink-0">
+                      <CheckCircle2 className="h-6 w-6 text-white" strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-green-900 dark:text-green-100">Tudo certo!</p>
+                      <p className="text-xs text-green-700 dark:text-green-300 mt-1 leading-relaxed">Seu plano está ativo e funcionando perfeitamente</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
