@@ -3,6 +3,9 @@
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import SettingsPanel from '@/components/settings/SettingsPanel'
 
+// Forçar renderização dinâmica para evitar erro de pré-renderização
+export const dynamic = 'force-dynamic'
+
 export default function SettingsPage() {
   return (
     <DashboardLayout>
