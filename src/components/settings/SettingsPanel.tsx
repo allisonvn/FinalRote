@@ -1,140 +1,157 @@
 "use client"
 
 import { useEffect, useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import {
-  Sun,
-  Moon,
-  Shield,
-  Bell,
-  Globe2,
-  User2,
-  Save,
+  User,
   Lock,
-  Palette,
-  Languages,
-  Mail,
-  Check,
-  Settings,
-  TrendingUp,
+  Bell,
   CreditCard,
-  Users,
-  Activity,
-  AlertCircle,
-  Crown,
-  Sparkles,
-  Zap,
-  CheckCircle2,
-  Info
+  Globe,
+  Moon,
+  Sun,
+  Laptop,
+  Check,
+  Save,
+  Shield,
+  Palette,
+  RefreshCw
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface SettingsPanelProps { className?: string }
 
-type TabType = 'account' | 'security' | 'preferences' | 'billing'
-
 export default function SettingsPanel({ className }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('account')
-  const [nome, setNome] = useState('Usuário Demo')
-  const [email] = useState('demo@rotafinal.com')
+  const router = useRouter()
+  const supabase = createClient()
+  
+  // Tabs state
+  const [activeTab, setActiveTab] = useState('account')
+  
+  // User & Profile State
+  const [userId, setUserId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
+  
+  // Organization & Project State
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  const [orgData, setOrgData] = useState<any>(null)
+  const [subscriptionData, setSubscriptionData] = useState<any>(null)
+  
+  // Settings State
   const [tema, setTema] = useState<'auto'|'claro'|'escuro'>('auto')
-  const [idioma, setIdioma] = useState<'pt-BR'>('pt-BR')
   const [notifEmail, setNotifEmail] = useState(true)
   const [notifSistema, setNotifSistema] = useState(true)
+  
+  // Form States
   const [salvando, setSalvando] = useState(false)
   const [allowedDomainsCustom, setAllowedDomainsCustom] = useState('')
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
 
-  const fetchCustomDomains = useCallback(async (projectId: string) => {
-    if (!projectId) {
-      console.warn('fetchCustomDomains chamado sem projectId')
+  // Load initial data
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      
+      // 1. Auth User
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/auth/signin')
       return
     }
+      setUserId(user.id)
+      setEmail(user.email || '')
+      
+      // 2. Public Profile
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+        
+      if (profile) {
+        setNome(profile.full_name || '')
+        setAvatarUrl(profile.avatar_url || '')
+        // Load preferences from metadata if exists
+        if (profile.metadata?.theme) setTema(profile.metadata.theme)
+      }
 
-    try {
-      const response = await fetch(`/api/settings/custom-domains?projectId=${projectId}`)
-      const responseText = await response.text()
+      // 3. Project & API Keys
+      // Tenta pegar do localStorage ou busca o primeiro do usuário
+      const storedProjId = localStorage.getItem('currentProjectId')
+      let projId = storedProjId
 
-      if (!response.ok) {
-        let errorData: any = null
-        let errorMessage = `Erro ${response.status}: ${response.statusText || 'Erro desconhecido'}`
-
-        if (responseText) {
-          try {
-            errorData = JSON.parse(responseText)
-          } catch {
-            errorMessage = responseText || errorMessage
-          }
+      if (!projId) {
+        // Fallback: buscar primeiro projeto da organização do usuário
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('id')
+          .limit(1)
+        if (projects && projects.length > 0) {
+          projId = projects[0].id
+          localStorage.setItem('currentProjectId', projId!)
         }
+      }
 
-        if (errorData && typeof errorData === 'object') {
-          errorMessage = errorData.error || errorData.message || errorMessage
+      setCurrentProjectId(projId)
+
+      if (projId) {
+        const { data: project } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projId)
+          .single()
+          
+        if (project) {
+          setAllowedDomainsCustom(project.allowed_origins?.join('\n') || '')
         }
-
-        console.error(
-          `Erro ao buscar domínios personalizados - Status: ${response.status}, ` +
-          `StatusText: ${response.statusText}, ProjectId: ${projectId}, ` +
-          `Mensagem: ${errorMessage}, Response: ${responseText.substring(0, 200)}`
-        )
-
-        toast.error(errorMessage)
-        return
       }
 
-      let data: any = null
-      try {
-        data = JSON.parse(responseText)
-      } catch (parseError) {
-        const parseErrorMsg = parseError instanceof Error ? parseError.message : String(parseError)
-        console.error(
-          `Erro ao fazer parse da resposta de sucesso - Response: ${responseText.substring(0, 200)}, ` +
-          `Erro: ${parseErrorMsg}`
-        )
-        toast.error('Resposta inválida do servidor')
-        return
+      // 4. Organization & Billing
+      if (profile?.default_org_id) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', profile.default_org_id)
+          .single()
+          
+        setOrgData(org)
+
+        // Fetch active subscription details
+        if (org?.subscription_id) {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('*, plans(*)')
+            .eq('id', org.subscription_id)
+            .single()
+          setSubscriptionData(sub)
+        }
       }
 
-      if (data && Array.isArray(data.domains)) {
-        setAllowedDomainsCustom(data.domains.length > 0 ? data.domains.join('\n') : '')
-      } else {
-        setAllowedDomainsCustom('')
-      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      const errorStack = error instanceof Error ? error.stack : 'N/A'
-      console.error(
-        `Erro de rede ao buscar domínios personalizados - ProjectId: ${projectId}, ` +
-        `Erro: ${errorMessage}, Stack: ${errorStack}`
-      )
-      toast.error('Erro de rede ao carregar domínios personalizados')
+      console.error('Erro ao carregar configurações:', error)
+      toast.error('Erro ao carregar dados do usuário')
+    } finally {
+      setLoading(false)
     }
-  }, [])
+  }
 
-  useEffect(() => {
-    try {
-      const storedTema = localStorage.getItem('preferencias.tema') as any
-      const storedIdioma = localStorage.getItem('preferencias.idioma') as any
-      if (storedTema) setTema(storedTema)
-      if (storedIdioma) setIdioma(storedIdioma)
-
-      const projectId = localStorage.getItem('currentProjectId')
-      setCurrentProjectId(projectId)
-    } catch { }
-  }, [])
-
-  useEffect(() => {
-    if (currentProjectId) {
-      fetchCustomDomains(currentProjectId)
-    }
-  }, [currentProjectId, fetchCustomDomains])
-
-  const aplicarTema = (valor: 'auto' | 'claro' | 'escuro') => {
+  const aplicarTema = async (valor: 'auto' | 'claro' | 'escuro') => {
     setTema(valor)
     if (valor === 'auto') {
       document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -142,612 +159,380 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
       document.documentElement.classList.toggle('dark', valor === 'escuro')
     }
     localStorage.setItem('preferencias.tema', valor)
-    toast.success('Tema atualizado com sucesso!')
+    
+    // Persist preference
+    if (userId) {
+      await supabase.from('users').update({
+        metadata: { theme: valor }
+      }).eq('id', userId)
+    }
+    
+    toast.success('Tema atualizado')
   }
 
-  const salvar = async () => {
+  const salvarPerfil = async () => {
+    if (!userId) return
     try {
       setSalvando(true)
-      localStorage.setItem('preferencias.idioma', idioma)
-
-      if (currentProjectId) {
-        const domainsArray = allowedDomainsCustom.split(/\s*,\s*|\n/).filter(d => d.trim() !== '')
-        const response = await fetch(`/api/settings/custom-domains`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId: currentProjectId, domains: domainsArray })
+      
+      // Update Profile
+      const { error } = await supabase
+        .from('users')
+        .update({
+          full_name: nome,
+          updated_at: new Date().toISOString()
         })
+        .eq('id', userId)
 
-        const data = await response.json()
-
-        if (!response.ok) {
-          console.error('Erro ao salvar domínios personalizados:', data.error)
-          toast.error('Erro ao salvar domínios personalizados')
-          setSalvando(false)
-          return
-        }
-      }
-      toast.success('Configurações salvas com sucesso!')
-    } catch {
-      toast.error('Não foi possível salvar as configurações')
-    } finally { setSalvando(false) }
+      if (error) throw error
+      
+      toast.success('Perfil atualizado com sucesso!')
+    } catch (error) {
+      toast.error('Erro ao atualizar perfil')
+      console.error(error)
+    } finally {
+      setSalvando(false)
+    }
   }
 
-  const tabs = [
-    { id: 'account' as TabType, label: 'Conta', icon: User2, gradient: 'from-blue-500 to-cyan-500' },
-    { id: 'security' as TabType, label: 'Segurança', icon: Shield, gradient: 'from-red-500 to-pink-500' },
-    { id: 'preferences' as TabType, label: 'Preferências', icon: Settings, gradient: 'from-purple-500 to-indigo-500' },
-    { id: 'billing' as TabType, label: 'Plano & Faturamento', icon: CreditCard, gradient: 'from-amber-500 to-orange-500' },
-  ]
+  const salvarDominios = async () => {
+    if (!currentProjectId) return
+    try {
+      setSalvando(true)
+        const domainsArray = allowedDomainsCustom.split(/\s*,\s*|\n/).filter(d => d.trim() !== '')
+      
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          allowed_origins: domainsArray,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentProjectId)
+
+      if (error) throw error
+      
+      toast.success('Domínios atualizados com sucesso!')
+    } catch (error) {
+      toast.error('Erro ao salvar domínios')
+    } finally {
+          setSalvando(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="py-12 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+  }
 
   return (
-    <div className={cn("max-w-7xl mx-auto", className)}>
-      {/* Premium Hero Header */}
-      <div className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-slate-900 dark:via-slate-800/50 dark:to-slate-900 border border-slate-200/60 dark:border-slate-700/60 shadow-2xl shadow-primary/5">
-        {/* Background Effects */}
-        <div className="absolute inset-0 bg-grid-slate opacity-[0.15]" />
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-primary/20 via-blue-500/10 to-transparent rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-gradient-to-tr from-indigo-500/10 via-purple-500/10 to-transparent rounded-full blur-3xl" />
-
-        <div className="relative px-10 py-12">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-            <div className="space-y-6">
-              {/* Title Section */}
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary to-blue-600 rounded-2xl blur-xl opacity-60 animate-pulse" />
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-blue-500 to-indigo-600 shadow-2xl shadow-primary/50 ring-4 ring-white/20 dark:ring-slate-800/20">
-                    <Settings className="h-8 w-8 text-white" strokeWidth={2} />
-                  </div>
-                </div>
+    <div className={cn("max-w-5xl mx-auto py-8 space-y-8", className)}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 dark:from-white dark:via-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-                    Configurações
-                  </h1>
-                  <p className="text-slate-600 dark:text-slate-400 mt-1.5 text-base">
-                    Personalize sua experiência e gerencie sua conta
+          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie suas preferências, chaves de API e assinatura.
                   </p>
                 </div>
               </div>
 
-              {/* Stats Pills */}
-              <div className="flex flex-wrap gap-3">
-                <div className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-900/5 hover:shadow-xl hover:scale-105 transition-all duration-300">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
-                    <Activity className="h-4 w-4 text-white" strokeWidth={2.5} />
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Última atividade</div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">há 2 horas</div>
-                  </div>
-                </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 md:w-auto md:grid-cols-4 h-auto p-1 bg-muted/50">
+          <TabsTrigger value="account" className="py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <User className="w-4 h-4 mr-2" />
+            Conta
+          </TabsTrigger>
+          <TabsTrigger value="security" className="py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <Shield className="w-4 h-4 mr-2" />
+            Segurança
+          </TabsTrigger>
+          <TabsTrigger value="preferences" className="py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <Palette className="w-4 h-4 mr-2" />
+            Preferências
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <CreditCard className="w-4 h-4 mr-2" />
+            Faturamento
+          </TabsTrigger>
+        </TabsList>
 
-                <div className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-900/5 hover:shadow-xl hover:scale-105 transition-all duration-300">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30">
-                    <Users className="h-4 w-4 text-white" strokeWidth={2.5} />
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Projetos ativos</div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">3 projetos</div>
-                  </div>
-                </div>
-
-                <div className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 backdrop-blur-xl border border-amber-300/50 dark:border-amber-600/50 shadow-xl shadow-amber-500/30 hover:shadow-2xl hover:scale-105 transition-all duration-300">
-                  <Crown className="h-4 w-4 text-white" strokeWidth={2.5} />
-                  <div className="text-sm font-bold text-white">Plano Pro</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Button */}
-            <div className="lg:flex-shrink-0">
-              <Button
-                onClick={salvar}
-                disabled={salvando}
-                size="lg"
-                className="relative group h-14 px-8 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 hover:from-primary/90 hover:via-blue-600/90 hover:to-indigo-600/90 text-white shadow-2xl shadow-primary/30 hover:shadow-primary/50 border-0 transition-all duration-300 hover:scale-105"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 rounded-lg transition-opacity" />
-                <Save className="h-5 w-5 mr-2" strokeWidth={2} />
-                <span className="font-semibold text-base">
-                  {salvando ? 'Salvando...' : 'Salvar alterações'}
-                </span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Premium Tabs Navigation */}
-      <div className="mb-10">
-        <div className="relative">
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'group relative flex items-center gap-3 px-6 py-4 text-sm font-semibold transition-all duration-300 whitespace-nowrap rounded-2xl',
-                  activeTab === tab.id
-                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl shadow-slate-900/10 scale-105'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 hover:scale-102'
-                )}
-              >
-                {activeTab === tab.id && (
-                  <div className={cn(
-                    "absolute inset-0 rounded-2xl opacity-10 bg-gradient-to-br",
-                    tab.gradient
-                  )} />
-                )}
-                <div className={cn(
-                  "relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300",
-                  activeTab === tab.id
-                    ? `bg-gradient-to-br ${tab.gradient} shadow-lg text-white`
-                    : 'bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
-                )}>
-                  <tab.icon className="h-4.5 w-4.5" strokeWidth={2} />
-                </div>
-                <span className="relative">{tab.label}</span>
-                {activeTab === tab.id && (
-                  <div className={cn(
-                    "absolute -bottom-2 left-1/2 -translate-x-1/2 h-1 w-12 rounded-full bg-gradient-to-r",
-                    tab.gradient
-                  )} />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      <div className="space-y-6">
-        {/* Account Tab */}
-        {activeTab === 'account' && (
-          <div className="space-y-6">
-            {/* Profile Card */}
-            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-500/10 via-transparent to-transparent rounded-full blur-3xl" />
-
-              <CardHeader className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl blur-lg opacity-50" />
-                      <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-xl shadow-blue-500/30">
-                        <User2 className="h-7 w-7 text-white" strokeWidth={2} />
-                      </div>
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl font-bold">Informações do Perfil</CardTitle>
-                      <CardDescription className="text-base mt-1">Gerencie seus dados pessoais</CardDescription>
-                    </div>
-                  </div>
-                  <Badge className="px-4 py-2 bg-gradient-to-r from-green-500/10 to-emerald-600/10 text-green-700 dark:text-green-400 border-green-500/30 shadow-lg shadow-green-500/10">
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" strokeWidth={2.5} />
-                    <span className="font-semibold">Verificado</span>
-                  </Badge>
-                </div>
+        {/* TAB: CONTA */}
+        <TabsContent value="account" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações do Perfil</CardTitle>
+                <CardDescription>
+                  Seus dados pessoais visíveis na plataforma.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="relative space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2.5">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                      <User2 className="h-4 w-4 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
-                      Nome completo
-                    </label>
+              <CardContent className="space-y-6">
+                <div className="flex items-center gap-6">
+                  <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-muted">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-10 w-10 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-medium">Foto de Perfil</h3>
+                    <p className="text-xs text-muted-foreground">
+                      JPG ou PNG. Max 2MB. (Em breve)
+                    </p>
+                    <Button variant="outline" size="sm" disabled>Alterar foto</Button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nome">Nome completo</Label>
                     <Input
+                      id="nome"
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
-                      className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                      placeholder="Digite seu nome completo"
+                      placeholder="Seu nome"
                     />
                   </div>
-                  <div className="space-y-2.5">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
-                      Email
-                    </label>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
                     <Input
+                      id="email"
                       value={email}
                       disabled
-                      className="h-12 text-base bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700"
+                      className="bg-muted text-muted-foreground"
                     />
                   </div>
                 </div>
-
-                <div className="relative flex items-start gap-3.5 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50/30 dark:from-blue-950/30 dark:to-cyan-950/10 border border-blue-200/60 dark:border-blue-800/40 shadow-lg shadow-blue-900/5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30">
-                    <Info className="h-5 w-5 text-white" strokeWidth={2.5} />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-bold text-blue-900 dark:text-blue-100">Email verificado com sucesso!</p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                      Você receberá notificações importantes e atualizações neste endereço de email.
-                    </p>
-                  </div>
-                </div>
               </CardContent>
+              <CardFooter className="border-t px-6 py-4 bg-muted/10 flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  Seu ID de usuário: <span className="font-mono">{userId}</span>
+                </p>
+                <Button onClick={salvarPerfil} disabled={salvando}>
+                    {salvando ? 'Salvando...' : 'Salvar alterações'}
+                </Button>
+              </CardFooter>
             </Card>
 
-            {/* UTM Domains Card */}
-            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-              <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-tr from-purple-500/10 via-transparent to-transparent rounded-full blur-3xl" />
-
-              <CardHeader className="relative">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl blur-lg opacity-50" />
-                    <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xl shadow-purple-500/30">
-                      <Globe2 className="h-7 w-7 text-white" strokeWidth={2} />
-                    </div>
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl font-bold">Propagação de UTMs</CardTitle>
-                    <CardDescription className="text-base mt-1">Configure domínios para rastreamento avançado</CardDescription>
-                  </div>
-                </div>
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle>Origens Permitidas (CORS)</CardTitle>
+                <CardDescription>
+                  Domínios autorizados a enviar eventos e propagar UTMs para este projeto.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="relative space-y-5">
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                    <Globe2 className="h-4 w-4 text-purple-600 dark:text-purple-400" strokeWidth={2.5} />
-                    Domínios permitidos
-                  </label>
+              <CardContent className="flex-1 space-y-4">
+                <div className="space-y-2 h-full flex flex-col">
+                  <Label htmlFor="utms">Domínios permitidos (um por linha)</Label>
                   <Textarea
+                    id="utms"
                     value={allowedDomainsCustom}
                     onChange={(e) => setAllowedDomainsCustom(e.target.value)}
-                    placeholder="pay.hotmart.com&#10;checkout.exemplo.com&#10;pagamento.meusite.com.br"
-                    rows={7}
-                    className="font-mono text-sm resize-none border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
+                    className="font-mono text-sm flex-1 min-h-[120px] resize-none"
+                    placeholder="exemplo.com&#10;checkout.pagamento.com"
                   />
-                  <div className="flex items-start gap-2.5 p-4 rounded-xl bg-purple-50 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-800/30">
-                    <Sparkles className="h-4.5 w-4.5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" strokeWidth={2} />
-                    <p className="text-xs text-purple-900 dark:text-purple-100 leading-relaxed">
-                      <span className="font-semibold">Dica:</span> Insira um domínio por linha. Os parâmetros UTM serão propagados automaticamente, permitindo rastreamento completo entre páginas e checkouts externos.
-                    </p>
+                  <div className="flex items-center gap-2 p-3 rounded-md bg-blue-50 dark:bg-blue-950/20 text-xs text-blue-700 dark:text-blue-300 mt-auto">
+                    <Globe className="w-4 h-4" />
+                    Isso habilita o rastreamento cross-domain e protege sua API.
                   </div>
                 </div>
               </CardContent>
+              <CardFooter className="border-t px-6 py-4 bg-muted/10 flex justify-end">
+                <Button onClick={salvarDominios} disabled={salvando}>
+                  {salvando ? 'Salvando...' : 'Salvar Domínios'}
+                </Button>
+              </CardFooter>
             </Card>
           </div>
-        )}
+        </TabsContent>
 
-        {/* Security Tab */}
-        {activeTab === 'security' && (
-          <div className="max-w-3xl">
-            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-red-500/10 via-transparent to-transparent rounded-full blur-3xl" />
-
-              <CardHeader className="relative">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl blur-lg opacity-50" />
-                    <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-pink-600 shadow-xl shadow-red-500/30">
-                      <Lock className="h-7 w-7 text-white" strokeWidth={2} />
-                    </div>
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl font-bold">Alterar Senha</CardTitle>
-                    <CardDescription className="text-base mt-1">Mantenha sua conta sempre segura</CardDescription>
-                  </div>
+        {/* TAB: SEGURANÇA */}
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Senha e Autenticação</CardTitle>
+              <CardDescription>
+                Gerencie como você acessa sua conta.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 max-w-2xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">Nova senha</Label>
+                  <Input id="new-password" type="password" placeholder="••••••••" />
                 </div>
-              </CardHeader>
-              <CardContent className="relative space-y-6">
-                <div className="space-y-2.5">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-red-600 dark:text-red-400" strokeWidth={2.5} />
-                    Senha atual
-                  </label>
-                  <Input
-                    type="password"
-                    className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                    placeholder="Digite sua senha atual"
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirmar senha</Label>
+                  <Input id="confirm-password" type="password" placeholder="••••••••" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2.5">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-red-600 dark:text-red-400" strokeWidth={2.5} />
-                      Nova senha
-                    </label>
-                    <Input
-                      type="password"
-                      className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                      placeholder="Mínimo 8 caracteres"
-                    />
                   </div>
-                  <div className="space-y-2.5">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-red-600 dark:text-red-400" strokeWidth={2.5} />
-                      Confirmar senha
-                    </label>
-                    <Input
-                      type="password"
-                      className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                      placeholder="Repita a nova senha"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
-                  <Button
-                    onClick={() => toast.info('Funcionalidade em desenvolvimento')}
-                    className="h-12 px-8 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-xl shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300 hover:scale-105"
-                  >
-                    <Shield className="h-5 w-5 mr-2" strokeWidth={2} />
-                    <span className="font-semibold">Atualizar senha</span>
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => toast.info('Enviaremos um email de redefinição.')}>
+                  Redefinir por Email
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+        </TabsContent>
 
-        {/* Preferences Tab */}
-        {activeTab === 'preferences' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Theme Card */}
-            <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-purple-500/10 via-transparent to-transparent rounded-full blur-2xl" />
-
-              <CardHeader className="relative">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl blur-lg opacity-50" />
-                    <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xl shadow-purple-500/30">
-                      <Palette className="h-7 w-7 text-white" strokeWidth={2} />
-                    </div>
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl font-bold">Aparência</CardTitle>
-                    <CardDescription className="text-base mt-1">Personalize o tema do sistema</CardDescription>
-                  </div>
-                </div>
+        {/* TAB: PREFERÊNCIAS */}
+        <TabsContent value="preferences" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Aparência</CardTitle>
+              <CardDescription>
+                Personalize sua experiência visual.
+              </CardDescription>
               </CardHeader>
-              <CardContent className="relative space-y-5">
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Tema da interface</label>
-                  <div className="grid grid-cols-1 gap-3">
-                    {[
-                      { value: 'auto' as const, icon: Zap, label: 'Automático', desc: 'Segue as preferências do sistema', gradient: 'from-slate-500 to-slate-600' },
-                      { value: 'claro' as const, icon: Sun, label: 'Claro', desc: 'Tema claro o tempo todo', gradient: 'from-amber-400 to-orange-500' },
-                      { value: 'escuro' as const, icon: Moon, label: 'Escuro', desc: 'Tema escuro o tempo todo', gradient: 'from-indigo-500 to-purple-600' }
-                    ].map((option) => (
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button
+                  onClick={() => aplicarTema('claro')}
+                  className={cn(
+                    "flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground transition-all",
+                    tema === 'claro' && "border-primary bg-accent shadow-sm"
+                  )}
+                >
+                  <Sun className="mb-3 h-6 w-6" />
+                  <span className="text-sm font-medium">Claro</span>
+                </button>
                       <button
-                        key={option.value}
-                        onClick={() => aplicarTema(option.value)}
+                  onClick={() => aplicarTema('escuro')}
                         className={cn(
-                          "group relative flex items-center gap-4 p-5 rounded-2xl border-2 transition-all duration-300 text-left hover:scale-102",
-                          tema === option.value
-                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/20 shadow-xl shadow-purple-500/10'
-                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-lg'
-                        )}
-                      >
-                        <div className={cn(
-                          "relative flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300 shadow-lg",
-                          tema === option.value
-                            ? `bg-gradient-to-br ${option.gradient} text-white shadow-${option.value === 'auto' ? 'slate' : option.value === 'claro' ? 'amber' : 'purple'}-500/40`
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
-                        )}>
-                          <option.icon className="h-6 w-6" strokeWidth={2} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-base text-slate-900 dark:text-white">{option.label}</div>
-                          <div className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">{option.desc}</div>
-                        </div>
-                        {tema === option.value && (
-                          <CheckCircle2 className="h-6 w-6 text-purple-600 dark:text-purple-400" strokeWidth={2.5} />
-                        )}
+                    "flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground transition-all",
+                    tema === 'escuro' && "border-primary bg-accent shadow-sm"
+                  )}
+                >
+                  <Moon className="mb-3 h-6 w-6" />
+                  <span className="text-sm font-medium">Escuro</span>
+                </button>
+                <button
+                  onClick={() => aplicarTema('auto')}
+                  className={cn(
+                    "flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground transition-all",
+                    tema === 'auto' && "border-primary bg-accent shadow-sm"
+                  )}
+                >
+                  <Laptop className="mb-3 h-6 w-6" />
+                  <span className="text-sm font-medium">Sistema</span>
                       </button>
-                    ))}
-                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="space-y-6">
-              {/* Language Card */}
-              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-                <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-500/10 via-transparent to-transparent rounded-full blur-2xl" />
-
-                <CardHeader className="relative">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl blur-lg opacity-50" />
-                      <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-xl shadow-blue-500/30">
-                        <Languages className="h-7 w-7 text-white" strokeWidth={2} />
-                      </div>
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl font-bold">Idioma</CardTitle>
-                      <CardDescription className="text-base mt-1">Escolha seu idioma</CardDescription>
-                    </div>
-                  </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Notificações</CardTitle>
+              <CardDescription>
+                Controle o que enviamos para {email}.
+              </CardDescription>
                 </CardHeader>
-                <CardContent className="relative">
-                  <Select value={idioma} onValueChange={(v) => setIdioma(v as any)}>
-                    <SelectTrigger className="h-12 text-base border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pt-BR" className="text-base">🇧🇷 Português (Brasil)</SelectItem>
-                      <SelectItem value="en-US" disabled className="text-base">🇺🇸 English (US)</SelectItem>
-                      <SelectItem value="es-ES" disabled className="text-base">🇪🇸 Español</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
-
-              {/* Notifications Card */}
-              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-                <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-green-500/10 via-transparent to-transparent rounded-full blur-2xl" />
-
-                <CardHeader className="relative">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl blur-lg opacity-50" />
-                      <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-xl shadow-green-500/30">
-                        <Bell className="h-7 w-7 text-white" strokeWidth={2} />
-                      </div>
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl font-bold">Notificações</CardTitle>
-                      <CardDescription className="text-base mt-1">Gerencie seus alertas</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="relative space-y-3">
-                  <label className="group flex items-center justify-between p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700 hover:bg-green-50/50 dark:hover:bg-green-950/10 cursor-pointer transition-all duration-300 hover:shadow-lg">
-                    <div className="flex items-center gap-3.5">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
-                        <Mail className="h-5 w-5 text-white" strokeWidth={2.5} />
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm text-slate-900 dark:text-white">Email</div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Atualizações importantes</div>
-                      </div>
+            <CardContent className="grid gap-6">
+              <div className="flex items-center justify-between space-x-2">
+                <div className="flex flex-col space-y-1">
+                  <span className="text-sm font-medium leading-none">Emails de marketing</span>
+                  <span className="text-xs text-muted-foreground">
+                    Novidades sobre recursos e dicas de otimização.
+                  </span>
                     </div>
                     <input
                       type="checkbox"
                       checked={notifEmail}
                       onChange={(e) => setNotifEmail(e.target.checked)}
-                      className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 text-green-600 focus:ring-green-500/30 cursor-pointer transition-all"
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                  </label>
-                  <label className="group flex items-center justify-between p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700 hover:bg-green-50/50 dark:hover:bg-green-950/10 cursor-pointer transition-all duration-300 hover:shadow-lg">
-                    <div className="flex items-center gap-3.5">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30">
-                        <Bell className="h-5 w-5 text-white" strokeWidth={2.5} />
                       </div>
-                      <div>
-                        <div className="font-bold text-sm text-slate-900 dark:text-white">Sistema</div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Alertas em tempo real</div>
-                      </div>
+              <div className="flex items-center justify-between space-x-2">
+                <div className="flex flex-col space-y-1">
+                  <span className="text-sm font-medium leading-none">Alertas do sistema</span>
+                  <span className="text-xs text-muted-foreground">
+                    Avisos importantes sobre seus experimentos e pagamento.
+                  </span>
                     </div>
                     <input
                       type="checkbox"
                       checked={notifSistema}
                       onChange={(e) => setNotifSistema(e.target.checked)}
-                      className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 text-green-600 focus:ring-green-500/30 cursor-pointer transition-all"
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                  </label>
+              </div>
                 </CardContent>
               </Card>
-            </div>
-          </div>
-        )}
+        </TabsContent>
 
-        {/* Billing Tab */}
-        {activeTab === 'billing' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5" />
-                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-amber-400/10 via-transparent to-transparent rounded-full blur-3xl" />
-
-                <CardHeader className="relative">
+        {/* TAB: FATURAMENTO */}
+        <TabsContent value="billing" className="space-y-6">
+          <Card className={cn(
+            "border-l-4",
+            subscriptionData?.status === 'active' ? "border-l-green-500" : "border-l-yellow-500"
+          )}>
+            <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl blur-lg opacity-60 animate-pulse" />
-                        <div className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-2xl shadow-amber-500/40">
-                          <Crown className="h-7 w-7 text-white" strokeWidth={2} />
-                        </div>
-                      </div>
                       <div>
-                        <CardTitle className="text-xl font-bold">Plano Atual</CardTitle>
-                        <CardDescription className="text-base mt-1">Gerencie sua assinatura</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    {subscriptionData?.plans?.name || orgData?.plan_slug || 'Plano Gratuito'}
+                    {subscriptionData?.status === 'active' && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">Ativo</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    Gerencie sua assinatura e método de pagamento.
+                  </CardDescription>
                       </div>
                     </div>
-                    <Badge className="px-5 py-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-white border-0 shadow-xl shadow-amber-500/40 text-base font-bold">
-                      <Crown className="h-4 w-4 mr-1.5" strokeWidth={2.5} />
-                      Plano Pro
-                    </Badge>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {subscriptionData ? (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs font-medium text-muted-foreground uppercase">Valor</p>
+                    <p className="text-2xl font-bold mt-1">
+                      R$ {((subscriptionData.price_amount || 0) / 100).toFixed(2).replace('.', ',')}
+                      <span className="text-sm font-normal text-muted-foreground">/{subscriptionData.billing_cycle === 'monthly' ? 'mês' : 'ano'}</span>
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent className="relative space-y-8">
-                  <div className="relative p-8 rounded-3xl bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950/20 dark:via-orange-950/10 dark:to-amber-950/20 border-2 border-amber-200/60 dark:border-amber-800/40 shadow-2xl shadow-amber-500/10">
-                    <div className="absolute -top-3 -right-3 px-4 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
-                      Ativo
-                    </div>
-                    <div className="flex items-baseline gap-3 mb-6">
-                      <span className="text-5xl font-black bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">R$ 199</span>
-                      <span className="text-xl font-semibold text-slate-600 dark:text-slate-400">/mês</span>
-                    </div>
-                    <div className="space-y-3.5">
-                      <div className="flex items-center gap-3 text-base">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
-                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
-                        </div>
-                        <span className="font-semibold text-slate-900 dark:text-white">Até 100.000 visitantes por mês</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-base">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
-                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
-                        </div>
-                        <span className="font-semibold text-slate-900 dark:text-white">Experimentos ilimitados</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-base">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30">
-                          <Check className="h-4 w-4 text-white" strokeWidth={3} />
-                        </div>
-                        <span className="font-semibold text-slate-900 dark:text-white">Suporte prioritário 24/7</span>
-                      </div>
-                    </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs font-medium text-muted-foreground uppercase">Próxima cobrança</p>
+                    <p className="text-2xl font-bold mt-1">
+                      {subscriptionData.current_period_end ? new Date(subscriptionData.current_period_end).toLocaleDateString('pt-BR') : '-'}
+                    </p>
                   </div>
-
-                  <div className="flex gap-4">
-                    <Button className="flex-1 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 text-base font-semibold">
-                      <TrendingUp className="h-5 w-5 mr-2" strokeWidth={2} />
-                      Fazer upgrade
-                    </Button>
-                    <Button variant="outline" className="h-14 px-6 border-2 hover:bg-red-50 dark:hover:bg-red-950/20 hover:border-red-300 dark:hover:border-red-700 hover:text-red-600 dark:hover:text-red-400 transition-all text-base font-semibold">
-                      <AlertCircle className="h-5 w-5 mr-2" strokeWidth={2} />
-                      Cancelar
-                    </Button>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs font-medium text-muted-foreground uppercase">Status</p>
+                    <p className="text-xl font-bold mt-1 capitalize">{subscriptionData.status === 'active' ? 'Em dia' : subscriptionData.status}</p>
                   </div>
-                </CardContent>
-              </Card>
             </div>
-
-            <div className="space-y-6">
-              {/* Next Payment Card */}
-              <Card className="relative overflow-hidden border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-900/5 hover:shadow-2xl transition-all duration-300">
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-500/10 via-transparent to-transparent rounded-full blur-2xl" />
-
-                <CardHeader className="relative pb-4">
-                  <CardTitle className="text-lg font-bold">Próximo Pagamento</CardTitle>
-                </CardHeader>
-                <CardContent className="relative space-y-4">
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center space-y-3 bg-muted/30 rounded-lg border border-dashed">
+                  <CreditCard className="w-10 h-10 text-muted-foreground/50" />
                   <div>
-                    <div className="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">R$ 199,00</div>
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">20 de Dezembro, 2024</div>
+                    <p className="font-medium">Nenhuma assinatura ativa encontrada</p>
+                    <p className="text-sm text-muted-foreground">Você está usando o plano gratuito ou trial.</p>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full h-11 border-2 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold">
-                    <CreditCard className="h-4 w-4 mr-2" strokeWidth={2} />
-                    Alterar pagamento
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Success Status Card */}
-              <Card className="relative overflow-hidden border-green-200/60 dark:border-green-800/40 bg-gradient-to-br from-green-50 to-emerald-50/30 dark:from-green-950/20 dark:to-emerald-950/10 shadow-xl shadow-green-500/10">
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-3.5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-xl shadow-green-500/40 flex-shrink-0">
-                      <CheckCircle2 className="h-6 w-6 text-white" strokeWidth={2.5} />
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm text-green-900 dark:text-green-100">Tudo certo!</p>
-                      <p className="text-xs text-green-700 dark:text-green-300 mt-1 leading-relaxed">Seu plano está ativo e funcionando perfeitamente</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <Button variant="default" size="sm">Fazer Upgrade</Button>
+                </div>
+              )}
+              
+              {subscriptionData && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Recursos do seu plano</h4>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> Experimentos ilimitados</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> Suporte prioritário</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> API Access</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> Membros ilimitados</li>
+                  </ul>
           </div>
         )}
-      </div>
+            </CardContent>
+            {subscriptionData && (
+              <CardFooter className="border-t px-6 py-4 bg-muted/10 flex justify-between">
+                <Button variant="outline" size="sm">Histórico de faturas</Button>
+                <Button variant="default" size="sm">Gerenciar Assinatura (Kiwify)</Button>
+              </CardFooter>
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
