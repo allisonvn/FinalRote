@@ -43,7 +43,7 @@ export default function Home() {
               href="/auth/signin"
               className="inline-flex items-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transition-all"
             >
-              Começar Grátis
+              Começar Agora
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </div>
@@ -63,7 +63,7 @@ export default function Home() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-200 px-4 py-2 mb-8">
               <Award className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-700">Plataforma #1 de Teste A/B Inteligente</span>
+              <span className="text-sm font-semibold text-blue-700">Mais de 10.000 testes rodando agora</span>
             </div>
 
             {/* Main Headline */}
