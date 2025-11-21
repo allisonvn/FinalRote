@@ -754,7 +754,6 @@ export default function SettingsPanel({ className }: SettingsPanelProps) {
                 </Card>
               </div>
             </div>
-          </div>
 
           {/* Payment History - Show for active subscribers */}
           {subscriptionData?.status === 'active' && (
