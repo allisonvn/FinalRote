@@ -81,13 +81,13 @@ export default function Home() {
 
             {/* CTA Buttons */}
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/auth/signin"
+              <a
+                href="#pricing"
                 className="group inline-flex items-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-base font-semibold text-white shadow-2xl hover:shadow-3xl hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105"
               >
-                Comece Grátis Agora
+                Ver Planos e Preços
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </a>
               <a
                 href="#how-it-works"
                 className="inline-flex items-center rounded-xl border-2 border-gray-300 bg-white px-8 py-4 text-base font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all"
@@ -101,15 +101,15 @@ export default function Home() {
             <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm">
               <div className="flex items-center gap-2">
                 <Check className="w-5 h-5 text-green-500" />
-                <span className="text-gray-600"><strong className="text-gray-900">Grátis</strong> para começar</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5 text-green-500" />
                 <span className="text-gray-600">Configuração em <strong className="text-gray-900">2 minutos</strong></span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-5 h-5 text-green-500" />
-                <span className="text-gray-600">Sem cartão de crédito</span>
+                <span className="text-gray-600">Cancele quando quiser</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-5 h-5 text-green-500" />
+                <span className="text-gray-600">Sem contrato, sem pegadinha</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-5 h-5 text-green-500" />
@@ -283,9 +283,9 @@ export default function Home() {
                 <span className="text-2xl font-bold text-white">1</span>
               </div>
               <div className="pt-12 bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Crie sua conta</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Escolha seu plano</h3>
                 <p className="text-gray-600 text-center">
-                  Cadastre-se gratuitamente e crie seu primeiro projeto. Sem cartão de crédito, sem compromisso.
+                  Selecione o plano ideal para seu negócio. A partir de R$ 49,90/mês. Sem contrato, sem compromisso.
                 </p>
               </div>
             </div>
@@ -367,51 +367,179 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Pricing/CTA Section */}
-      <div id="pricing" className="py-24 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-white">
-            <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              Pronto para aumentar suas conversões?
+      {/* Pricing Section */}
+      <div id="pricing" className="py-24 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+              Planos e Preços
             </h2>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Junte-se a milhares de empresas que já aumentaram suas conversões em até 300% com Rota Final
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Escolha o plano ideal para seu negócio. Todos os planos incluem IA automática e otimização em tempo real.
             </p>
+          </div>
 
-            <div className="inline-flex flex-col sm:flex-row items-center gap-4 mb-10">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-12">
+            {/* Starter Plan */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-200 hover:shadow-xl transition-all">
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">STARTER</h3>
+                <div className="mb-4">
+                  <span className="text-5xl font-bold text-gray-900">R$ 49,90</span>
+                  <span className="text-gray-600">/mês</span>
+                </div>
+                <p className="text-sm text-gray-500">Ou R$ 499/ano (economize 2 meses)</p>
+              </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>5 experimentos</strong> simultâneos</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>10.000 visitantes</strong>/mês</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>2 projetos</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>IA automática</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">Analytics básico</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">Suporte por email</span>
+                </li>
+              </ul>
               <Link
                 href="/auth/signin"
-                className="group inline-flex items-center rounded-xl bg-white px-10 py-5 text-lg font-bold text-blue-600 shadow-2xl hover:shadow-3xl hover:bg-gray-50 transition-all transform hover:scale-105"
+                className="block w-full text-center rounded-xl bg-gray-900 text-white px-6 py-3 font-semibold hover:bg-gray-800 transition-all"
               >
-                Começar Grátis Agora
-                <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center rounded-xl border-2 border-white/50 bg-white/10 backdrop-blur px-10 py-5 text-lg font-bold text-white hover:bg-white/20 transition-all"
-              >
-                Ver Dashboard Demo
+                Começar Agora
               </Link>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-blue-100">
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5" />
-                <span>Grátis para sempre</span>
+            {/* Pro Plan - Most Popular */}
+            <div className="bg-white rounded-2xl p-8 shadow-2xl border-2 border-blue-500 transform scale-105 hover:shadow-3xl transition-all relative">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold px-4 py-1 rounded-full">MAIS POPULAR</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5" />
-                <span>Sem cartão de crédito</span>
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">PRO</h3>
+                <div className="mb-4">
+                  <span className="text-5xl font-bold text-blue-600">R$ 99,90</span>
+                  <span className="text-gray-600">/mês</span>
+                </div>
+                <p className="text-sm text-gray-500">Ou R$ 999/ano (economize 2 meses)</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5" />
-                <span>Configuração em 2 minutos</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5" />
-                <span>Cancele quando quiser</span>
-              </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>25 experimentos</strong> simultâneos</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>100.000 visitantes</strong>/mês</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>10 projetos</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>IA automática</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Analytics avançado</strong> com insights</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Domínios personalizados</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>5 membros</strong> na equipe</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">Suporte prioritário</span>
+                </li>
+              </ul>
+              <Link
+                href="/auth/signin"
+                className="block w-full text-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg"
+              >
+                Começar Agora
+              </Link>
             </div>
+
+            {/* Enterprise Plan */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-purple-200 hover:shadow-xl transition-all">
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">ENTERPRISE</h3>
+                <div className="mb-4">
+                  <span className="text-5xl font-bold text-purple-600">R$ 299,90</span>
+                  <span className="text-gray-600">/mês</span>
+                </div>
+                <p className="text-sm text-gray-500">Ou R$ 2.999/ano (economize 2 meses)</p>
+              </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Experimentos ilimitados</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Visitantes ilimitados</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Projetos ilimitados</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>IA automática</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Analytics enterprise</strong> completo</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Domínios personalizados</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700"><strong>Equipe ilimitada</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">Suporte dedicado + SLA</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">Onboarding personalizado</span>
+                </li>
+              </ul>
+              <Link
+                href="/auth/signin"
+                className="block w-full text-center rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 font-semibold hover:from-purple-700 hover:to-pink-700 transition-all"
+              >
+                Começar Agora
+              </Link>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-gray-600 text-sm">
+              Todos os planos incluem: Sem contrato • Cancele quando quiser • Suporte em português
+            </p>
           </div>
         </div>
       </div>
@@ -448,9 +576,9 @@ export default function Home() {
             </div>
 
             <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">É realmente grátis?</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Quanto custa?</h3>
               <p className="text-gray-600">
-                Sim! Nosso plano gratuito inclui até 10.000 visitantes/mês e testes ilimitados. Você só paga quando precisa de mais tráfego ou recursos enterprise.
+                A partir de R$ 49,90/mês. Sem contrato, sem pegadinha. Se não vender mais, você simplesmente cancela.
               </p>
             </div>
           </div>
