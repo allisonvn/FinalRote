@@ -68,15 +68,15 @@ export default function Home() {
 
             {/* Main Headline */}
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 mb-6">
-              Aumente suas conversões em
+              Dobre suas vendas online
               <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                até 300% com IA
+                sem gastar mais com tráfego
               </span>
             </h1>
 
             {/* Subheadline */}
             <p className="mt-6 text-xl leading-8 text-gray-600 max-w-3xl mx-auto">
-              Pare de perder dinheiro com palpites. Use <strong className="text-gray-900">Multi-Armed Bandit</strong> e algoritmos de machine learning para otimizar automaticamente cada visita ao seu site.
+              Descubra automaticamente qual versão do seu site vende mais. Nossa <strong className="text-gray-900">Inteligência Artificial</strong> testa e otimiza suas páginas 24/7, enquanto você foca em crescer seu negócio.
             </p>
 
             {/* CTA Buttons */}
@@ -121,16 +121,16 @@ export default function Home() {
           {/* Stats Bar */}
           <div className="mt-20 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 mb-2">3x</div>
-              <div className="text-sm text-gray-600">Mais conversões em média</div>
+              <div className="text-4xl font-bold text-blue-600 mb-2">+127%</div>
+              <div className="text-sm text-gray-600">Aumento médio em vendas</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-indigo-600 mb-2">89%</div>
-              <div className="text-sm text-gray-600">Menos tempo otimizando</div>
+              <div className="text-4xl font-bold text-indigo-600 mb-2">R$ 2,4M</div>
+              <div className="text-sm text-gray-600">Gerados para clientes em 2024</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-purple-600 mb-2">2 min</div>
-              <div className="text-sm text-gray-600">Para configurar</div>
+              <div className="text-sm text-gray-600">Para começar a vender mais</div>
             </div>
           </div>
         </div>
@@ -141,10 +141,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Você está perdendo dinheiro agora mesmo
+              Cada visitante que não compra é dinheiro jogado fora
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              A cada 100 visitantes que não convertem, você deixa de ganhar. Testes A/B tradicionais são lentos, complexos e exigem conhecimento estatístico avançado.
+              Você paga caro por cada clique. Se sua página não está otimizada, você está literalmente queimando dinheiro com anúncios que não convertem.
             </p>
           </div>
 
@@ -153,24 +153,24 @@ export default function Home() {
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                 <Clock className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Testes demoram semanas</h3>
-              <p className="text-gray-600">Com testes A/B tradicionais, você precisa esperar significância estatística. Isso pode levar meses.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Você adivinha o que funciona</h3>
+              <p className="text-gray-600">Troca cor de botão, muda o título, testa uma foto diferente... mas sem dados, você está só chutando e desperdiçando tempo.</p>
             </div>
 
             <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
                 <Brain className="w-6 h-6 text-orange-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Requer expertise técnica</h3>
-              <p className="text-gray-600">P-values, intervalos de confiança, análise bayesiana... você precisa ser um estatístico.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Testes levam eternidade</h3>
+              <p className="text-gray-600">Quer testar 3 versões diferentes? Vai demorar meses para ter certeza de qual funciona melhor. Enquanto isso, você perde vendas.</p>
             </div>
 
             <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
                 <TrendingUp className="w-6 h-6 text-yellow-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Deixa dinheiro na mesa</h3>
-              <p className="text-gray-600">Durante o teste, 50% dos usuários veem a versão perdedora. Você literalmente perde conversões.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Metade vê a versão pior</h3>
+              <p className="text-gray-600">Em testes tradicionais, 50% dos seus clientes veem a versão que vende menos. É jogar dinheiro pela janela todos os dias.</p>
             </div>
           </div>
         </div>
@@ -181,10 +181,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-4">
-              A solução: <span className="text-blue-600">Multi-Armed Bandit</span>
+              Como a Rota Final <span className="text-blue-600">multiplica suas vendas</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Algoritmos de IA que aprendem e otimizam em tempo real, direcionando automaticamente mais tráfego para as variantes vencedoras.
+              Nossa Inteligência Artificial aprende sozinha qual versão do seu site vende mais. Enquanto testa, ela já direciona mais visitantes para a versão vencedora. Você ganha dinheiro durante o teste, não depois.
             </p>
           </div>
 
@@ -196,13 +196,13 @@ export default function Home() {
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
                   <Brain className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Otimização Automática com IA</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">IA que Aprende Sozinha</h3>
                 <p className="text-gray-700 mb-4">
-                  Thompson Sampling, UCB1 e Epsilon-Greedy aprendem qual variante funciona melhor e automaticamente direcionam mais tráfego para ela. <strong>Você aumenta conversões durante o teste.</strong>
+                  Nossa Inteligência Artificial identifica qual versão vende mais e automaticamente mostra ela para mais pessoas. <strong>Você não perde vendas durante o teste.</strong> Quanto mais testa, mais vende.
                 </p>
                 <div className="flex items-center gap-2 text-sm text-blue-700 font-semibold">
                   <Sparkles className="w-4 h-4" />
-                  Até 3x mais conversões vs. A/B tradicional
+                  Até 3x mais vendas vs. teste tradicional
                 </div>
               </div>
             </div>
@@ -214,13 +214,13 @@ export default function Home() {
                 <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
                   <Zap className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Zero-Flicker Experience</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Seus Clientes Não Percebem Nada</h3>
                 <p className="text-gray-700 mb-4">
-                  Sistema avançado com SSR e Edge Functions garante que seus usuários nunca vejam um "flash" de conteúdo. <strong>Experiência perfeita, sempre.</strong>
+                  Sem aqueles "pulos" ou "tremeliques" na página. Tudo carrega instantaneamente e suave. <strong>Seus visitantes têm uma experiência profissional, sempre.</strong>
                 </p>
                 <div className="flex items-center gap-2 text-sm text-green-700 font-semibold">
                   <Check className="w-4 h-4" />
-                  100% sem flicker, 100% do tempo
+                  Página carrega perfeitamente, sem bugs
                 </div>
               </div>
             </div>
@@ -232,13 +232,13 @@ export default function Home() {
                 <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
                   <Target className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Estatísticas de Verdade</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Você Sabe Exatamente O Que Fazer</h3>
                 <p className="text-gray-700 mb-4">
-                  Análise bayesiana, p-values, intervalos de confiança, uplift e recomendações automáticas. <strong>Tudo calculado para você.</strong>
+                  Dashboard simples mostra qual versão está vendendo mais, quanto a mais, e se você já pode tomar a decisão. <strong>Sem complicação, só resultados claros.</strong>
                 </p>
                 <div className="flex items-center gap-2 text-sm text-purple-700 font-semibold">
                   <BarChart3 className="w-4 h-4" />
-                  Dashboard com insights acionáveis
+                  Gráficos simples que você entende
                 </div>
               </div>
             </div>
@@ -250,13 +250,13 @@ export default function Home() {
                 <div className="w-14 h-14 bg-gradient-to-br from-orange-600 to-red-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
                   <Code className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">SDK Simples de Integrar</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Instala em 2 Minutos (Sério)</h3>
                 <p className="text-gray-700 mb-4">
-                  Uma linha de código JavaScript. Pronto. Funciona com qualquer stack: React, Vue, PHP, WordPress, Shopify... <strong>Qualquer coisa.</strong>
+                  Cola um código no seu site e pronto. Funciona com WordPress, Shopify, Wix, ou qualquer plataforma. <strong>Se você consegue colar um código do Google Analytics, consegue instalar a Rota Final.</strong>
                 </p>
                 <div className="flex items-center gap-2 text-sm text-orange-700 font-semibold">
                   <Rocket className="w-4 h-4" />
-                  Configuração em 2 minutos
+                  Instalação mais rápida do mercado
                 </div>
               </div>
             </div>
@@ -265,55 +265,109 @@ export default function Home() {
       </div>
 
       {/* How It Works Section */}
-      <div id="how-it-works" className="py-24 bg-gradient-to-b from-gray-50 to-white">
+      <div id="how-it-works" className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute left-1/4 top-20 h-[300px] w-[300px] rounded-full bg-blue-100/50 blur-3xl" />
+          <div className="absolute right-1/4 bottom-20 h-[300px] w-[300px] rounded-full bg-purple-100/50 blur-3xl" />
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-20">
             <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-4">
-              Simples como 1, 2, 3
+              3 passos para dobrar suas vendas
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Configure seu primeiro teste A/B com Multi-Armed Bandit em menos de 2 minutos
+              Configure em 2 minutos e deixe a Inteligência Artificial trabalhar para você
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-12 max-w-6xl mx-auto">
-            {/* Step 1 */}
-            <div className="relative">
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
-                <span className="text-2xl font-bold text-white">1</span>
+          <div className="relative max-w-5xl mx-auto">
+            {/* Connection lines - hidden on mobile */}
+            <div className="hidden md:block absolute top-32 left-0 right-0 h-1 bg-gradient-to-r from-blue-200 via-indigo-200 to-purple-200"
+                 style={{left: '20%', right: '20%'}} />
+
+            <div className="grid md:grid-cols-3 gap-8 md:gap-12">
+              {/* Step 1 */}
+              <div className="relative group">
+                <div className="relative">
+                  {/* Number badge */}
+                  <div className="flex justify-center mb-6">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                      <Code className="w-10 h-10 text-white" />
+                    </div>
+                  </div>
+
+                  {/* Card */}
+                  <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-gray-100 hover:border-blue-200 transition-all hover:shadow-2xl">
+                    <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-xl mb-4 mx-auto">
+                      <span className="text-2xl font-bold text-blue-600">1</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Cole um código no seu site</h3>
+                    <p className="text-gray-600 text-center leading-relaxed">
+                      Tão simples quanto instalar o Google Analytics. Funciona em WordPress, Shopify, Wix, ou qualquer plataforma. <strong className="text-gray-900">Leva 2 minutos, literalmente.</strong>
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="pt-12 bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Escolha seu plano</h3>
-                <p className="text-gray-600 text-center">
-                  Selecione o plano ideal para seu negócio. A partir de R$ 49,90/mês. Sem contrato, sem compromisso.
-                </p>
+
+              {/* Step 2 */}
+              <div className="relative group">
+                <div className="relative">
+                  {/* Number badge */}
+                  <div className="flex justify-center mb-6">
+                    <div className="w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                      <Target className="w-10 h-10 text-white" />
+                    </div>
+                  </div>
+
+                  {/* Card */}
+                  <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-gray-100 hover:border-indigo-200 transition-all hover:shadow-2xl">
+                    <div className="flex items-center justify-center w-12 h-12 bg-indigo-100 rounded-xl mb-4 mx-auto">
+                      <span className="text-2xl font-bold text-indigo-600">2</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Configure qual página testar</h3>
+                    <p className="text-gray-600 text-center leading-relaxed">
+                      Escolhe a página (homepage, checkout, produto...) e cria as versões que quer testar. <strong className="text-gray-900">Muda título, botão, imagem, layout...</strong> O que você quiser.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="relative group">
+                <div className="relative">
+                  {/* Number badge */}
+                  <div className="flex justify-center mb-6">
+                    <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                      <TrendingUp className="w-10 h-10 text-white" />
+                    </div>
+                  </div>
+
+                  {/* Card */}
+                  <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-gray-100 hover:border-purple-200 transition-all hover:shadow-2xl">
+                    <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-xl mb-4 mx-auto">
+                      <span className="text-2xl font-bold text-purple-600">3</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Veja suas vendas crescerem</h3>
+                    <p className="text-gray-600 text-center leading-relaxed">
+                      Nossa IA testa automaticamente e mostra a versão vencedora para mais pessoas. <strong className="text-gray-900">Você abre o dashboard e vê suas conversões subindo.</strong> Simples assim.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Step 2 */}
-            <div className="relative">
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
-                <span className="text-2xl font-bold text-white">2</span>
-              </div>
-              <div className="pt-12 bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Adicione 1 linha de código</h3>
-                <p className="text-gray-600 text-center">
-                  Cole nosso SDK no seu site. Funciona com qualquer plataforma: React, WordPress, Shopify, etc.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="relative">
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
-                <span className="text-2xl font-bold text-white">3</span>
-              </div>
-              <div className="pt-12 bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Veja os resultados</h3>
-                <p className="text-gray-600 text-center">
-                  Nossa IA otimiza automaticamente. Você só precisa ver suas conversões aumentarem no dashboard.
-                </p>
-              </div>
+            {/* CTA at bottom */}
+            <div className="mt-16 text-center">
+              <a
+                href="#pricing"
+                className="inline-flex items-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-lg font-semibold text-white shadow-2xl hover:shadow-3xl hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105"
+              >
+                Ver Planos e Começar Agora
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </a>
+              <p className="mt-4 text-sm text-gray-500">Sem contrato • Cancele quando quiser</p>
             </div>
           </div>
         </div>
@@ -555,30 +609,30 @@ export default function Home() {
 
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">O que é Multi-Armed Bandit?</h3>
-              <p className="text-gray-600">
-                É um algoritmo de IA que aprende em tempo real qual variante funciona melhor e direciona automaticamente mais tráfego para ela. Diferente do A/B tradicional que divide 50/50, o MAB otimiza durante o teste.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200">
               <h3 className="text-lg font-bold text-gray-900 mb-2">Quanto tempo leva para ver resultados?</h3>
               <p className="text-gray-600">
-                Com Multi-Armed Bandit, você começa a ver resultados desde o primeiro dia. O algoritmo aprende continuamente e otimiza em tempo real, sem precisar esperar significância estatística.
+                Você começa a ver resultados desde o primeiro dia. Nossa IA aprende continuamente e otimiza em tempo real. Não precisa esperar semanas para saber o que funciona.
               </p>
             </div>
 
             <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Preciso saber programar?</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Funciona no meu site?</h3>
               <p className="text-gray-600">
-                Não! Basta copiar e colar uma linha de JavaScript no seu site. Nossa interface visual permite criar e gerenciar testes sem escrever código.
+                Sim! Funciona em WordPress, Shopify, Wix, ClickFunnels, ou qualquer plataforma. Se você consegue adicionar o código do Google Analytics, consegue adicionar a Rota Final.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Preciso saber programar ou estatística?</h3>
+              <p className="text-gray-600">
+                Não! A interface é visual e simples. Você cria versões da sua página, ativa o teste, e pronto. Nossa IA faz todo o trabalho pesado. Você só vê os resultados no dashboard.
               </p>
             </div>
 
             <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200">
               <h3 className="text-lg font-bold text-gray-900 mb-2">Quanto custa?</h3>
               <p className="text-gray-600">
-                A partir de R$ 49,90/mês. Sem contrato, sem pegadinha. Se não vender mais, você simplesmente cancela.
+                A partir de R$ 49,90/mês. Sem contrato, sem pegadinha. Se não vender mais, você simplesmente cancela. Pagamento mensal ou anual com desconto.
               </p>
             </div>
           </div>
@@ -597,7 +651,7 @@ export default function Home() {
                 <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Rota Final</span>
               </div>
               <p className="text-gray-600 max-w-md">
-                Plataforma inteligente de teste A/B com Multi-Armed Bandit. Otimize suas conversões automaticamente com IA.
+                A plataforma que usa Inteligência Artificial para otimizar suas páginas e dobrar suas vendas no piloto automático.
               </p>
             </div>
 
@@ -607,7 +661,6 @@ export default function Home() {
                 <li><a href="#features" className="hover:text-gray-900">Recursos</a></li>
                 <li><a href="#pricing" className="hover:text-gray-900">Preços</a></li>
                 <li><Link href="/dashboard" className="hover:text-gray-900">Dashboard</Link></li>
-                <li><a href="#" className="hover:text-gray-900">Documentação</a></li>
               </ul>
             </div>
 
