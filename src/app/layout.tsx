@@ -4,7 +4,7 @@ import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
 import { ClientWrapper } from '@/components/client-wrapper'
-import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary'
+import ChunkErrorBoundary from '@/components/ChunkErrorBoundary'
 import Script from 'next/script'
 
 const inter = Inter({ subsets: ['latin'] })

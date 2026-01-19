@@ -14,7 +14,7 @@ interface State {
   retryCount: number
 }
 
-export class ChunkErrorBoundary extends Component<Props, State> {
+export default class ChunkErrorBoundary extends Component<Props, State> {
   private maxRetries = 3
   private retryDelay = 2000
 
