@@ -33,68 +33,88 @@ export class AppError extends Error {
 }
 
 export function logError(error: Error | unknown, errorInfo?: Partial<ErrorInfo>) {
-  // Garantir que temos um Error válido
-  let errorObj: Error
-  if (error instanceof Error) {
-    errorObj = error
-  } else if (typeof error === 'string') {
-    errorObj = new Error(error)
-  } else if (error && typeof error === 'object' && 'message' in error) {
-    errorObj = new Error(String(error.message))
-  } else {
-    errorObj = new Error('Erro desconhecido')
-  }
-
-  const errorData: ErrorInfo = {
-    message: errorObj.message || 'Erro desconhecido',
-    stack: errorObj.stack,
-    timestamp: Date.now(),
-    userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
-    url: typeof window !== 'undefined' ? window.location.href : undefined,
-    ...errorInfo,
-  }
-
-  // Log to console in development
-  if (process.env.NODE_ENV === 'development') {
+  try {
+    // Garantir que temos um Error válido
+    let errorObj: Error
     try {
-      console.group('🚨 Error Logged')
-      console.error('Error:', errorObj)
-      
-      // Construir objeto de log com apenas propriedades válidas
-      const logData: Partial<ErrorInfo> = {
-        message: errorData.message || 'Erro desconhecido',
-        timestamp: errorData.timestamp,
+      if (error instanceof Error) {
+        errorObj = error
+      } else if (typeof error === 'string') {
+        errorObj = new Error(error)
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorObj = new Error(String(error.message))
+      } else {
+        errorObj = new Error('Erro desconhecido')
       }
-      
-      if (errorData.stack) {
-        logData.stack = errorData.stack
-      }
-      if (errorData.componentStack) {
-        logData.componentStack = errorData.componentStack
-      }
-      if (errorData.errorBoundary) {
-        logData.errorBoundary = errorData.errorBoundary
-      }
-      if (errorData.userAgent) {
-        logData.userAgent = errorData.userAgent
-      }
-      if (errorData.url) {
-        logData.url = errorData.url
-      }
-      
-      console.error('Error Info:', logData)
-      console.groupEnd()
-    } catch (loggingError) {
-      // Se houver erro ao logar, pelo menos logar o erro original
-      console.error('Erro ao processar log:', loggingError)
-      console.error('Erro original:', errorObj)
+    } catch (e) {
+      errorObj = new Error('Erro ao processar objeto de erro')
     }
-  }
 
-  // In production, you would send this to an error reporting service
-  // like Sentry, LogRocket, etc.
-  if (process.env.NODE_ENV === 'production') {
-    // Example: sendToErrorService(errorData)
+    // Construir errorData de forma segura
+    const errorData: ErrorInfo = {
+      message: (errorObj?.message || 'Erro desconhecido').substring(0, 500), // Limitar tamanho
+      stack: errorObj?.stack || undefined,
+      timestamp: Date.now(),
+      userAgent: typeof window !== 'undefined' ? window.navigator?.userAgent : undefined,
+      url: typeof window !== 'undefined' ? window.location?.href : undefined,
+      ...errorInfo,
+    }
+
+    // Log to console in development
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        console.group('🚨 Error Logged')
+        console.error('Error:', errorObj)
+        
+        // Construir logData de forma segura e garantida
+        const logData: Record<string, unknown> = {
+          message: errorData.message || 'Erro desconhecido',
+          timestamp: errorData.timestamp,
+        }
+        
+        if (errorData.stack) {
+          logData.stack = errorData.stack
+        }
+        if (errorData.componentStack) {
+          logData.componentStack = errorData.componentStack
+        }
+        if (errorData.errorBoundary) {
+          logData.errorBoundary = errorData.errorBoundary
+        }
+        if (errorData.userAgent) {
+          logData.userAgent = errorData.userAgent
+        }
+        if (errorData.url) {
+          logData.url = errorData.url
+        }
+        
+        // Garantir que sempre temos pelo menos message e timestamp
+        if (logData.message && logData.timestamp) {
+          console.error('Error Info:', logData)
+        } else {
+          console.error('Error Info:', {
+            message: 'Erro desconhecido',
+            timestamp: Date.now(),
+            originalError: String(error),
+          })
+        }
+        console.groupEnd()
+      } catch (loggingError) {
+        // Se houver erro ao logar, pelo menos logar o erro original de forma simples
+        console.error('Erro ao processar log:', loggingError)
+        console.error('Erro original (string):', String(error))
+      }
+    }
+
+    // In production, you would send this to an error reporting service
+    // like Sentry, LogRocket, etc.
+    if (process.env.NODE_ENV === 'production') {
+      // Example: sendToErrorService(errorData)
+    }
+  } catch (outerError) {
+    // Última linha de defesa - se tudo falhar, pelo menos logar algo
+    console.error('Erro crítico no logError:', outerError)
+    console.error('Erro original (raw):', error)
   }
 }
 
