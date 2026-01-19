@@ -56,20 +56,39 @@ export function logError(error: Error | unknown, errorInfo?: Partial<ErrorInfo>)
 
   // Log to console in development
   if (process.env.NODE_ENV === 'development') {
-    console.group('🚨 Error Logged')
-    console.error('Error:', errorObj)
-    // Só logar errorData se tiver informações relevantes
-    const logData: Partial<ErrorInfo> = {}
-    if (errorData.message) logData.message = errorData.message
-    if (errorData.stack) logData.stack = errorData.stack
-    if (errorData.componentStack) logData.componentStack = errorData.componentStack
-    if (errorData.errorBoundary) logData.errorBoundary = errorData.errorBoundary
-    if (errorData.timestamp) logData.timestamp = errorData.timestamp
-    
-    if (Object.keys(logData).length > 0) {
+    try {
+      console.group('🚨 Error Logged')
+      console.error('Error:', errorObj)
+      
+      // Construir objeto de log com apenas propriedades válidas
+      const logData: Partial<ErrorInfo> = {
+        message: errorData.message || 'Erro desconhecido',
+        timestamp: errorData.timestamp,
+      }
+      
+      if (errorData.stack) {
+        logData.stack = errorData.stack
+      }
+      if (errorData.componentStack) {
+        logData.componentStack = errorData.componentStack
+      }
+      if (errorData.errorBoundary) {
+        logData.errorBoundary = errorData.errorBoundary
+      }
+      if (errorData.userAgent) {
+        logData.userAgent = errorData.userAgent
+      }
+      if (errorData.url) {
+        logData.url = errorData.url
+      }
+      
       console.error('Error Info:', logData)
+      console.groupEnd()
+    } catch (loggingError) {
+      // Se houver erro ao logar, pelo menos logar o erro original
+      console.error('Erro ao processar log:', loggingError)
+      console.error('Erro original:', errorObj)
     }
-    console.groupEnd()
   }
 
   // In production, you would send this to an error reporting service
