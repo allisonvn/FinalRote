@@ -3,18 +3,71 @@
  * @description Cliente para envio de emails via Resend
  */
 
-import { Resend } from 'resend';
-
 // Configurações
-const RESEND_API_KEY = process.env.RESEND_API_KEY!;
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@seudominio.com';
 
-if (!RESEND_API_KEY) {
+if (!RESEND_API_KEY && process.env.NODE_ENV === 'development') {
   console.warn('RESEND_API_KEY not configured. Emails will not be sent.');
 }
 
-// Instância do cliente Resend (cria com chave vazia se não configurada para evitar erro no build)
-export const resend = new Resend(RESEND_API_KEY || 'dummy-key-for-build');
+// Tipo para o cliente Resend (para evitar dependência direta)
+type ResendClient = {
+  emails: {
+    send: (params: { from: string; to: string; subject: string; html: string }) => Promise<{ id?: string }>;
+  };
+  domains: {
+    list: () => Promise<unknown>;
+  };
+};
+
+// Cliente Resend inicializado sob demanda
+let _resendClient: ResendClient | null = null;
+
+async function getResendClient(): Promise<ResendClient | null> {
+  if (!RESEND_API_KEY) {
+    return null;
+  }
+
+  if (!_resendClient) {
+    try {
+      const { Resend } = await import('resend');
+      _resendClient = new Resend(RESEND_API_KEY) as ResendClient;
+    } catch {
+      console.error('Failed to load resend package. Email sending disabled.');
+      return null;
+    }
+  }
+
+  return _resendClient;
+}
+
+// Export para retrocompatibilidade
+export const resend = {
+  emails: {
+    send: async (params: { from: string; to: string; subject: string; html: string }) => {
+      const client = await getResendClient();
+      if (!client) {
+        throw new Error('Resend client not available');
+      }
+      return client.emails.send(params);
+    }
+  },
+  domains: {
+    list: async () => {
+      const client = await getResendClient();
+      if (!client) {
+        throw new Error('Resend client not available');
+      }
+      return client.domains.list();
+    }
+  }
+};
+
+// Imports dinâmicos para evitar problemas de build se libs não estiverem presentes
+// Mas como instalamos, podemos importar. Porém, manter compatibilidade.
+import { render } from '@react-email/render';
+import WelcomeEmail from '@/lib/email/templates/WelcomeEmail';
 
 // Tipos de email
 export type EmailTemplate =
@@ -60,7 +113,7 @@ export async function sendEmail(
 
   try {
     // Obter template e assunto
-    const { subject, html } = getEmailTemplate(
+    const { subject, html } = await getEmailTemplate(
       emailData.template,
       emailData.data
     );
@@ -110,15 +163,19 @@ export async function sendEmail(
 /**
  * Obter template de email
  */
-function getEmailTemplate(
+async function getEmailTemplate(
   template: EmailTemplate,
   data: Record<string, any>
-): { subject: string; html: string } {
+): Promise<{ subject: string; html: string }> {
   switch (template) {
     case 'welcome':
       return {
         subject: `Bem-vindo ao ${data.appName || 'nosso SaaS'}!`,
-        html: getWelcomeTemplate(data),
+        html: await render(WelcomeEmail({
+          name: data.name,
+          appName: data.appName,
+          dashboardUrl: data.dashboardUrl,
+        })),
       };
 
     case 'payment-confirmed':

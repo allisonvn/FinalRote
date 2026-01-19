@@ -7,43 +7,36 @@ import { Clock, Users, Target, Eye, MousePointer, Activity, ExternalLink } from 
 import { cn } from '@/lib/utils'
 import type { Event } from '@/hooks/useEvents'
 
+// Fallback component para quando react-window não está disponível
+function VirtualListFallback({ itemCount, itemSize, height, width, children }: any) {
+  const Row = children
+  return (
+    <div style={{ height, width, overflowY: 'auto' }}>
+      {Array.from({ length: itemCount }, (_, index) => (
+        <div key={index} style={{ height: itemSize }}>
+          {Row({ index, style: { height: itemSize } })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Importação dinâmica para evitar problemas de SSR
 const FixedSizeList = dynamic(
-  () => import('react-window').then((mod) => {
-    const Component = mod?.FixedSizeList
-    if (!Component) {
-      console.warn('FixedSizeList não encontrado, usando fallback')
-      // Retornar um componente fallback que renderiza os itens diretamente
-      return function FallbackList({ itemCount, itemSize, height, width, children }: any) {
-        const Row = children
-        return (
-          <div style={{ height, width, overflowY: 'auto' }}>
-            {Array.from({ length: itemCount }, (_, index) => (
-              <div key={index} style={{ height: itemSize }}>
-                {Row({ index, style: { height: itemSize } })}
-              </div>
-            ))}
-          </div>
-        )
+  async () => {
+    try {
+      const mod = await import('react-window')
+      const Component = mod?.FixedSizeList
+      if (!Component) {
+        console.warn('FixedSizeList não encontrado, usando fallback')
+        return VirtualListFallback
       }
+      return Component
+    } catch (error) {
+      console.error('Erro ao carregar react-window:', error)
+      return VirtualListFallback
     }
-    return Component
-  }).catch((error) => {
-    console.error('Erro ao carregar react-window:', error)
-    // Componente fallback em caso de erro
-    return function FallbackList({ itemCount, itemSize, height, width, children }: any) {
-      const Row = children
-      return (
-        <div style={{ height, width, overflowY: 'auto' }}>
-          {Array.from({ length: itemCount }, (_, index) => (
-            <div key={index} style={{ height: itemSize }}>
-              {Row({ index, style: { height: itemSize } })}
-            </div>
-          ))}
-        </div>
-      )
-    }
-  }),
+  },
   { 
     ssr: false,
     loading: () => <div className="p-4 text-center text-slate-600">Carregando lista...</div>

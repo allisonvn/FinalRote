@@ -19,6 +19,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { config, safeLog } from '@/lib/config'
+import { calculateExperimentMetrics as calculateMetrics } from '@/lib/experiment-metrics'
 
 type ExperimentStatus = 'draft' | 'running' | 'paused' | 'completed'
 
@@ -75,72 +76,18 @@ const algorithmConfig = {
   uniform: { label: 'Uniforme', icon: BarChart3, premium: false }
 }
 
-// Função para calcular métricas reais dos experimentos - OTIMIZADA
-const calculateExperimentMetrics = async (experimentId: string, supabase: any) => {
+
+// Wrapper para calcular métricas - usa função externa com cálculos estatísticos reais
+const calculateExperimentMetrics = async (experimentId: string, _supabase: any) => {
   try {
-    console.log('📊 Calculando métricas para experimento:', experimentId)
-
-    // Tentar buscar de variant_stats primeiro (mais rápido)
-    const { data: stats } = await supabase
-      .from('variant_stats')
-      .select('visitors, conversions, revenue')
-      .eq('experiment_id', experimentId)
-
-    if (stats && stats.length > 0) {
-      // Agregar stats
-      const totalVisitors = stats.reduce((sum: number, s: any) => sum + (s.visitors || 0), 0)
-      const totalConversions = stats.reduce((sum: number, s: any) => sum + (s.conversions || 0), 0)
-      const revenue = stats.reduce((sum: number, s: any) => sum + (s.revenue || 0), 0)
-      const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
-
-      const baseline = 3.0
-      const improvement = conversionRate > 0 ? ((conversionRate - baseline) / baseline) * 100 : 0
-
-      console.log('✅ Métricas de variant_stats:', { totalVisitors, totalConversions, revenue })
-
-      return {
-        conversions: totalConversions,
-        visitors: totalVisitors,
-        conversionRate,
-        confidence: conversionRate > baseline ? 95 : 75,
-        revenue,
-        improvement
-      }
-    }
-
-    // Fallback: buscar diretamente
-    console.log('⚠️ Usando fallback para métricas')
-
-    const [visitorsResult, conversionsResult] = await Promise.all([
-      supabase
-        .from('assignments')
-        .select('visitor_id', { count: 'exact', head: true })
-        .eq('experiment_id', experimentId),
-      supabase
-        .from('events')
-        .select('value')
-        .eq('experiment_id', experimentId)
-        .eq('event_type', 'conversion')
-    ])
-
-    const totalVisitors = visitorsResult.count || 0
-    const conversions = conversionsResult.data || []
-    const totalConversions = conversions.length
-    const revenue = conversions.reduce((sum: number, conv: any) => sum + (conv.value || 0), 0)
-    const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
-
-    const baseline = 3.0
-    const improvement = conversionRate > 0 ? ((conversionRate - baseline) / baseline) * 100 : 0
-
-    console.log('✅ Métricas de fallback:', { totalVisitors, totalConversions, revenue })
-
+    const metrics = await calculateMetrics(experimentId)
     return {
-      conversions: totalConversions,
-      visitors: totalVisitors,
-      conversionRate,
-      confidence: conversionRate > baseline ? 95 : 75,
-      revenue,
-      improvement
+      conversions: metrics.conversions,
+      visitors: metrics.visitors,
+      conversionRate: metrics.conversionRate,
+      confidence: metrics.confidence,
+      revenue: metrics.revenue || 0,
+      improvement: metrics.improvement || 0
     }
   } catch (error) {
     safeLog('Erro ao calcular métricas:', error)
@@ -190,7 +137,7 @@ export default function ProfessionalExperimentsPage() {
     try {
       const saved = localStorage.getItem('experimentsLayout') as 'grid' | 'list' | null
       if (saved === 'grid' || saved === 'list') setLayout(saved)
-    } catch {}
+    } catch { }
 
     const load = async () => {
       try {
@@ -260,7 +207,7 @@ export default function ProfessionalExperimentsPage() {
   }, [])
 
   useEffect(() => {
-    try { localStorage.setItem('experimentsLayout', layout) } catch {}
+    try { localStorage.setItem('experimentsLayout', layout) } catch { }
   }, [layout])
 
   const allTags = useMemo(() => {
@@ -272,7 +219,7 @@ export default function ProfessionalExperimentsPage() {
   const filteredExperiments = useMemo(() => {
     let filtered = experiments.filter(exp => {
       const matchesQuery = !query || exp.name.toLowerCase().includes(query.toLowerCase()) ||
-                          exp.description?.toLowerCase().includes(query.toLowerCase())
+        exp.description?.toLowerCase().includes(query.toLowerCase())
       const matchesStatus = status === 'all' || exp.status === status
       const matchesTags = activeTags.length === 0 || activeTags.every(tag => exp.tags?.includes(tag))
       return matchesQuery && matchesStatus && matchesTags
@@ -458,190 +405,190 @@ export default function ProfessionalExperimentsPage() {
       <div className="w-full bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
 
-        {/* Filtros Aprimorados */}
-        <Card className="backdrop-blur-xl bg-white/90 border-0 shadow-2xl p-6">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
-            <div className="relative flex-1 max-w-xl">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <Input
-                placeholder="Buscar experimentos por nome ou descrição..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-12 h-12 border-2 border-slate-200 focus:border-purple-500 rounded-2xl text-base font-medium bg-white shadow-inner"
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery('')}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-
-            <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-              <SelectTrigger className="h-12 w-full lg:w-40 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4" />
-                  <SelectValue placeholder="Status" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl border-2 shadow-2xl">
-                <SelectItem value="all" className="rounded-xl font-medium">Todos</SelectItem>
-                <SelectItem value="draft" className="rounded-xl font-medium">Rascunho</SelectItem>
-                <SelectItem value="running" className="rounded-xl font-medium">Ativo</SelectItem>
-                <SelectItem value="paused" className="rounded-xl font-medium">Pausado</SelectItem>
-                <SelectItem value="completed" className="rounded-xl font-medium">Concluído</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="h-12 w-full lg:w-44 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-4 h-4" />
-                  <SelectValue />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl border-2 shadow-2xl">
-                <SelectItem value="recent" className="rounded-xl font-medium">Mais Recentes</SelectItem>
-                <SelectItem value="name" className="rounded-xl font-medium">Nome A-Z</SelectItem>
-                <SelectItem value="status" className="rounded-xl font-medium">Status</SelectItem>
-                <SelectItem value="performance" className="rounded-xl font-medium">Performance</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="flex border-2 border-slate-200 rounded-2xl overflow-hidden shadow-lg">
-              <Button
-                variant={layout === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setLayout('grid')}
-                className={cn(
-                  "rounded-none h-12 px-6",
-                  layout === 'grid'
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
-                    : 'text-slate-600 hover:bg-slate-100'
+          {/* Filtros Aprimorados */}
+          <Card className="backdrop-blur-xl bg-white/90 border-0 shadow-2xl p-6">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+              <div className="relative flex-1 max-w-xl">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Input
+                  placeholder="Buscar experimentos por nome ou descrição..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-12 h-12 border-2 border-slate-200 focus:border-purple-500 rounded-2xl text-base font-medium bg-white shadow-inner"
+                />
+                {query && (
+                  <button
+                    onClick={() => setQuery('')}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 )}
-              >
-                <Grid className="w-5 h-5" />
-              </Button>
-              <Button
-                variant={layout === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setLayout('list')}
-                className={cn(
-                  "rounded-none h-12 px-6 border-l-2 border-slate-200",
-                  layout === 'list'
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
-                    : 'text-slate-600 hover:bg-slate-100'
-                )}
-              >
-                <List className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
+              </div>
 
-          {hasActiveFilters && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 pt-6 border-t-2 border-slate-200">
-              <Badge variant="outline" className="text-base px-6 py-2 font-bold bg-purple-50 border-purple-300 text-purple-700">
-                {filteredExperiments.length} de {experiments.length} experimentos
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-                className="border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold rounded-xl px-6 py-2 transition-all"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Limpar Filtros
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        {/* Lista de experimentos */}
-        {loading ? (
-          <div className={cn(
-            layout === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              : 'space-y-4'
-          )}>
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="relative overflow-hidden backdrop-blur-xl bg-white/80 border-0 rounded-3xl p-6 shadow-xl">
-                <div className="space-y-4 animate-pulse">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-200 to-blue-200 rounded-full"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-3/4"></div>
-                      <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-300 rounded-lg w-1/2"></div>
-                    </div>
+              <Select value={status} onValueChange={(value: any) => setStatus(value)}>
+                <SelectTrigger className="h-12 w-full lg:w-40 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4" />
+                    <SelectValue placeholder="Status" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl"></div>
-                    <div className="h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl"></div>
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-2 shadow-2xl">
+                  <SelectItem value="all" className="rounded-xl font-medium">Todos</SelectItem>
+                  <SelectItem value="draft" className="rounded-xl font-medium">Rascunho</SelectItem>
+                  <SelectItem value="running" className="rounded-xl font-medium">Ativo</SelectItem>
+                  <SelectItem value="paused" className="rounded-xl font-medium">Pausado</SelectItem>
+                  <SelectItem value="completed" className="rounded-xl font-medium">Concluído</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="h-12 w-full lg:w-44 border-2 border-slate-200 hover:border-purple-400 rounded-2xl font-semibold bg-white shadow-lg hover:shadow-xl transition-all">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4" />
+                    <SelectValue />
                   </div>
-                  <div className="h-10 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-full"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredExperiments.length === 0 ? (
-          <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-2xl p-16 text-center">
-            <div className="max-w-2xl mx-auto space-y-8">
-              <div className="relative inline-flex">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
-                <div className="relative p-8 rounded-full bg-gradient-to-br from-purple-50 to-blue-50 shadow-2xl">
-                  <FlaskConical className="w-24 h-24 text-transparent bg-gradient-to-br from-purple-600 to-blue-600 bg-clip-text" style={{ WebkitTextFillColor: 'transparent', backgroundClip: 'text' }} />
-                </div>
-              </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-2 shadow-2xl">
+                  <SelectItem value="recent" className="rounded-xl font-medium">Mais Recentes</SelectItem>
+                  <SelectItem value="name" className="rounded-xl font-medium">Nome A-Z</SelectItem>
+                  <SelectItem value="status" className="rounded-xl font-medium">Status</SelectItem>
+                  <SelectItem value="performance" className="rounded-xl font-medium">Performance</SelectItem>
+                </SelectContent>
+              </Select>
 
-              <div className="space-y-4">
-                <h3 className="text-4xl font-black text-slate-900">
-                  {hasActiveFilters ? 'Nenhum experimento encontrado' : 'Comece sua Jornada'}
-                </h3>
-                <p className="text-xl text-slate-600 leading-relaxed max-w-lg mx-auto">
-                  {hasActiveFilters
-                    ? 'Não encontramos experimentos com os filtros aplicados. Tente ajustar os critérios de busca.'
-                    : 'Crie seu primeiro experimento A/B e comece a otimizar suas conversões com dados reais em tempo real.'}
-                </p>
-              </div>
-
-              {hasActiveFilters ? (
+              <div className="flex border-2 border-slate-200 rounded-2xl overflow-hidden shadow-lg">
                 <Button
-                  onClick={clearFilters}
-                  variant="outline"
-                  className="border-2 border-slate-300 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 font-bold text-lg px-8 py-6 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                  variant={layout === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setLayout('grid')}
+                  className={cn(
+                    "rounded-none h-12 px-6",
+                    layout === 'grid'
+                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
                 >
-                  <X className="w-5 h-5 mr-2" />
+                  <Grid className="w-5 h-5" />
+                </Button>
+                <Button
+                  variant={layout === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setLayout('list')}
+                  className={cn(
+                    "rounded-none h-12 px-6 border-l-2 border-slate-200",
+                    layout === 'list'
+                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <List className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 pt-6 border-t-2 border-slate-200">
+                <Badge variant="outline" className="text-base px-6 py-2 font-bold bg-purple-50 border-purple-300 text-purple-700">
+                  {filteredExperiments.length} de {experiments.length} experimentos
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold rounded-xl px-6 py-2 transition-all"
+                >
+                  <X className="w-4 h-4 mr-2" />
                   Limpar Filtros
                 </Button>
-              ) : (
-                <Button
-                  onClick={() => router.push(config.app.newExperiment)}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-lg px-10 py-6 rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all"
-                >
-                  <Rocket className="w-6 h-6 mr-3" />
-                  Criar Primeiro Experimento
-                  <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
-                </Button>
-              )}
-            </div>
+              </div>
+            )}
           </Card>
-        ) : (
-          <div className={cn(
-            layout === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              : 'space-y-1'
-          )}>
-            {filteredExperiments.map((experiment) => (
-              <ProfessionalExperimentCard
-                key={experiment.id}
-                experiment={experiment}
-                layout={layout}
-                onViewDetails={handleViewDetails}
-              />
-            ))}
-          </div>
-        )}
+
+          {/* Lista de experimentos */}
+          {loading ? (
+            <div className={cn(
+              layout === 'grid'
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                : 'space-y-4'
+            )}>
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="relative overflow-hidden backdrop-blur-xl bg-white/80 border-0 rounded-3xl p-6 shadow-xl">
+                  <div className="space-y-4 animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-200 to-blue-200 rounded-full"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-3/4"></div>
+                        <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-300 rounded-lg w-1/2"></div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl"></div>
+                      <div className="h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl"></div>
+                    </div>
+                    <div className="h-10 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl w-full"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredExperiments.length === 0 ? (
+            <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-2xl p-16 text-center">
+              <div className="max-w-2xl mx-auto space-y-8">
+                <div className="relative inline-flex">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                  <div className="relative p-8 rounded-full bg-gradient-to-br from-purple-50 to-blue-50 shadow-2xl">
+                    <FlaskConical className="w-24 h-24 text-transparent bg-gradient-to-br from-purple-600 to-blue-600 bg-clip-text" style={{ WebkitTextFillColor: 'transparent', backgroundClip: 'text' }} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-4xl font-black text-slate-900">
+                    {hasActiveFilters ? 'Nenhum experimento encontrado' : 'Comece sua Jornada'}
+                  </h3>
+                  <p className="text-xl text-slate-600 leading-relaxed max-w-lg mx-auto">
+                    {hasActiveFilters
+                      ? 'Não encontramos experimentos com os filtros aplicados. Tente ajustar os critérios de busca.'
+                      : 'Crie seu primeiro experimento A/B e comece a otimizar suas conversões com dados reais em tempo real.'}
+                  </p>
+                </div>
+
+                {hasActiveFilters ? (
+                  <Button
+                    onClick={clearFilters}
+                    variant="outline"
+                    className="border-2 border-slate-300 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 font-bold text-lg px-8 py-6 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                  >
+                    <X className="w-5 h-5 mr-2" />
+                    Limpar Filtros
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => router.push(config.app.newExperiment)}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-lg px-10 py-6 rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all"
+                  >
+                    <Rocket className="w-6 h-6 mr-3" />
+                    Criar Primeiro Experimento
+                    <Sparkles className="w-5 h-5 ml-3 animate-pulse" />
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ) : (
+            <div className={cn(
+              layout === 'grid'
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                : 'space-y-1'
+            )}>
+              {filteredExperiments.map((experiment) => (
+                <ProfessionalExperimentCard
+                  key={experiment.id}
+                  experiment={experiment}
+                  layout={layout}
+                  onViewDetails={handleViewDetails}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -830,8 +777,8 @@ function ProfessionalExperimentCard({
         experiment.status === 'running'
           ? "bg-gradient-to-br from-emerald-500/10 to-green-500/10"
           : experiment.status === 'completed'
-          ? "bg-gradient-to-br from-blue-500/10 to-cyan-500/10"
-          : "bg-gradient-to-br from-purple-500/10 to-pink-500/10"
+            ? "bg-gradient-to-br from-blue-500/10 to-cyan-500/10"
+            : "bg-gradient-to-br from-purple-500/10 to-pink-500/10"
       )} />
 
       {/* Status Indicator */}
@@ -869,7 +816,7 @@ function ProfessionalExperimentCard({
 
         {/* Description */}
         <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
-          {experiment.description || 'Experimento A/B para otimização de conversões em tempo real.'}
+          {experiment.description || 'Sem descrição'}
         </p>
 
         {/* Metrics Grid */}

@@ -25,44 +25,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Verificar se a chave de serviço está disponível
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('SUPABASE_SERVICE_ROLE_KEY não está definida')
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY === 'your-service-role-key') {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY não está definida ou é inválida no servidor');
       return NextResponse.json(
-        { error: 'Configuração do servidor incompleta' },
+        {
+          error: 'Configuração do servidor incompleta',
+          details: 'SUPABASE_SERVICE_ROLE_KEY está ausente no arquivo .env'
+        },
         { status: 500, headers: corsHeaders }
       )
     }
 
     const supabase = createServiceClient()
 
-    // Primeiro, tenta selecionar os domínios
+    // Primeiro, tenta selecionar os domínios usando maybeSingle() para evitar erro quando não há registro
     let { data, error } = await supabase
       .from('project_settings')
       .select('allowed_domains_custom')
       .eq('project_id', projectId)
-      .single()
+      .maybeSingle()
 
-    // Se o erro for sobre tabela não encontrada, tenta criar a tabela
-    if (error && (error.code === 'PGRST205' || error.message?.includes('project_settings'))) {
-      console.warn(
-        `⚠️ Tabela project_settings não encontrada ou não acessível. ` +
-        `Tentando criar/recuperar... Code: ${error.code}`
-      )
-      
-      // Tentar criar a tabela
-      const { error: createError } = await supabase.rpc('create_project_settings_table_if_not_exists')
-      
-      if (createError) {
-        console.warn(`⚠️ RPC create_project_settings_table_if_not_exists não disponível: ${createError.message}`)
-      }
-      
-      // Retornar dados vazios enquanto a tabela é criada
-      return NextResponse.json(
-        { domains: [], warning: 'Tabela de configurações de projeto está sendo inicializada' },
-        { status: 200, headers: corsHeaders }
-      )
-    }
-
+    // Se o erro for sobre tabela não encontrada ou permissão, retornar array vazio
     if (error) {
       // PGRST116 significa que não há registros encontrados - isso é OK, retornamos array vazio
       if (error.code === 'PGRST116') {
@@ -71,31 +54,45 @@ export async function GET(request: NextRequest) {
           { status: 200, headers: corsHeaders }
         )
       }
-      
-      // Outros erros são tratados como erro real
-      const errorResponse = { 
-        error: 'Erro ao buscar domínios personalizados', 
-        code: error.code || 'UNKNOWN',
-        message: error.message || 'Erro desconhecido'
+
+      // Se o erro for sobre tabela não encontrada ou permissão, retornar array vazio
+      if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('permission denied')) {
+        console.warn(
+          `⚠️ Tabela project_settings não encontrada ou sem permissão. ` +
+          `Code: ${error.code}, Message: ${error.message}`
+        )
+        return NextResponse.json(
+          { domains: [] },
+          { status: 200, headers: corsHeaders }
+        )
       }
-      
+
+      // Outros erros são tratados como erro real
+      const errorResponse = {
+        error: 'Erro ao buscar domínios personalizados',
+        code: error.code || 'UNKNOWN',
+        message: error.message || 'Erro desconhecido',
+        details: error.details || null,
+        hint: error.hint || null
+      }
+
       console.error(
         `Erro ao buscar domínios personalizados - Code: ${error.code}, ` +
         `Message: ${error.message}, Details: ${error.details}, ` +
         `Hint: ${error.hint}, ProjectId: ${projectId}`
       )
-      
+
       return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders })
     }
 
     // Se não houver erro, retornar os domínios (ou array vazio se não houver)
     const domains = data?.allowed_domains_custom || []
-    
+
     // Garantir que domains é um array válido
     const validDomains = Array.isArray(domains) ? domains : []
-    
+
     const responseData = { domains: validDomains }
-    
+
     return NextResponse.json(responseData, { status: 200, headers: corsHeaders })
 
   } catch (error: any) {
@@ -103,12 +100,12 @@ export async function GET(request: NextRequest) {
       error: 'Erro interno do servidor',
       message: error?.message || String(error) || 'Erro desconhecido'
     }
-    
+
     console.error(
       `Erro inesperado ao buscar domínios personalizados - ` +
       `Name: ${error?.name}, Message: ${error?.message}, Stack: ${error?.stack}`
     )
-    
+
     return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders })
   }
 }
@@ -122,9 +119,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se a chave de serviço está disponível
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('SUPABASE_SERVICE_ROLE_KEY não está definida')
-      return NextResponse.json({ error: 'Configuração do servidor incompleta' }, { status: 500, headers: corsHeaders })
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY === 'your-service-role-key') {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY não está definida ou é inválida no servidor');
+      return NextResponse.json({
+        error: 'Configuração do servidor incompleta',
+        details: 'SUPABASE_SERVICE_ROLE_KEY está ausente no arquivo .env'
+      }, { status: 500, headers: corsHeaders })
     }
 
     const supabase = createServiceClient()
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
         `Erro ao salvar domínios personalizados - Code: ${error.code}, ` +
         `Message: ${error.message}, Details: ${error.details}, Hint: ${error.hint}`
       )
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Erro ao salvar domínios personalizados',
         code: error.code,
         message: error.message
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       `Erro inesperado ao salvar domínios personalizados - ` +
       `Name: ${error?.name}, Message: ${error?.message}, Stack: ${error?.stack}`
     )
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Erro interno do servidor',
       message: error?.message || String(error)
     }, { status: 500, headers: corsHeaders })

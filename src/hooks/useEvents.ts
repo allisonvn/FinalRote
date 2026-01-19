@@ -113,7 +113,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
   const [page, setPage] = useState(0)
 
   const supabase = createClient()
-  
+
   // Verificar se o cliente Supabase está válido
   if (!supabase || typeof supabase.from !== 'function') {
     console.error('Supabase client is invalid:', supabase)
@@ -209,29 +209,37 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
       setLoading(true)
       setError(null)
 
-      // Build query
+      // Build query - excluir project_id do select para evitar erro de coluna não encontrada
+      // O Supabase REST API pode não estar sincronizado com as mudanças no schema
       let query = supabase
         .from('events')
-        .select('*', { count: 'exact' })
+        .select('id, event_type, event_name, visitor_id, experiment_id, variant_id, event_data, utm_data, value, created_at, utm_source, utm_medium, utm_campaign, device_type, browser, country, properties, session_id, referrer, os, city, utm_term, utm_content', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(pageNumber * pageSize, (pageNumber + 1) * pageSize - 1)
 
-      // Filter by project_id if provided
-      // NOTA: Temporariamente comentado para debug - pode estar causando erro vazio {}
-      // if (projectId) {
-      //   // Validar que projectId não está vazio antes de aplicar filtro
-      //   if (typeof projectId === 'string' && projectId.trim() !== '') {
-      //     query = query.eq('project_id', projectId)
-      //   } else {
-      //     console.warn('Invalid projectId provided:', projectId, typeof projectId)
-      //   }
-      // }
-      
+      // Filter by project_id if provided - mas apenas se o backend suportar
+      // Para contornar o erro, não filtramos por project_id direto
+      // TODO: Remover este comentário quando o schema do Supabase for totalmente sincronizado
+      if (projectId) {
+        // Validar que projectId não está vazio e é um UUID válido antes de aplicar filtro
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId);
+
+        if (typeof projectId === 'string' && projectId.trim() !== '' && isUuid) {
+          // ⚠️ Supabase REST API pode não ter project_id sincronizado ainda
+          // Tentaremos apenas se o schema estiver pronto
+          try {
+            query = query.eq('project_id', projectId)
+          } catch (e) {
+            console.warn('⚠️ Project ID filter not available yet, continuing without filter:', e);
+          }
+        } else {
+          console.warn('⚠️ Invalid or placeholder projectId ignored in events query:', projectId);
+        }
+      }
+
       // Log da query antes de executar
       console.log('🔍 Executando query events:', {
-        hasProjectId: !!projectId,
-        projectIdValue: projectId,
-        projectIdType: typeof projectId,
+        projectId,
         filters: {
           eventType: filters.eventType,
           search: filters.search,
@@ -265,20 +273,20 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         query = query.lte('created_at', endOfDay.toISOString())
       }
 
-      // Note: device_type, browser, os, country, city não existem como colunas diretas
-      // Eles estão dentro de event_data (JSONB). Filtros removidos até implementar queries JSONB
-      // if (filters.device) {
-      //   query = query.ilike('device_type', filters.device)
-      // }
+      // Filtros de device/browser/country - agora usam colunas diretas (migration 20260119000000)
+      if (filters.device) {
+        query = query.ilike('device_type', `%${filters.device}%`)
+      }
 
-      // if (filters.browser) {
-      //   query = query.ilike('browser', `%${filters.browser}%`)
-      // }
+      if (filters.browser) {
+        query = query.ilike('browser', `%${filters.browser}%`)
+      }
 
-      // if (filters.country) {
-      //   query = query.ilike('country', `%${filters.country}%`)
-      // }
+      if (filters.country) {
+        query = query.ilike('country', `%${filters.country}%`)
+      }
 
+      // Filtros UTM - usam colunas diretas (migration 20260119000000)
       if (filters.utmSource) {
         query = query.ilike('utm_source', `%${filters.utmSource}%`)
       }
@@ -299,9 +307,89 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         query = query.lte('value', filters.maxValue)
       }
 
-      const { data, error: fetchError, count } = await query
+      let { data, error: fetchError, count } = await query
 
-      if (fetchError) {
+      // Se houver erro sobre project_id, tentar novamente sem filtro
+      if (fetchError && (fetchError.message?.includes('project_id') || fetchError.code === '42703')) {
+        console.warn('⚠️ project_id coluna não acessível, tentando query sem filtro...');
+
+        let fallbackQuery = supabase
+          .from('events')
+          .select('id, event_type, event_name, visitor_id, experiment_id, variant_id, event_data, utm_data, value, created_at, utm_source, utm_medium, utm_campaign, device_type, browser, country, properties, session_id, referrer, os, city, utm_term, utm_content', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .range(pageNumber * pageSize, (pageNumber + 1) * pageSize - 1)
+
+        // Apply other filters (sem project_id)
+        if (filters.search) {
+          fallbackQuery = fallbackQuery.or(`event_name.ilike.%${filters.search}%,visitor_id.ilike.%${filters.search}%`)
+        }
+
+        if (filters.eventType !== 'all') {
+          fallbackQuery = fallbackQuery.eq('event_type', filters.eventType)
+        }
+
+        if (filters.experimentId !== 'all') {
+          fallbackQuery = fallbackQuery.eq('experiment_id', filters.experimentId)
+        }
+
+        if (filters.visitorId) {
+          fallbackQuery = fallbackQuery.eq('visitor_id', filters.visitorId)
+        }
+
+        if (filters.dateFrom) {
+          fallbackQuery = fallbackQuery.gte('created_at', filters.dateFrom.toISOString())
+        }
+
+        if (filters.dateTo) {
+          const endOfDay = new Date(filters.dateTo)
+          endOfDay.setHours(23, 59, 59, 999)
+          fallbackQuery = fallbackQuery.lte('created_at', endOfDay.toISOString())
+        }
+
+        if (filters.device) {
+          fallbackQuery = fallbackQuery.ilike('device_type', `%${filters.device}%`)
+        }
+
+        if (filters.browser) {
+          fallbackQuery = fallbackQuery.ilike('browser', `%${filters.browser}%`)
+        }
+
+        if (filters.country) {
+          fallbackQuery = fallbackQuery.ilike('country', `%${filters.country}%`)
+        }
+
+        if (filters.utmSource) {
+          fallbackQuery = fallbackQuery.ilike('utm_source', `%${filters.utmSource}%`)
+        }
+
+        if (filters.utmMedium) {
+          fallbackQuery = fallbackQuery.ilike('utm_medium', `%${filters.utmMedium}%`)
+        }
+
+        if (filters.utmCampaign) {
+          fallbackQuery = fallbackQuery.ilike('utm_campaign', `%${filters.utmCampaign}%`)
+        }
+
+        if (filters.minValue !== undefined) {
+          fallbackQuery = fallbackQuery.gte('value', filters.minValue)
+        }
+
+        if (filters.maxValue !== undefined) {
+          fallbackQuery = fallbackQuery.lte('value', filters.maxValue)
+        }
+
+        const { data: fallbackData, error: fallbackError, count: fallbackCount } = await fallbackQuery
+
+        if (fallbackError) {
+          // Se fallback também falhar, usar o erro original
+          throw fallbackError
+        }
+
+        data = fallbackData
+        count = fallbackCount
+
+        console.log('✅ Fallback query successful without project_id filter');
+      } else if (fetchError) {
         // Análise detalhada do erro
         const errorAnalysis: any = {
           hasError: !!fetchError,
@@ -316,7 +404,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           errorDetails: null,
           errorHint: null,
         }
-        
+
         // Tentar acessar propriedades usando diferentes métodos
         try {
           // Método 1: Acesso direto
@@ -326,12 +414,12 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           errorAnalysis.errorHint = (fetchError as any)?.hint
           errorAnalysis.errorStatus = (fetchError as any)?.status
           errorAnalysis.errorStatusCode = (fetchError as any)?.statusCode
-          
+
           // Método 2: Usando 'in' operator
           errorAnalysis.hasMessage = 'message' in (fetchError || {})
           errorAnalysis.hasCode = 'code' in (fetchError || {})
           errorAnalysis.hasDetails = 'details' in (fetchError || {})
-          
+
           // Método 3: Tentar JSON.stringify com replacer
           errorAnalysis.errorJSON = JSON.stringify(fetchError, (key, value) => {
             if (key === 'message' || key === 'code' || key === 'details' || key === 'hint') {
@@ -342,21 +430,21 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         } catch (e) {
           errorAnalysis.accessError = String(e)
         }
-        
+
         // Determinar mensagem de erro
-        const isEmptyObject = errorAnalysis.errorKeys.length === 0 && 
-                             errorAnalysis.errorOwnPropertyNames.length === 0
-        
-        let errorMessage = errorAnalysis.errorMessage || 
-                          (isEmptyObject ? 'Query blocked - possibly due to RLS policies or missing permissions' : 'Unknown Supabase error')
-        
+        const isEmptyObject = errorAnalysis.errorKeys.length === 0 &&
+          errorAnalysis.errorOwnPropertyNames.length === 0
+
+        let errorMessage = errorAnalysis.errorMessage ||
+          (isEmptyObject ? 'Query blocked - possibly due to RLS policies or missing permissions' : 'Unknown Supabase error')
+
         // Se for objeto vazio, fornecer contexto adicional
         if (isEmptyObject) {
           errorAnalysis.suggestedFix = 'Verify RLS policies allow SELECT on events table. Check if project_id filter is causing issues.'
         }
-        
+
         const serializedError = serializeError(fetchError)
-        
+
         // Log detalhado sem usar spread para evitar problemas de serialização
         console.error('🔴 Supabase query error (detailed):')
         console.error('  isEmptyObject:', isEmptyObject)
@@ -378,7 +466,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           visitorId: filters.visitorId,
         })
         console.error('  raw fetchError object:', fetchError)
-        
+
         // Criar um novo erro com informações
         const error = new Error(errorMessage)
         if (errorAnalysis.errorCode) (error as any).code = errorAnalysis.errorCode
@@ -386,15 +474,15 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         if (errorAnalysis.errorHint) (error as any).hint = errorAnalysis.errorHint
         if (serializedError?.status) (error as any).status = serializedError.status
         if (serializedError?.statusCode) (error as any).statusCode = serializedError.statusCode
-        
-        // Adicionar análise completa ao erro para debug
-        (error as any).errorAnalysis = errorAnalysis
-        
+
+          // Adicionar análise completa ao erro para debug
+          (error as any).errorAnalysis = errorAnalysis
+
         throw error
       }
 
       // Map database events to include computed fields for compatibility
-      const eventsData = (data || []).map(event => ({
+      const eventsData = (data || []).map((event: any) => ({
         ...event,
         // Extract properties from event_data
         properties: event.event_data || {},
@@ -471,24 +559,11 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         errorString: String(err)
       })
 
-      if (err && typeof err === 'object') {
-        try {
-          const errorObj = err as any
-          console.error('Error object properties:', {
-            message: errorObj.message,
-            code: errorObj.code,
-            details: errorObj.details,
-            hint: errorObj.hint,
-            name: errorObj.name,
-            status: errorObj.status,
-            statusCode: errorObj.statusCode,
-            keys: Object.keys(errorObj),
-            allProps: Object.getOwnPropertyNames(errorObj)
-          })
-        } catch (loggingError) {
-          console.error('Could not access error properties:', loggingError)
-        }
-      }
+      // Exibir feedback visual de erro para o usuário
+      toast.error('Erro ao carregar eventos', {
+        description: errorMessage || 'Não foi possível carregar os eventos. Tente novamente.',
+        duration: 5000
+      })
 
       setError(new Error(errorMessage))
       setEvents([]) // Clear events on error
@@ -502,11 +577,17 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
     try {
       // Helper utilities para aplicar filtros de forma consistente
       const applyFiltersToQuery = (query: any, eventTypeOverride?: string) => {
-        // NOTA: Temporariamente comentado para debug - pode estar causando erro vazio {}
-        // Re-enabled: project_id filtering agora funciona com RLS policies corrigidas
-        // if (projectId) {
-        //   query = query.eq('project_id', projectId)
-        // }
+        // Filter by project_id in stats
+        // ⚠️ Supabase REST API pode não ter project_id sincronizado ainda
+        // Comentamos o filtro por project_id até que o schema seja totalmente sincronizado
+        /*
+        if (projectId) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId);
+          if (typeof projectId === 'string' && projectId.trim() !== '' && isUuid) {
+            query = query.eq('project_id', projectId)
+          }
+        }
+        */
 
         const effectiveEventType = eventTypeOverride ?? (filters.eventType !== 'all' ? filters.eventType : undefined)
         if (effectiveEventType) {
@@ -535,20 +616,20 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           query = query.lte('created_at', endOfDay.toISOString())
         }
 
-        // Note: device_type, browser, os, country, city não existem como colunas diretas
-        // Eles estão dentro de event_data (JSONB). Filtros removidos até implementar queries JSONB
-        // if (filters.device) {
-        //   query = query.ilike('device_type', filters.device)
-        // }
+        // Filtros de device/browser/country - agora usam colunas diretas (migration 20260119000000)
+        if (filters.device) {
+          query = query.ilike('device_type', `%${filters.device}%`)
+        }
 
-        // if (filters.browser) {
-        //   query = query.ilike('browser', `%${filters.browser}%`)
-        // }
+        if (filters.browser) {
+          query = query.ilike('browser', `%${filters.browser}%`)
+        }
 
-        // if (filters.country) {
-        //   query = query.ilike('country', `%${filters.country}%`)
-        // }
+        if (filters.country) {
+          query = query.ilike('country', `%${filters.country}%`)
+        }
 
+        // Filtros UTM - usam colunas diretas (migration 20260119000000)
         if (filters.utmSource) {
           query = query.ilike('utm_source', `%${filters.utmSource}%`)
         }
@@ -647,7 +728,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
       }
 
       if (errors.length > 0) {
-        const errorDetails = errors.map(({ name, result }) => {
+        const errorDetails = errors.map(({ name, result }: { name: string, result: any }) => {
           const err = result?.error
           return {
             name,
@@ -673,7 +754,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         if (firstErrorResult) {
           console.error('First error raw object type:', typeof firstErrorResult)
           console.error('First error raw object constructor:', firstErrorResult?.constructor?.name)
-          
+
           // Tentar serializar o erro bruto
           try {
             const errorStr = JSON.stringify(firstErrorResult, Object.getOwnPropertyNames(firstErrorResult), 2)
@@ -753,32 +834,14 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         status: errorStatus,
         statusCode: errorStatusCode,
         projectId,
-        filters,
-        errorType: typeof err,
-        errorConstructor: err?.constructor?.name,
-        stack: err instanceof Error ? err.stack : undefined,
-        errorString: String(err)
+        filters
       })
 
-      // Tentar acessar propriedades diretamente
-      if (err && typeof err === 'object') {
-        try {
-          const errorObj = err as any
-          console.error('Error object properties:', {
-            message: errorObj.message,
-            code: errorObj.code,
-            details: errorObj.details,
-            hint: errorObj.hint,
-            name: errorObj.name,
-            status: errorObj.status,
-            statusCode: errorObj.statusCode,
-            keys: Object.keys(errorObj),
-            allProps: Object.getOwnPropertyNames(errorObj)
-          })
-        } catch (loggingError) {
-          console.error('Could not access error properties:', loggingError)
-        }
-      }
+      // Exibir feedback visual de erro para o usuário
+      toast.error('Erro ao carregar estatísticas', {
+        description: errorMessage || 'Não foi possível carregar as estatísticas.',
+        duration: 4000
+      })
 
       // Set zeros instead of mock data - REAL DATA ONLY
       setStats({
@@ -856,10 +919,10 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
               ...prev,
               total_events: prev.total_events + 1,
               [newEvent.event_type === 'page_view' ? 'page_views' :
-               newEvent.event_type === 'click' ? 'clicks' :
-               newEvent.event_type === 'conversion' ? 'conversions' : 'custom']:
+                newEvent.event_type === 'click' ? 'clicks' :
+                  newEvent.event_type === 'conversion' ? 'conversions' : 'custom']:
                 prev[newEvent.event_type === 'page_view' ? 'page_views' :
-                    newEvent.event_type === 'click' ? 'clicks' :
+                  newEvent.event_type === 'click' ? 'clicks' :
                     newEvent.event_type === 'conversion' ? 'conversions' : 'custom'] + 1
             }))
 

@@ -42,6 +42,10 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
   const [eventSearch, setEventSearch] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState('all')
 
+  // Estados para ações do experimento
+  const [actionLoading, setActionLoading] = useState<'start' | 'pause' | 'complete' | null>(null)
+  const [currentStatus, setCurrentStatus] = useState(experiment.status)
+
   const supabase = createClient()
 
   // Função otimizada para buscar todos os dados necessários
@@ -89,7 +93,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
       // Processar métricas totais
       let totalMetrics = (statsData.data || []).reduce(
-        (acc, curr) => ({
+        (acc: { visitors: number; conversions: number; revenue: number }, curr: { visitors?: number; conversions?: number; revenue?: number }) => ({
           visitors: acc.visitors + (curr.visitors || 0),
           conversions: acc.conversions + (curr.conversions || 0),
           revenue: acc.revenue + (curr.revenue || 0)
@@ -110,8 +114,8 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
           .eq('experiment_id', experiment.id)
           .eq('event_type', 'conversion')
 
-        const totalRevenue = (allConversions || []).reduce((sum, c) => sum + (Number(c.conversion_value) || 0), 0)
-        
+        const totalRevenue = (allConversions || []).reduce((sum: number, c: { conversion_value?: string | number }) => sum + (Number(c.conversion_value) || 0), 0)
+
         totalMetrics = {
           visitors: allAssignments?.length || 0,
           conversions: allConversions?.length || 0,
@@ -119,7 +123,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
             ? allConversions.length * Number(experiment.conversion_value)
             : totalRevenue
         }
-        
+
         console.log('💰 Receita total calculada:', {
           conversoes: allConversions?.length || 0,
           totalRevenue,
@@ -137,7 +141,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
       // Buscar stats individuais para cada variante
       const variantsWithStats = await Promise.all(
-        (variantsData.data || []).map(async (variant) => {
+        (variantsData.data || []).map(async (variant: { id: string; name: string; is_control: boolean; redirect_url?: string; traffic_percentage?: number; is_active?: boolean }) => {
           // Tentar buscar de variant_stats primeiro
           const { data: variantStats } = await supabase
             .from('variant_stats')
@@ -155,7 +159,7 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
               .from('assignments')
               .select('id')
               .eq('variant_id', variant.id)
-            
+
             const { data: conversions_data } = await supabase
               .from('events')
               .select('id, value as conversion_value')
@@ -164,15 +168,15 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
 
             visitors = assignments?.length || 0
             conversions = conversions_data?.length || 0
-            
+
             // Calcular receita das conversões registradas
-            revenue = (conversions_data || []).reduce((sum, c) => sum + (Number(c.conversion_value) || 0), 0)
-            
+            revenue = (conversions_data || []).reduce((sum: number, c: { conversion_value?: string | number }) => sum + (Number(c.conversion_value) || 0), 0)
+
             // Se não houver valor nas conversões, usar o valor padrão do experimento
             if (revenue === 0 && conversions > 0 && experiment.conversion_value) {
               revenue = conversions * Number(experiment.conversion_value)
             }
-            
+
             console.log(`💰 Variante ${variant.name}: ${conversions} conversões, receita = R$ ${revenue.toFixed(2)}`)
           }
 
@@ -228,37 +232,8 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
       setEvents(data || [])
     } catch (error) {
       console.error('Erro ao carregar eventos:', error)
-      // Fallback para dados mock
-      setEvents([
-        {
-          id: '1',
-          event_type: 'page_view',
-          event_name: 'landing_view',
-          visitor_id: 'visitor_abc123',
-          variant_id: variants[0]?.id,
-          properties: { url: '/landing', device: 'desktop' },
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          event_type: 'click',
-          event_name: 'cta_click',
-          visitor_id: 'visitor_def456',
-          variant_id: variants[1]?.id,
-          properties: { button: 'Get Started' },
-          created_at: new Date(Date.now() - 120000).toISOString()
-        },
-        {
-          id: '3',
-          event_type: 'conversion',
-          event_name: 'purchase',
-          visitor_id: 'visitor_ghi789',
-          variant_id: variants[0]?.id,
-          value: 99.90,
-          properties: { product: 'Pro Plan' },
-          created_at: new Date(Date.now() - 300000).toISOString()
-        }
-      ])
+      // Não usar dados mock - mostrar lista vazia quando há erro
+      setEvents([])
     } finally {
       setEventsLoading(false)
     }
@@ -302,6 +277,95 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
     } catch (error) {
       console.error('Erro ao salvar:', error)
       alert('Erro ao salvar alterações')
+    }
+  }
+
+  // Handlers para ações do experimento
+  const handleStartExperiment = async () => {
+    try {
+      setActionLoading('start')
+
+      const { error } = await supabase
+        .from('experiments')
+        .update({
+          status: 'running',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', experiment.id)
+
+      if (error) throw error
+
+      // Atualizar estado local
+      experiment.status = 'running'
+      setCurrentStatus('running')
+
+      // Recarregar dados
+      await loadExperimentData()
+    } catch (error) {
+      console.error('Erro ao iniciar experimento:', error)
+      alert('Erro ao iniciar experimento. Tente novamente.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handlePauseExperiment = async () => {
+    try {
+      setActionLoading('pause')
+
+      const { error } = await supabase
+        .from('experiments')
+        .update({ status: 'paused' })
+        .eq('id', experiment.id)
+
+      if (error) throw error
+
+      // Atualizar estado local
+      experiment.status = 'paused'
+      setCurrentStatus('paused')
+
+      // Recarregar dados
+      await loadExperimentData()
+    } catch (error) {
+      console.error('Erro ao pausar experimento:', error)
+      alert('Erro ao pausar experimento. Tente novamente.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleCompleteExperiment = async () => {
+    const confirmed = confirm(
+      'Tem certeza que deseja finalizar este experimento?\n\n' +
+      'Esta ação encerrará definitivamente o teste e parará a coleta de dados.'
+    )
+
+    if (!confirmed) return
+
+    try {
+      setActionLoading('complete')
+
+      const { error } = await supabase
+        .from('experiments')
+        .update({
+          status: 'completed',
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', experiment.id)
+
+      if (error) throw error
+
+      // Atualizar estado local
+      experiment.status = 'completed'
+      setCurrentStatus('completed')
+
+      // Recarregar dados
+      await loadExperimentData()
+    } catch (error) {
+      console.error('Erro ao finalizar experimento:', error)
+      alert('Erro ao finalizar experimento. Tente novamente.')
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -355,8 +419,8 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
   // Encontrar a variante vencedora
   const winnerVariant = variants.length > 0
     ? variants.reduce((prev, current) =>
-        (current.conversionRate > prev.conversionRate) ? current : prev
-      )
+      (current.conversionRate > prev.conversionRate) ? current : prev
+    )
     : null
 
   return (
@@ -575,336 +639,336 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
                   </Card>
                 )}
 
-              {/* Variantes */}
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-3xl font-black text-slate-900 mb-1">Desempenho das Variantes</h3>
-                    <p className="text-slate-600">Comparação detalhada de todas as variantes do teste</p>
+                {/* Variantes */}
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-3xl font-black text-slate-900 mb-1">Desempenho das Variantes</h3>
+                      <p className="text-slate-600">Comparação detalhada de todas as variantes do teste</p>
+                    </div>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-bold px-4 py-2">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      {variants.length} {variants.length === 1 ? 'variante' : 'variantes'}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-bold px-4 py-2">
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    {variants.length} {variants.length === 1 ? 'variante' : 'variantes'}
-                  </Badge>
-                </div>
 
-                <div className="space-y-4">
-                  {loading ? (
-                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
-                      <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
-                        <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
-                      </div>
-                      <p className="text-xl font-bold text-slate-900">Carregando dados...</p>
-                    </Card>
-                  ) : variants.length === 0 ? (
-                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
-                      <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
-                        <AlertTriangle className="w-16 h-16 text-slate-400" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-slate-900 mb-3">Nenhuma variante configurada</h3>
-                      <p className="text-base text-slate-600 max-w-md mx-auto">
-                        Configure variantes para começar a testar diferentes versões
-                      </p>
-                    </Card>
-                  ) : (
-                    variants.map((variant, index) => {
-                      const isWinner = winnerVariant && variant.id === winnerVariant.id
-                      const isControl = variant.is_control
+                  <div className="space-y-4">
+                    {loading ? (
+                      <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
+                        <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
+                          <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
+                        </div>
+                        <p className="text-xl font-bold text-slate-900">Carregando dados...</p>
+                      </Card>
+                    ) : variants.length === 0 ? (
+                      <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
+                        <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
+                          <AlertTriangle className="w-16 h-16 text-slate-400" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-3">Nenhuma variante configurada</h3>
+                        <p className="text-base text-slate-600 max-w-md mx-auto">
+                          Configure variantes para começar a testar diferentes versões
+                        </p>
+                      </Card>
+                    ) : (
+                      variants.map((variant, index) => {
+                        const isWinner = winnerVariant && variant.id === winnerVariant.id
+                        const isControl = variant.is_control
 
-                      return (
-                        <Card
-                          key={variant.id}
-                          className={cn(
-                            "group relative overflow-hidden backdrop-blur-xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1",
-                            isWinner && "bg-gradient-to-br from-amber-50 to-yellow-50 ring-2 ring-amber-300",
-                            isControl && !isWinner && "bg-gradient-to-br from-blue-50 to-cyan-50",
-                            !isWinner && !isControl && "bg-white/95"
-                          )}
-                        >
-                          {/* Background Decoration */}
-                          <div className={cn(
-                            "absolute inset-0 opacity-5 bg-gradient-to-r",
-                            isWinner ? "from-amber-500 to-orange-500" :
-                            isControl ? "from-blue-500 to-cyan-500" :
-                            "from-purple-500 to-pink-500"
-                          )} />
+                        return (
+                          <Card
+                            key={variant.id}
+                            className={cn(
+                              "group relative overflow-hidden backdrop-blur-xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1",
+                              isWinner && "bg-gradient-to-br from-amber-50 to-yellow-50 ring-2 ring-amber-300",
+                              isControl && !isWinner && "bg-gradient-to-br from-blue-50 to-cyan-50",
+                              !isWinner && !isControl && "bg-white/95"
+                            )}
+                          >
+                            {/* Background Decoration */}
+                            <div className={cn(
+                              "absolute inset-0 opacity-5 bg-gradient-to-r",
+                              isWinner ? "from-amber-500 to-orange-500" :
+                                isControl ? "from-blue-500 to-cyan-500" :
+                                  "from-purple-500 to-pink-500"
+                            )} />
 
-                          <div className="relative p-8">
-                            {/* Header */}
-                            <div className="flex items-start justify-between mb-6">
-                              <div className="flex items-center gap-4">
-                                <div className={cn(
-                                  "p-4 rounded-2xl shadow-lg",
-                                  isWinner ? "bg-gradient-to-br from-amber-400 to-orange-500" :
-                                  isControl ? "bg-gradient-to-br from-blue-500 to-cyan-600" :
-                                  "bg-gradient-to-br from-purple-500 to-pink-600"
-                                )}>
-                                  {isWinner ? (
-                                    <Award className="w-8 h-8 text-white" />
-                                  ) : isControl ? (
-                                    <Target className="w-8 h-8 text-white" />
-                                  ) : (
-                                    <Sparkles className="w-8 h-8 text-white" />
-                                  )}
-                                </div>
-
-                                <div>
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h4 className="text-2xl font-black text-slate-900">{variant.name}</h4>
-                                    {isWinner && (
-                                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold px-3 py-1">
-                                        <Award className="w-3.5 h-3.5 mr-1.5" />
-                                        Melhor Performance
-                                      </Badge>
-                                    )}
-                                    {isControl && (
-                                      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 font-bold">
-                                        <Target className="w-3.5 h-3.5 mr-1.5" />
-                                        Controle
-                                      </Badge>
-                                    )}
-                                    {!variant.is_active && (
-                                      <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300">
-                                        Inativa
-                                      </Badge>
+                            <div className="relative p-8">
+                              {/* Header */}
+                              <div className="flex items-start justify-between mb-6">
+                                <div className="flex items-center gap-4">
+                                  <div className={cn(
+                                    "p-4 rounded-2xl shadow-lg",
+                                    isWinner ? "bg-gradient-to-br from-amber-400 to-orange-500" :
+                                      isControl ? "bg-gradient-to-br from-blue-500 to-cyan-600" :
+                                        "bg-gradient-to-br from-purple-500 to-pink-600"
+                                  )}>
+                                    {isWinner ? (
+                                      <Award className="w-8 h-8 text-white" />
+                                    ) : isControl ? (
+                                      <Target className="w-8 h-8 text-white" />
+                                    ) : (
+                                      <Sparkles className="w-8 h-8 text-white" />
                                     )}
                                   </div>
-                                  <p className="text-sm text-slate-600 flex items-center gap-2">
-                                    <Activity className="w-4 h-4" />
-                                    Variante {index + 1} de {variants.length}
+
+                                  <div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <h4 className="text-2xl font-black text-slate-900">{variant.name}</h4>
+                                      {isWinner && (
+                                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold px-3 py-1">
+                                          <Award className="w-3.5 h-3.5 mr-1.5" />
+                                          Melhor Performance
+                                        </Badge>
+                                      )}
+                                      {isControl && (
+                                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 font-bold">
+                                          <Target className="w-3.5 h-3.5 mr-1.5" />
+                                          Controle
+                                        </Badge>
+                                      )}
+                                      {!variant.is_active && (
+                                        <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300">
+                                          Inativa
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-slate-600 flex items-center gap-2">
+                                      <Activity className="w-4 h-4" />
+                                      Variante {index + 1} de {variants.length}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Conversion Rate - Big Number */}
+                                <div className="text-right">
+                                  <div className="flex items-center gap-2 justify-end mb-1">
+                                    {variant.conversionRate > 0 ? (
+                                      <ArrowUpRight className="w-6 h-6 text-green-600" />
+                                    ) : (
+                                      <ArrowDownRight className="w-6 h-6 text-slate-400" />
+                                    )}
+                                  </div>
+                                  <p className={cn(
+                                    "text-5xl font-black",
+                                    isWinner ? "text-amber-600" :
+                                      isControl ? "text-blue-600" :
+                                        "text-purple-600"
+                                  )}>
+                                    {variant.conversionRate.toFixed(2)}%
+                                  </p>
+                                  <p className="text-sm font-medium text-slate-600 mt-1">Taxa de Conversão</p>
+                                </div>
+                              </div>
+
+                              {/* Metrics Grid */}
+                              <div className="grid grid-cols-3 gap-6 mb-6">
+                                <div className="p-4 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-slate-200">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Users className="w-5 h-5 text-blue-600" />
+                                    <p className="text-sm font-semibold text-slate-600">Visitantes</p>
+                                  </div>
+                                  <p className="text-3xl font-black text-slate-900">{variant.visitors.toLocaleString()}</p>
+                                  <p className="text-xs text-slate-500 mt-1">{variant.traffic_percentage}% do tráfego</p>
+                                </div>
+
+                                <div className="p-4 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-slate-200">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                    <p className="text-sm font-semibold text-slate-600">Conversões</p>
+                                  </div>
+                                  <p className="text-3xl font-black text-green-700">{variant.conversions.toLocaleString()}</p>
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {variant.visitors > 0 ? ((variant.conversions / variant.visitors) * 100).toFixed(1) : 0}% dos visitantes
+                                  </p>
+                                </div>
+
+                                <div className="p-4 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-slate-200">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Activity className="w-5 h-5 text-purple-600" />
+                                    <p className="text-sm font-semibold text-slate-600">Receita</p>
+                                  </div>
+                                  <p className="text-3xl font-black text-purple-700">R$ {variant.revenue.toFixed(2)}</p>
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {variant.conversions > 0 ? `R$ ${(variant.revenue / variant.conversions).toFixed(2)}` : 'R$ 0,00'} por conversão
                                   </p>
                                 </div>
                               </div>
 
-                              {/* Conversion Rate - Big Number */}
-                              <div className="text-right">
-                                <div className="flex items-center gap-2 justify-end mb-1">
-                                  {variant.conversionRate > 0 ? (
-                                    <ArrowUpRight className="w-6 h-6 text-green-600" />
-                                  ) : (
-                                    <ArrowDownRight className="w-6 h-6 text-slate-400" />
-                                  )}
+                              {/* Traffic Allocation Progress */}
+                              <div className="mb-6">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-sm font-semibold text-slate-700">Alocação de Tráfego</p>
+                                  <p className="text-sm font-bold text-slate-900">{variant.traffic_percentage}%</p>
                                 </div>
-                                <p className={cn(
-                                  "text-5xl font-black",
-                                  isWinner ? "text-amber-600" :
-                                  isControl ? "text-blue-600" :
-                                  "text-purple-600"
-                                )}>
-                                  {variant.conversionRate.toFixed(2)}%
-                                </p>
-                                <p className="text-sm font-medium text-slate-600 mt-1">Taxa de Conversão</p>
-                              </div>
-                            </div>
-
-                            {/* Metrics Grid */}
-                            <div className="grid grid-cols-3 gap-6 mb-6">
-                              <div className="p-4 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-slate-200">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Users className="w-5 h-5 text-blue-600" />
-                                  <p className="text-sm font-semibold text-slate-600">Visitantes</p>
-                                </div>
-                                <p className="text-3xl font-black text-slate-900">{variant.visitors.toLocaleString()}</p>
-                                <p className="text-xs text-slate-500 mt-1">{variant.traffic_percentage}% do tráfego</p>
+                                <Progress
+                                  value={variant.traffic_percentage}
+                                  className="h-3 bg-slate-200"
+                                />
                               </div>
 
-                              <div className="p-4 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-slate-200">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <CheckCircle className="w-5 h-5 text-green-600" />
-                                  <p className="text-sm font-semibold text-slate-600">Conversões</p>
-                                </div>
-                                <p className="text-3xl font-black text-green-700">{variant.conversions.toLocaleString()}</p>
-                                <p className="text-xs text-slate-500 mt-1">
-                                  {variant.visitors > 0 ? ((variant.conversions / variant.visitors) * 100).toFixed(1) : 0}% dos visitantes
-                                </p>
-                              </div>
-
-                              <div className="p-4 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-slate-200">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Activity className="w-5 h-5 text-purple-600" />
-                                  <p className="text-sm font-semibold text-slate-600">Receita</p>
-                                </div>
-                                <p className="text-3xl font-black text-purple-700">R$ {variant.revenue.toFixed(2)}</p>
-                                <p className="text-xs text-slate-500 mt-1">
-                                  {variant.conversions > 0 ? `R$ ${(variant.revenue / variant.conversions).toFixed(2)}` : 'R$ 0,00'} por conversão
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Traffic Allocation Progress */}
-                            <div className="mb-6">
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-semibold text-slate-700">Alocação de Tráfego</p>
-                                <p className="text-sm font-bold text-slate-900">{variant.traffic_percentage}%</p>
-                              </div>
-                              <Progress
-                                value={variant.traffic_percentage}
-                                className="h-3 bg-slate-200"
-                              />
-                            </div>
-
-                            {/* Redirect URL */}
-                            {variant.redirect_url && (
-                              <div className="pt-6 border-t-2 border-slate-200">
-                                <div className="flex items-start gap-4">
-                                  <div className="p-3 rounded-xl bg-slate-100">
-                                    <ExternalLink className="w-5 h-5 text-slate-600" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-slate-700 mb-1">URL de Redirecionamento</p>
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-sm font-mono text-blue-600 truncate flex-1">
-                                        {variant.redirect_url}
-                                      </p>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          navigator.clipboard.writeText(variant.redirect_url)
-                                        }}
-                                        className="shrink-0"
-                                      >
-                                        <Copy className="w-4 h-4" />
-                                      </Button>
+                              {/* Redirect URL */}
+                              {variant.redirect_url && (
+                                <div className="pt-6 border-t-2 border-slate-200">
+                                  <div className="flex items-start gap-4">
+                                    <div className="p-3 rounded-xl bg-slate-100">
+                                      <ExternalLink className="w-5 h-5 text-slate-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-slate-700 mb-1">URL de Redirecionamento</p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-sm font-mono text-blue-600 truncate flex-1">
+                                          {variant.redirect_url}
+                                        </p>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(variant.redirect_url)
+                                          }}
+                                          className="shrink-0"
+                                        >
+                                          <Copy className="w-4 h-4" />
+                                        </Button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        </Card>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Events Tab */}
-          {activeTab === 'events' && (
-            <div className="space-y-8">
-              {/* Header com Stats */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-3xl font-black text-slate-900 mb-2">Eventos do Experimento</h3>
-                  <p className="text-slate-600">Monitoramento em tempo real dos eventos deste teste</p>
-                </div>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-bold px-4 py-2">
-                  <Activity className="w-4 h-4 mr-2" />
-                  {events.length} {events.length === 1 ? 'evento' : 'eventos'}
-                </Badge>
-              </div>
-
-              {/* Quick Stats */}
-              <div className="grid grid-cols-4 gap-4">
-                <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-50 to-cyan-50 border-0 shadow-xl p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600">
-                      <Eye className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-blue-700">Visualizações</p>
-                      <p className="text-3xl font-black text-blue-900">
-                        {events.filter(e => e.event_type === 'page_view').length}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="backdrop-blur-xl bg-gradient-to-br from-green-50 to-emerald-50 border-0 shadow-xl p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600">
-                      <MousePointer2 className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-green-700">Cliques</p>
-                      <p className="text-3xl font-black text-green-900">
-                        {events.filter(e => e.event_type === 'click').length}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="backdrop-blur-xl bg-gradient-to-br from-purple-50 to-pink-50 border-0 shadow-xl p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600">
-                      <Target className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-purple-700">Conversões</p>
-                      <p className="text-3xl font-black text-purple-900">
-                        {events.filter(e => e.event_type === 'conversion').length}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="backdrop-blur-xl bg-gradient-to-br from-amber-50 to-orange-50 border-0 shadow-xl p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600">
-                      <Users className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-amber-700">Únicos</p>
-                      <p className="text-3xl font-black text-amber-900">
-                        {new Set(events.map(e => e.visitor_id)).size}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Filtros */}
-              <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      placeholder="Buscar por nome do evento ou visitor ID..."
-                      value={eventSearch}
-                      onChange={(e) => setEventSearch(e.target.value)}
-                      className="w-full px-4 py-3 pl-12 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    />
-                    <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  </div>
-
-                  <div className="flex gap-2">
-                    {[
-                      { key: 'all', label: 'Todos', color: 'slate' },
-                      { key: 'page_view', label: 'Views', color: 'blue' },
-                      { key: 'click', label: 'Cliques', color: 'green' },
-                      { key: 'conversion', label: 'Conversões', color: 'purple' }
-                    ].map((filter) => (
-                      <Button
-                        key={filter.key}
-                        variant={eventTypeFilter === filter.key ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setEventTypeFilter(filter.key)}
-                        className={cn(
-                          "border-2",
-                          eventTypeFilter === filter.key
-                            ? `bg-gradient-to-r from-${filter.color}-500 to-${filter.color}-600 text-white border-0 shadow-lg`
-                            : "bg-white hover:bg-slate-50"
-                        )}
-                      >
-                        {filter.label}
-                      </Button>
-                    ))}
+                              )}
+                            </div>
+                          </Card>
+                        )
+                      })
+                    )}
                   </div>
                 </div>
-              </Card>
+              </div>
+            )}
 
-              {/* Lista de Eventos */}
-              <div className="space-y-3">
-                {eventsLoading ? (
-                  <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
-                    <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
-                      <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
+            {/* Events Tab */}
+            {activeTab === 'events' && (
+              <div className="space-y-8">
+                {/* Header com Stats */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-3xl font-black text-slate-900 mb-2">Eventos do Experimento</h3>
+                    <p className="text-slate-600">Monitoramento em tempo real dos eventos deste teste</p>
+                  </div>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-bold px-4 py-2">
+                    <Activity className="w-4 h-4 mr-2" />
+                    {events.length} {events.length === 1 ? 'evento' : 'eventos'}
+                  </Badge>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-4 gap-4">
+                  <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-50 to-cyan-50 border-0 shadow-xl p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600">
+                        <Eye className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-blue-700">Visualizações</p>
+                        <p className="text-3xl font-black text-blue-900">
+                          {events.filter(e => e.event_type === 'page_view').length}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xl font-bold text-slate-900">Carregando eventos...</p>
                   </Card>
-                ) : events
+
+                  <Card className="backdrop-blur-xl bg-gradient-to-br from-green-50 to-emerald-50 border-0 shadow-xl p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600">
+                        <MousePointer2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-green-700">Cliques</p>
+                        <p className="text-3xl font-black text-green-900">
+                          {events.filter(e => e.event_type === 'click').length}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="backdrop-blur-xl bg-gradient-to-br from-purple-50 to-pink-50 border-0 shadow-xl p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600">
+                        <Target className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-purple-700">Conversões</p>
+                        <p className="text-3xl font-black text-purple-900">
+                          {events.filter(e => e.event_type === 'conversion').length}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="backdrop-blur-xl bg-gradient-to-br from-amber-50 to-orange-50 border-0 shadow-xl p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600">
+                        <Users className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-amber-700">Únicos</p>
+                        <p className="text-3xl font-black text-amber-900">
+                          {new Set(events.map(e => e.visitor_id)).size}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Filtros */}
+                <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-6">
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        placeholder="Buscar por nome do evento ou visitor ID..."
+                        value={eventSearch}
+                        onChange={(e) => setEventSearch(e.target.value)}
+                        className="w-full px-4 py-3 pl-12 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      />
+                      <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    </div>
+
+                    <div className="flex gap-2">
+                      {[
+                        { key: 'all', label: 'Todos', color: 'slate' },
+                        { key: 'page_view', label: 'Views', color: 'blue' },
+                        { key: 'click', label: 'Cliques', color: 'green' },
+                        { key: 'conversion', label: 'Conversões', color: 'purple' }
+                      ].map((filter) => (
+                        <Button
+                          key={filter.key}
+                          variant={eventTypeFilter === filter.key ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setEventTypeFilter(filter.key)}
+                          className={cn(
+                            "border-2",
+                            eventTypeFilter === filter.key
+                              ? `bg-gradient-to-r from-${filter.color}-500 to-${filter.color}-600 text-white border-0 shadow-lg`
+                              : "bg-white hover:bg-slate-50"
+                          )}
+                        >
+                          {filter.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Lista de Eventos */}
+                <div className="space-y-3">
+                  {eventsLoading ? (
+                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
+                      <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
+                        <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
+                      </div>
+                      <p className="text-xl font-bold text-slate-900">Carregando eventos...</p>
+                    </Card>
+                  ) : events
                     .filter(e => {
                       const matchesSearch = eventSearch === '' ||
                         e.event_name?.toLowerCase().includes(eventSearch.toLowerCase()) ||
@@ -912,467 +976,509 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
                       const matchesFilter = eventTypeFilter === 'all' || e.event_type === eventTypeFilter
                       return matchesSearch && matchesFilter
                     }).length === 0 ? (
-                  <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
-                    <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
-                      <AlertTriangle className="w-16 h-16 text-slate-400" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900 mb-3">Nenhum evento encontrado</h3>
-                    <p className="text-base text-slate-600 max-w-md mx-auto">
-                      Ajuste os filtros ou aguarde novos eventos chegarem
-                    </p>
-                  </Card>
-                ) : (
-                  events
-                    .filter(e => {
-                      const matchesSearch = eventSearch === '' ||
-                        e.event_name?.toLowerCase().includes(eventSearch.toLowerCase()) ||
-                        e.visitor_id?.toLowerCase().includes(eventSearch.toLowerCase())
-                      const matchesFilter = eventTypeFilter === 'all' || e.event_type === eventTypeFilter
-                      return matchesSearch && matchesFilter
-                    })
-                    .map((event) => {
-                      const variant = variants.find(v => v.id === event.variant_id)
-                      const eventIcon = event.event_type === 'page_view' ? Eye :
-                                       event.event_type === 'click' ? MousePointer2 :
-                                       event.event_type === 'conversion' ? Target : Activity
+                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-16 text-center">
+                      <div className="inline-flex p-6 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 mb-6 shadow-lg">
+                        <AlertTriangle className="w-16 h-16 text-slate-400" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-3">Nenhum evento encontrado</h3>
+                      <p className="text-base text-slate-600 max-w-md mx-auto">
+                        Ajuste os filtros ou aguarde novos eventos chegarem
+                      </p>
+                    </Card>
+                  ) : (
+                    events
+                      .filter(e => {
+                        const matchesSearch = eventSearch === '' ||
+                          e.event_name?.toLowerCase().includes(eventSearch.toLowerCase()) ||
+                          e.visitor_id?.toLowerCase().includes(eventSearch.toLowerCase())
+                        const matchesFilter = eventTypeFilter === 'all' || e.event_type === eventTypeFilter
+                        return matchesSearch && matchesFilter
+                      })
+                      .map((event) => {
+                        const variant = variants.find(v => v.id === event.variant_id)
+                        const eventIcon = event.event_type === 'page_view' ? Eye :
+                          event.event_type === 'click' ? MousePointer2 :
+                            event.event_type === 'conversion' ? Target : Activity
 
-                      const eventColor = event.event_type === 'page_view' ? 'blue' :
-                                        event.event_type === 'click' ? 'green' :
-                                        event.event_type === 'conversion' ? 'purple' : 'slate'
+                        const eventColor = event.event_type === 'page_view' ? 'blue' :
+                          event.event_type === 'click' ? 'green' :
+                            event.event_type === 'conversion' ? 'purple' : 'slate'
 
-                      const Icon = eventIcon
+                        const Icon = eventIcon
 
-                      return (
-                        <Card
-                          key={event.id}
-                          className={cn(
-                            "group relative overflow-hidden backdrop-blur-xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1",
-                            event.event_type === 'page_view' && "bg-gradient-to-br from-blue-50/80 to-cyan-50/80",
-                            event.event_type === 'click' && "bg-gradient-to-br from-green-50/80 to-emerald-50/80",
-                            event.event_type === 'conversion' && "bg-gradient-to-br from-purple-50/80 to-pink-50/80",
-                            event.event_type !== 'page_view' && event.event_type !== 'click' && event.event_type !== 'conversion' && "bg-white/95"
-                          )}
-                        >
-                          <div className={cn(
-                            "absolute inset-0 opacity-5 bg-gradient-to-r",
-                            `from-${eventColor}-500 to-${eventColor}-600`
-                          )} />
+                        return (
+                          <Card
+                            key={event.id}
+                            className={cn(
+                              "group relative overflow-hidden backdrop-blur-xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1",
+                              event.event_type === 'page_view' && "bg-gradient-to-br from-blue-50/80 to-cyan-50/80",
+                              event.event_type === 'click' && "bg-gradient-to-br from-green-50/80 to-emerald-50/80",
+                              event.event_type === 'conversion' && "bg-gradient-to-br from-purple-50/80 to-pink-50/80",
+                              event.event_type !== 'page_view' && event.event_type !== 'click' && event.event_type !== 'conversion' && "bg-white/95"
+                            )}
+                          >
+                            <div className={cn(
+                              "absolute inset-0 opacity-5 bg-gradient-to-r",
+                              `from-${eventColor}-500 to-${eventColor}-600`
+                            )} />
 
-                          <div className="relative p-6">
-                            <div className="flex items-start gap-4">
-                              <div className={cn(
-                                "p-3 rounded-xl shadow-md",
-                                event.event_type === 'page_view' && "bg-gradient-to-br from-blue-500 to-cyan-600",
-                                event.event_type === 'click' && "bg-gradient-to-br from-green-500 to-emerald-600",
-                                event.event_type === 'conversion' && "bg-gradient-to-br from-purple-500 to-pink-600",
-                                event.event_type !== 'page_view' && event.event_type !== 'click' && event.event_type !== 'conversion' && "bg-gradient-to-br from-slate-500 to-slate-600"
-                              )}>
-                                <Icon className="w-6 h-6 text-white" />
-                              </div>
+                            <div className="relative p-6">
+                              <div className="flex items-start gap-4">
+                                <div className={cn(
+                                  "p-3 rounded-xl shadow-md",
+                                  event.event_type === 'page_view' && "bg-gradient-to-br from-blue-500 to-cyan-600",
+                                  event.event_type === 'click' && "bg-gradient-to-br from-green-500 to-emerald-600",
+                                  event.event_type === 'conversion' && "bg-gradient-to-br from-purple-500 to-pink-600",
+                                  event.event_type !== 'page_view' && event.event_type !== 'click' && event.event_type !== 'conversion' && "bg-gradient-to-br from-slate-500 to-slate-600"
+                                )}>
+                                  <Icon className="w-6 h-6 text-white" />
+                                </div>
 
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h4 className="text-lg font-bold text-slate-900">{event.event_name || 'Unnamed Event'}</h4>
-                                  <Badge className={cn(
-                                    "font-semibold",
-                                    event.event_type === 'page_view' && "bg-blue-100 text-blue-800 border-blue-300",
-                                    event.event_type === 'click' && "bg-green-100 text-green-800 border-green-300",
-                                    event.event_type === 'conversion' && "bg-purple-100 text-purple-800 border-purple-300",
-                                    event.event_type !== 'page_view' && event.event_type !== 'click' && event.event_type !== 'conversion' && "bg-slate-100 text-slate-800 border-slate-300"
-                                  )}>
-                                    {event.event_type}
-                                  </Badge>
-                                  {variant && (
-                                    <Badge variant="outline" className="bg-white/80 text-slate-700 border-slate-300 font-semibold">
-                                      {variant.name}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <h4 className="text-lg font-bold text-slate-900">{event.event_name || 'Unnamed Event'}</h4>
+                                    <Badge className={cn(
+                                      "font-semibold",
+                                      event.event_type === 'page_view' && "bg-blue-100 text-blue-800 border-blue-300",
+                                      event.event_type === 'click' && "bg-green-100 text-green-800 border-green-300",
+                                      event.event_type === 'conversion' && "bg-purple-100 text-purple-800 border-purple-300",
+                                      event.event_type !== 'page_view' && event.event_type !== 'click' && event.event_type !== 'conversion' && "bg-slate-100 text-slate-800 border-slate-300"
+                                    )}>
+                                      {event.event_type}
                                     </Badge>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-6 text-sm text-slate-600 mb-3">
-                                  <span className="flex items-center gap-2">
-                                    <Users className="w-4 h-4" />
-                                    <span className="font-medium font-mono">{event.visitor_id}</span>
-                                  </span>
-                                  {event.value && (
-                                    <span className="flex items-center gap-2 font-bold text-emerald-700">
-                                      <Activity className="w-4 h-4" />
-                                      R$ {Number(event.value).toFixed(2)}
-                                    </span>
-                                  )}
-                                  <span className="flex items-center gap-2">
-                                    <Clock className="w-4 h-4" />
-                                    {new Date(event.created_at).toLocaleString('pt-BR', {
-                                      day: '2-digit',
-                                      month: 'short',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </span>
-                                </div>
-
-                                {event.properties && Object.keys(event.properties).length > 0 && (
-                                  <div className="flex flex-wrap gap-2">
-                                    {Object.entries(event.properties).slice(0, 4).map(([key, value]) => (
-                                      <Badge key={key} variant="outline" className="text-xs bg-white/80 text-slate-700 border-slate-200">
-                                        {key}: {String(value)}
-                                      </Badge>
-                                    ))}
-                                    {Object.keys(event.properties).length > 4 && (
-                                      <Badge variant="outline" className="text-xs bg-white/80 text-slate-700 border-slate-200">
-                                        +{Object.keys(event.properties).length - 4}
+                                    {variant && (
+                                      <Badge variant="outline" className="bg-white/80 text-slate-700 border-slate-300 font-semibold">
+                                        {variant.name}
                                       </Badge>
                                     )}
                                   </div>
-                                )}
-                              </div>
 
-                              <div className="flex items-center gap-2">
-                                {event.event_type === 'conversion' && (
-                                  <div className="p-2 rounded-lg bg-emerald-100">
-                                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                  <div className="flex items-center gap-6 text-sm text-slate-600 mb-3">
+                                    <span className="flex items-center gap-2">
+                                      <Users className="w-4 h-4" />
+                                      <span className="font-medium font-mono">{event.visitor_id}</span>
+                                    </span>
+                                    {event.value && (
+                                      <span className="flex items-center gap-2 font-bold text-emerald-700">
+                                        <Activity className="w-4 h-4" />
+                                        R$ {Number(event.value).toFixed(2)}
+                                      </span>
+                                    )}
+                                    <span className="flex items-center gap-2">
+                                      <Clock className="w-4 h-4" />
+                                      {new Date(event.created_at).toLocaleString('pt-BR', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </span>
                                   </div>
-                                )}
+
+                                  {event.properties && Object.keys(event.properties).length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {Object.entries(event.properties).slice(0, 4).map(([key, value]) => (
+                                        <Badge key={key} variant="outline" className="text-xs bg-white/80 text-slate-700 border-slate-200">
+                                          {key}: {String(value)}
+                                        </Badge>
+                                      ))}
+                                      {Object.keys(event.properties).length > 4 && (
+                                        <Badge variant="outline" className="text-xs bg-white/80 text-slate-700 border-slate-200">
+                                          +{Object.keys(event.properties).length - 4}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {event.event_type === 'conversion' && (
+                                    <div className="p-2 rounded-lg bg-emerald-100">
+                                      <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </Card>
-                      )
-                    })
+                          </Card>
+                        )
+                      })
+                  )}
+                </div>
+
+                {/* Load More */}
+                {!eventsLoading && events.length >= 100 && (
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="border-2"
+                    >
+                      <Maximize2 className="w-4 h-4 mr-2" />
+                      Carregar Mais Eventos
+                    </Button>
+                  </div>
                 )}
               </div>
+            )}
 
-              {/* Load More */}
-              {!eventsLoading && events.length >= 100 && (
-                <div className="flex justify-center">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="border-2"
-                  >
-                    <Maximize2 className="w-4 h-4 mr-2" />
-                    Carregar Mais Eventos
-                  </Button>
+            {/* Code Tab */}
+            {activeTab === 'code' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-3xl font-black text-slate-900 mb-2">Código de Integração</h3>
+                  <p className="text-slate-600">Copie e cole o código abaixo no seu site para começar o teste</p>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Code Tab */}
-          {activeTab === 'code' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-3xl font-black text-slate-900 mb-2">Código de Integração</h3>
-                <p className="text-slate-600">Copie e cole o código abaixo no seu site para começar o teste</p>
+                <OptimizedCodeGenerator
+                  experimentName={experiment.name}
+                  experimentId={experiment.id}
+                  experimentType={experiment.type || 'redirect'}
+                  variants={variants}
+                  apiKey={projectApiKey}
+                  algorithm={experiment.algorithm || 'uniform'}
+                  conversionValue={experiment.conversion_value || 0}
+                  conversionConfig={experiment.conversion_config}
+                  projectId={experiment.project_id}
+                />
               </div>
-              <OptimizedCodeGenerator
-                experimentName={experiment.name}
-                experimentId={experiment.id}
-                experimentType={experiment.type || 'redirect'}
-                variants={variants}
-                apiKey={projectApiKey}
-                algorithm={experiment.algorithm || 'uniform'}
-                conversionValue={experiment.conversion_value || 0}
-                conversionConfig={experiment.conversion_config}
-                projectId={experiment.project_id}
-              />
-            </div>
-          )}
+            )}
 
-          {/* Settings Tab */}
-          {activeTab === 'settings' && (
-            <div className="space-y-8">
-              {isEditing ? (
-                <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-2xl font-black text-slate-900 mb-1">Editar Experimento</h3>
-                      <p className="text-slate-600">Atualize as informações básicas do experimento</p>
-                    </div>
-
+            {/* Settings Tab */}
+            {activeTab === 'settings' && (
+              <div className="space-y-8">
+                {isEditing ? (
+                  <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
                     <div className="space-y-6">
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-3">
-                          Nome do Experimento
-                        </label>
-                        <input
-                          type="text"
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-900 font-medium"
-                          placeholder="Ex: Teste de Landing Page"
-                        />
+                        <h3 className="text-2xl font-black text-slate-900 mb-1">Editar Experimento</h3>
+                        <p className="text-slate-600">Atualize as informações básicas do experimento</p>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-3">
-                          Descrição
-                        </label>
-                        <textarea
-                          value={editedDescription}
-                          onChange={(e) => setEditedDescription(e.target.value)}
-                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-slate-900"
-                          rows={5}
-                          placeholder="Descreva o objetivo e hipótese do teste..."
-                        />
-                      </div>
+                      <div className="space-y-6">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-3">
+                            Nome do Experimento
+                          </label>
+                          <input
+                            type="text"
+                            value={editedName}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-900 font-medium"
+                            placeholder="Ex: Teste de Landing Page"
+                          />
+                        </div>
 
-                      <div className="flex gap-3 pt-4">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-3">
+                            Descrição
+                          </label>
+                          <textarea
+                            value={editedDescription}
+                            onChange={(e) => setEditedDescription(e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-slate-900"
+                            rows={5}
+                            placeholder="Descreva o objetivo e hipótese do teste..."
+                          />
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                          <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => {
+                              setEditedName(experiment.name)
+                              setEditedDescription(experiment.description || '')
+                              setIsEditing(false)
+                            }}
+                            className="flex-1 border-2"
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={handleSave}
+                            size="lg"
+                            className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Salvar Alterações
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Basic Info */}
+                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h3 className="text-2xl font-black text-slate-900 mb-1">Informações Básicas</h3>
+                          <p className="text-slate-600">Dados gerais do experimento</p>
+                        </div>
                         <Button
                           variant="outline"
-                          size="lg"
-                          onClick={() => {
-                            setEditedName(experiment.name)
-                            setEditedDescription(experiment.description || '')
-                            setIsEditing(false)
-                          }}
-                          className="flex-1 border-2"
+                          size="sm"
+                          onClick={() => setIsEditing(true)}
+                          className="border-2"
                         >
-                          <X className="w-4 h-4 mr-2" />
-                          Cancelar
-                        </Button>
-                        <Button
-                          onClick={handleSave}
-                          size="lg"
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Salvar Alterações
+                          <Edit3 className="w-4 h-4 mr-2" />
+                          Editar
                         </Button>
                       </div>
-                    </div>
-                  </div>
-                </Card>
-              ) : (
-                <div className="space-y-6">
-                  {/* Basic Info */}
-                  <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-2xl font-black text-slate-900 mb-1">Informações Básicas</h3>
-                        <p className="text-slate-600">Dados gerais do experimento</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsEditing(true)}
-                        className="border-2"
-                      >
-                        <Edit3 className="w-4 h-4 mr-2" />
-                        Editar
-                      </Button>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
-                        <p className="text-sm font-semibold text-slate-600 mb-2">Nome</p>
-                        <p className="text-base font-bold text-slate-900">{experiment.name}</p>
-                      </div>
-
-                      <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
-                        <p className="text-sm font-semibold text-slate-600 mb-2">Tipo</p>
-                        <Badge className="bg-blue-100 text-blue-800 border-blue-300 font-bold">
-                          <Code className="w-3.5 h-3.5 mr-1.5" />
-                          {(experiment.type || 'REDIRECT').toUpperCase()}
-                        </Badge>
-                      </div>
-
-                      <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
-                        <p className="text-sm font-semibold text-slate-600 mb-2">Algoritmo</p>
-                        <Badge className="bg-purple-100 text-purple-800 border-purple-300 font-bold">
-                          <Zap className="w-3.5 h-3.5 mr-1.5" />
-                          {(experiment.algorithm || 'UNIFORM').toUpperCase()}
-                        </Badge>
-                      </div>
-
-                      <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
-                        <p className="text-sm font-semibold text-slate-600 mb-2">Criado em</p>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-slate-500" />
-                          <p className="text-base font-bold text-slate-900">
-                            {new Date(experiment.created_at).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric'
-                            })}
-                          </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
+                          <p className="text-sm font-semibold text-slate-600 mb-2">Nome</p>
+                          <p className="text-base font-bold text-slate-900">{experiment.name}</p>
                         </div>
-                      </div>
 
-                      <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
-                        <p className="text-sm font-semibold text-slate-600 mb-2">Descrição</p>
-                        <p className="text-slate-700 leading-relaxed">
-                          {experiment.description || 'Nenhuma descrição fornecida'}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Conversion Settings */}
-                  <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
-                    <div className="mb-6">
-                      <h3 className="text-2xl font-black text-slate-900 mb-1">Configurações de Conversão</h3>
-                      <p className="text-slate-600">Como o sistema rastreia conversões</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {experiment.target_url && (
-                        <div className="p-4 rounded-xl bg-blue-50 border-2 border-blue-200">
-                          <p className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-2">
-                            <ExternalLink className="w-4 h-4" />
-                            URL Alvo
-                          </p>
-                          <p className="font-mono text-sm text-slate-900 break-all">{experiment.target_url}</p>
-                        </div>
-                      )}
-
-                      {experiment.conversion_url && (
-                        <div className="p-4 rounded-xl bg-green-50 border-2 border-green-200">
-                          <p className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-2">
-                            <Target className="w-4 h-4" />
-                            URL de Conversão
-                          </p>
-                          <p className="font-mono text-sm text-slate-900 break-all">{experiment.conversion_url}</p>
-                        </div>
-                      )}
-
-                      {experiment.conversion_type && (
-                        <div className="p-4 rounded-xl bg-purple-50 border-2 border-purple-200">
-                          <p className="text-sm font-semibold text-purple-700 mb-2">Tipo de Conversão</p>
-                          <Badge className="bg-purple-100 text-purple-800 border-purple-300 font-bold">
-                            {experiment.conversion_type.toUpperCase()}
+                        <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
+                          <p className="text-sm font-semibold text-slate-600 mb-2">Tipo</p>
+                          <Badge className="bg-blue-100 text-blue-800 border-blue-300 font-bold">
+                            <Code className="w-3.5 h-3.5 mr-1.5" />
+                            {(experiment.type || 'REDIRECT').toUpperCase()}
                           </Badge>
                         </div>
-                      )}
 
-                      <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200">
-                        <p className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-2">
-                          <Activity className="w-4 h-4" />
-                          Valor da Conversão
-                        </p>
-                        <p className="text-2xl font-black text-amber-900">
-                          R$ {(experiment.conversion_value || 0).toFixed(2)}
-                        </p>
-                      </div>
-
-                      {experiment.conversion_selector && (
-                        <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
-                          <p className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                            <Code className="w-4 h-4" />
-                            Seletor de Conversão
-                          </p>
-                          <p className="font-mono text-sm text-slate-900 bg-slate-900 text-green-400 p-3 rounded-lg">
-                            {experiment.conversion_selector}
-                          </p>
+                        <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
+                          <p className="text-sm font-semibold text-slate-600 mb-2">Algoritmo</p>
+                          <Badge className="bg-purple-100 text-purple-800 border-purple-300 font-bold">
+                            <Zap className="w-3.5 h-3.5 mr-1.5" />
+                            {(experiment.algorithm || 'UNIFORM').toUpperCase()}
+                          </Badge>
                         </div>
-                      )}
-                    </div>
-                  </Card>
 
-                  {/* Experiment Parameters */}
-                  <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
-                    <div className="mb-6">
-                      <h3 className="text-2xl font-black text-slate-900 mb-1">Parâmetros do Experimento</h3>
-                      <p className="text-slate-600">Configurações avançadas e estatísticas</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="p-3 rounded-xl bg-blue-500">
-                            <Users className="w-6 h-6 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-blue-700">Alocação de Tráfego</p>
-                            <p className="text-3xl font-black text-blue-900">
-                              {((experiment.traffic_allocation || 1) * 100).toFixed(0)}%
+                        <div className="p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
+                          <p className="text-sm font-semibold text-slate-600 mb-2">Criado em</p>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-slate-500" />
+                            <p className="text-base font-bold text-slate-900">
+                              {new Date(experiment.created_at).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric'
+                              })}
                             </p>
                           </div>
                         </div>
+
+                        <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
+                          <p className="text-sm font-semibold text-slate-600 mb-2">Descrição</p>
+                          <p className="text-slate-700 leading-relaxed">
+                            {experiment.description || 'Nenhuma descrição fornecida'}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Conversion Settings */}
+                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
+                      <div className="mb-6">
+                        <h3 className="text-2xl font-black text-slate-900 mb-1">Configurações de Conversão</h3>
+                        <p className="text-slate-600">Como o sistema rastreia conversões</p>
                       </div>
 
-                      {experiment.duration_days && (
-                        <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {experiment.target_url && (
+                          <div className="p-4 rounded-xl bg-blue-50 border-2 border-blue-200">
+                            <p className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                              <ExternalLink className="w-4 h-4" />
+                              URL Alvo
+                            </p>
+                            <p className="font-mono text-sm text-slate-900 break-all">{experiment.target_url}</p>
+                          </div>
+                        )}
+
+                        {experiment.conversion_url && (
+                          <div className="p-4 rounded-xl bg-green-50 border-2 border-green-200">
+                            <p className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-2">
+                              <Target className="w-4 h-4" />
+                              URL de Conversão
+                            </p>
+                            <p className="font-mono text-sm text-slate-900 break-all">{experiment.conversion_url}</p>
+                          </div>
+                        )}
+
+                        {experiment.conversion_type && (
+                          <div className="p-4 rounded-xl bg-purple-50 border-2 border-purple-200">
+                            <p className="text-sm font-semibold text-purple-700 mb-2">Tipo de Conversão</p>
+                            <Badge className="bg-purple-100 text-purple-800 border-purple-300 font-bold">
+                              {experiment.conversion_type.toUpperCase()}
+                            </Badge>
+                          </div>
+                        )}
+
+                        <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200">
+                          <p className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-2">
+                            <Activity className="w-4 h-4" />
+                            Valor da Conversão
+                          </p>
+                          <p className="text-2xl font-black text-amber-900">
+                            R$ {(experiment.conversion_value || 0).toFixed(2)}
+                          </p>
+                        </div>
+
+                        {experiment.conversion_selector && (
+                          <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 border-2 border-slate-200">
+                            <p className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                              <Code className="w-4 h-4" />
+                              Seletor de Conversão
+                            </p>
+                            <p className="font-mono text-sm text-slate-900 bg-slate-900 text-green-400 p-3 rounded-lg">
+                              {experiment.conversion_selector}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+
+                    {/* Experiment Parameters */}
+                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
+                      <div className="mb-6">
+                        <h3 className="text-2xl font-black text-slate-900 mb-1">Parâmetros do Experimento</h3>
+                        <p className="text-slate-600">Configurações avançadas e estatísticas</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="p-3 rounded-xl bg-purple-500">
-                              <Clock className="w-6 h-6 text-white" />
+                            <div className="p-3 rounded-xl bg-blue-500">
+                              <Users className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-purple-700">Duração Planejada</p>
-                              <p className="text-3xl font-black text-purple-900">
-                                {experiment.duration_days} <span className="text-lg">dias</span>
+                              <p className="text-sm font-semibold text-blue-700">Alocação de Tráfego</p>
+                              <p className="text-3xl font-black text-blue-900">
+                                {((experiment.traffic_allocation || 1) * 100).toFixed(0)}%
                               </p>
                             </div>
                           </div>
                         </div>
-                      )}
 
-                      {experiment.confidence_level && (
-                        <div className="p-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="p-3 rounded-xl bg-green-500">
-                              <TrendingUp className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-green-700">Nível de Confiança</p>
-                              <p className="text-3xl font-black text-green-900">
-                                {(experiment.confidence_level * 100).toFixed(0)}%
-                              </p>
+                        {experiment.duration_days && (
+                          <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-3 rounded-xl bg-purple-500">
+                                <Clock className="w-6 h-6 text-white" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-purple-700">Duração Planejada</p>
+                                <p className="text-3xl font-black text-purple-900">
+                                  {experiment.duration_days} <span className="text-lg">dias</span>
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
+                        )}
 
-                  {/* Actions */}
-                  <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
-                    <div className="mb-6">
-                      <h3 className="text-2xl font-black text-slate-900 mb-1">Ações do Experimento</h3>
-                      <p className="text-slate-600">Controle o estado e execução do teste</p>
-                    </div>
+                        {experiment.confidence_level && (
+                          <div className="p-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-3 rounded-xl bg-green-500">
+                                <TrendingUp className="w-6 h-6 text-white" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-green-700">Nível de Confiança</p>
+                                <p className="text-3xl font-black text-green-900">
+                                  {(experiment.confidence_level * 100).toFixed(0)}%
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Button
-                        size="lg"
-                        className="h-auto py-4 flex-col items-start bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Play className="w-5 h-5" />
-                          <span className="font-bold">Iniciar Experimento</span>
-                        </div>
-                        <span className="text-xs text-green-100">Começar a coletar dados</span>
-                      </Button>
+                    {/* Actions */}
+                    <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-8">
+                      <div className="mb-6">
+                        <h3 className="text-2xl font-black text-slate-900 mb-1">Ações do Experimento</h3>
+                        <p className="text-slate-600">Controle o estado e execução do teste</p>
+                      </div>
 
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="h-auto py-4 flex-col items-start border-2 border-yellow-300 bg-yellow-50 hover:bg-yellow-100 text-yellow-800"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Pause className="w-5 h-5" />
-                          <span className="font-bold">Pausar Experimento</span>
-                        </div>
-                        <span className="text-xs text-yellow-600">Parar temporariamente</span>
-                      </Button>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Button
+                          size="lg"
+                          className="h-auto py-4 flex-col items-start bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={handleStartExperiment}
+                          disabled={actionLoading !== null || currentStatus === 'running' || currentStatus === 'completed'}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {actionLoading === 'start' ? (
+                              <RefreshCw className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Play className="w-5 h-5" />
+                            )}
+                            <span className="font-bold">
+                              {currentStatus === 'running' ? 'Em execução' : 'Iniciar Experimento'}
+                            </span>
+                          </div>
+                          <span className="text-xs text-green-100">
+                            {currentStatus === 'running'
+                              ? 'O experimento está ativo'
+                              : currentStatus === 'completed'
+                                ? 'Experimento finalizado'
+                                : 'Começar a coletar dados'}
+                          </span>
+                        </Button>
 
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="h-auto py-4 flex-col items-start border-2 border-red-300 bg-red-50 hover:bg-red-100 text-red-800"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <StopCircle className="w-5 h-5" />
-                          <span className="font-bold">Finalizar Experimento</span>
-                        </div>
-                        <span className="text-xs text-red-600">Encerrar definitivamente</span>
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-              )}
-            </div>
-          )}
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="h-auto py-4 flex-col items-start border-2 border-yellow-300 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={handlePauseExperiment}
+                          disabled={actionLoading !== null || currentStatus !== 'running'}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {actionLoading === 'pause' ? (
+                              <RefreshCw className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Pause className="w-5 h-5" />
+                            )}
+                            <span className="font-bold">
+                              {currentStatus === 'paused' ? 'Já pausado' : 'Pausar Experimento'}
+                            </span>
+                          </div>
+                          <span className="text-xs text-yellow-600">
+                            {currentStatus === 'paused'
+                              ? 'Clique em Iniciar para retomar'
+                              : currentStatus !== 'running'
+                                ? 'Inicie o experimento primeiro'
+                                : 'Parar temporariamente'}
+                          </span>
+                        </Button>
+
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="h-auto py-4 flex-col items-start border-2 border-red-300 bg-red-50 hover:bg-red-100 text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={handleCompleteExperiment}
+                          disabled={actionLoading !== null || currentStatus === 'completed' || currentStatus === 'draft'}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {actionLoading === 'complete' ? (
+                              <RefreshCw className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <StopCircle className="w-5 h-5" />
+                            )}
+                            <span className="font-bold">
+                              {currentStatus === 'completed' ? 'Finalizado' : 'Finalizar Experimento'}
+                            </span>
+                          </div>
+                          <span className="text-xs text-red-600">
+                            {currentStatus === 'completed'
+                              ? 'Este experimento foi encerrado'
+                              : currentStatus === 'draft'
+                                ? 'Inicie o experimento primeiro'
+                                : 'Encerrar definitivamente'}
+                          </span>
+                        </Button>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </ScrollArea>
       </div>

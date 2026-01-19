@@ -37,7 +37,7 @@ const AuthContext = createContext<AuthContext | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
-  
+
   const supabase = createClient()
 
   // Carregar perfil e organizações do usuário
@@ -59,14 +59,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         `)
         .eq('user_id', authUser.id)
 
-      const organizations = memberships?.map(m => ({
-        organization: m.organizations,
-        membership: m
+      const organizations = memberships?.map((m: any) => ({
+        organization: m.organizations as Organization,
+        membership: m as OrganizationMember
       })) || []
 
       // Determinar organização atual
       const currentOrg = organizations.find(
-        org => org.organization.id === profile?.default_org_id
+        (org: any) => org.organization.id === profile?.default_org_id
       )?.organization || organizations[0]?.organization || null
 
       return {
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userWithProfile = await loadUserProfile(session.user)
           setUser(userWithProfile)
         }
-        
+
         if (mounted) {
           setLoading(false)
         }
@@ -119,9 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
       if (!mounted) return
-      
+
       try {
         if (session?.user) {
           const userWithProfile = await loadUserProfile(session.user)

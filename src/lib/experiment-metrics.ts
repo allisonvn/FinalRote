@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { analyzeExperiment } from '@/lib/statistics'
 
 export interface ExperimentMetrics {
   visitors: number
@@ -7,98 +8,166 @@ export interface ExperimentMetrics {
   confidence: number
   revenue?: number
   improvement?: number
+  pValue?: number
+  isSignificant?: boolean
+}
+
+export interface VariantMetrics {
+  id: string
+  name: string
+  is_control: boolean
+  visitors: number
+  conversions: number
+  conversionRate: number
+  revenue: number
 }
 
 /**
  * Calcula métricas reais de um experimento baseado nos dados do Supabase
+ * Usa cálculo estatístico real (Z-test) para confiança
  */
 export async function calculateExperimentMetrics(experimentId: string): Promise<ExperimentMetrics> {
   const supabase = createClient()
-  
+
   try {
     console.log('🔍 Calculando métricas para experimento:', experimentId)
-    
-    // Primeiro, tentar usar a função RPC para buscar estatísticas
-    const { data: statsData, error: statsError } = await supabase
-      .rpc('get_experiment_stats', { experiment_uuid: experimentId })
 
-    if (!statsError && statsData && statsData.length > 0) {
-      console.log('📊 Usando dados da função RPC:', statsData[0])
-      const stats = statsData[0]
-      const totalVisitors = stats.total_visitors || 0
-      const totalConversions = stats.total_conversions || 0
-      const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
-      
-      const avgOrderValue = 150
-      const revenue = totalConversions * avgOrderValue
-      const confidence = calculateConfidence(totalVisitors, conversionRate)
-      const baseline = 3.0
-      const improvement = conversionRate > 0 ? ((conversionRate - baseline) / baseline) * 100 : 0
-
-      return {
-        visitors: totalVisitors,
-        conversions: totalConversions,
-        conversionRate: Number(conversionRate.toFixed(1)),
-        confidence: Math.round(confidence),
-        revenue: Math.round(revenue),
-        improvement: Number(improvement.toFixed(1))
-      }
-    }
-
-    // Fallback: buscar dados diretamente das tabelas
-    console.log('📊 Usando dados diretos das tabelas')
-    
-    // Buscar eventos de conversão para este experimento
-    const { data: conversions, error: convError } = await supabase
-      .from('events')
-      .select('*')
-      .eq('experiment_id', experimentId)
-      .eq('event_type', 'conversion')
-
-    // Buscar total de visitantes únicos (assignments)
-    const { data: assignments, error: assignError } = await supabase
-      .from('assignments')
-      .select('visitor_id')
+    // Buscar variantes do experimento
+    const { data: variants, error: variantsError } = await supabase
+      .from('variants')
+      .select('id, name, is_control')
       .eq('experiment_id', experimentId)
 
-    if (convError || assignError) {
-      console.error('Erro ao buscar dados do experimento:', {
-        experimentId,
-        convError: convError?.message || convError,
-        assignError: assignError?.message || assignError
-      })
+    if (variantsError) {
+      console.error('Erro ao buscar variantes:', variantsError)
       return getDefaultMetrics()
     }
 
-    const totalConversions = conversions?.length || 0
-    const totalVisitors = assignments?.length || 0
+    // Buscar dados de variant_stats para cada variante
+    const variantMetrics: VariantMetrics[] = await Promise.all(
+      (variants || []).map(async (variant: { id: string; name: string; is_control: boolean }) => {
+        const { data: stats } = await supabase
+          .from('variant_stats')
+          .select('visitors, conversions, revenue')
+          .eq('variant_id', variant.id)
+          .maybeSingle()
+
+        let visitors = stats?.visitors || 0
+        let conversions = stats?.conversions || 0
+        let revenue = stats?.revenue || 0
+
+        // Fallback: buscar de assignments e events se variant_stats estiver vazio
+        if (!stats) {
+          const [assignmentsResult, conversionsResult] = await Promise.all([
+            supabase
+              .from('assignments')
+              .select('id', { count: 'exact', head: true })
+              .eq('variant_id', variant.id),
+            supabase
+              .from('events')
+              .select('value')
+              .eq('variant_id', variant.id)
+              .eq('event_type', 'conversion')
+          ])
+
+          visitors = assignmentsResult.count || 0
+          conversions = conversionsResult.data?.length || 0
+          revenue = (conversionsResult.data || []).reduce(
+            (sum: number, conv: { value?: string | number }) => sum + (Number(conv.value) || 0), 0
+          )
+        }
+
+        return {
+          id: variant.id,
+          name: variant.name,
+          is_control: variant.is_control,
+          visitors,
+          conversions,
+          revenue,
+          conversionRate: visitors > 0 ? (conversions / visitors) * 100 : 0
+        }
+      })
+    )
+
+    // Calcular totais
+    const totalVisitors = variantMetrics.reduce((sum: number, v: any) => sum + v.visitors, 0)
+    const totalConversions = variantMetrics.reduce((sum: number, v: any) => sum + v.conversions, 0)
+    const totalRevenue = variantMetrics.reduce((sum: number, v: any) => sum + v.revenue, 0)
     const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
+
+    // Encontrar variante de controle e melhor variante
+    const controlVariant = variantMetrics.find(v => v.is_control) || variantMetrics[0]
+    const bestVariant = variantMetrics.length > 0
+      ? variantMetrics.reduce((best: any, current: any) =>
+        current.conversionRate > (best?.conversionRate || 0) ? current : best
+        , variantMetrics[0])
+      : null
+
+    // Calcular improvement comparando melhor variante com controle
+    let improvement = 0
+    if (controlVariant && bestVariant && controlVariant.id !== bestVariant.id) {
+      if (controlVariant.conversionRate > 0 && bestVariant.conversionRate !== undefined) {
+        improvement = ((bestVariant.conversionRate - controlVariant.conversionRate) / controlVariant.conversionRate) * 100
+      }
+    }
+
+    // Calcular significância estatística real usando Z-test
+    let confidence = 0
+    let pValue: number | undefined
+    let isSignificant = false
+
+    if (variantMetrics.length >= 2 && controlVariant) {
+      // Encontrar a melhor variante que não é controle
+      const nonControlVariants = variantMetrics.filter(v => !v.is_control)
+      if (nonControlVariants.length > 0) {
+        const bestNonControl = nonControlVariants.reduce((best: any, current: any) =>
+          current.conversionRate > (best?.conversionRate || 0) ? current : best
+          , nonControlVariants[0])
+
+        if (bestNonControl) {
+          // Usar a função analyzeExperiment para cálculo estatístico real
+          const analysis = analyzeExperiment(
+            controlVariant.visitors,
+            controlVariant.conversions,
+            bestNonControl.visitors,
+            bestNonControl.conversions,
+            0.95 // 95% de confiança
+          )
+
+          confidence = analysis.significance
+          pValue = analysis.pValue
+          isSignificant = analysis.isSignificant
+
+          console.log('📊 Análise estatística:', {
+            control: { visitors: controlVariant.visitors, conversions: controlVariant.conversions },
+            variant: { visitors: bestNonControl.visitors, conversions: bestNonControl.conversions },
+            confidence: `${confidence.toFixed(1)}%`,
+            pValue: pValue !== undefined ? pValue.toFixed(4) : 'N/A',
+            isSignificant
+          })
+        }
+      }
+    }
 
     console.log('📊 Métricas calculadas:', {
       experimentId,
-      totalConversions,
       totalVisitors,
-      conversionRate: conversionRate.toFixed(2) + '%'
+      totalConversions,
+      conversionRate: conversionRate.toFixed(2) + '%',
+      improvement: improvement.toFixed(2) + '%',
+      confidence: confidence.toFixed(1) + '%',
+      totalRevenue: `R$ ${totalRevenue.toFixed(2)}`
     })
-
-    // Calcular receita total (assumindo valor médio por conversão)
-    const avgOrderValue = 150 // R$ por conversão
-    const revenue = totalConversions * avgOrderValue
-
-    // Calcular confiabilidade estatística baseada no tamanho da amostra
-    const confidence = calculateConfidence(totalVisitors, conversionRate)
-
-    // Calcular improvement comparando com baseline (assumindo 3% como baseline)
-    const baseline = 3.0
-    const improvement = conversionRate > 0 ? ((conversionRate - baseline) / baseline) * 100 : 0
 
     return {
       visitors: totalVisitors,
       conversions: totalConversions,
       conversionRate: Number(conversionRate.toFixed(1)),
       confidence: Math.round(confidence),
-      revenue: Math.round(revenue),
-      improvement: Number(improvement.toFixed(1))
+      revenue: Math.round(totalRevenue),
+      improvement: Number(improvement.toFixed(1)),
+      pValue,
+      isSignificant
     }
   } catch (error) {
     console.error('Erro ao calcular métricas do experimento:', {
@@ -110,26 +179,66 @@ export async function calculateExperimentMetrics(experimentId: string): Promise<
 }
 
 /**
- * Calcula confiabilidade estatística baseada no tamanho da amostra
+ * Calcula métricas detalhadas para cada variante de um experimento
  */
-function calculateConfidence(visitors: number, conversionRate: number): number {
-  if (visitors === 0) return 0
-  
-  // Para experimentos com poucos dados, usar confiabilidade baixa
-  if (visitors < 10) return 0
-  if (visitors < 30) return 25
-  if (visitors < 100) return 50
-  if (visitors < 500) return 75
-  if (visitors < 1000) return 85
-  if (visitors < 2000) return 90
-  if (visitors < 5000) return 95
-  
-  // Para experimentos com muitos dados, calcular baseado na taxa de conversão
-  if (conversionRate > 10) return 99 // Taxa alta
-  if (conversionRate > 5) return 95 // Taxa média-alta
-  if (conversionRate > 2) return 90 // Taxa média
-  if (conversionRate > 1) return 85 // Taxa baixa-média
-  return 80 // Taxa muito baixa
+export async function getVariantMetrics(experimentId: string): Promise<VariantMetrics[]> {
+  const supabase = createClient()
+
+  try {
+    const { data: variants, error } = await supabase
+      .from('variants')
+      .select('id, name, is_control')
+      .eq('experiment_id', experimentId)
+
+    if (error) throw error
+
+    const metricsPromises = (variants || []).map(async (variant: { id: string; name: string; is_control: boolean }) => {
+      const { data: stats } = await supabase
+        .from('variant_stats')
+        .select('visitors, conversions, revenue')
+        .eq('variant_id', variant.id)
+        .maybeSingle()
+
+      let visitors = stats?.visitors || 0
+      let conversions = stats?.conversions || 0
+      let revenue = stats?.revenue || 0
+
+      if (!stats) {
+        const [assignmentsResult, conversionsResult] = await Promise.all([
+          supabase
+            .from('assignments')
+            .select('id', { count: 'exact', head: true })
+            .eq('variant_id', variant.id),
+          supabase
+            .from('events')
+            .select('value')
+            .eq('variant_id', variant.id)
+            .eq('event_type', 'conversion')
+        ])
+
+        visitors = assignmentsResult.count || 0
+        conversions = conversionsResult.data?.length || 0
+        revenue = (conversionsResult.data || []).reduce(
+          (sum: number, conv: { value?: string | number }) => sum + (Number(conv.value) || 0), 0
+        )
+      }
+
+      return {
+        id: variant.id,
+        name: variant.name,
+        is_control: variant.is_control,
+        visitors,
+        conversions,
+        revenue,
+        conversionRate: visitors > 0 ? (conversions / visitors) * 100 : 0
+      }
+    })
+
+    return await Promise.all(metricsPromises)
+  } catch (error) {
+    console.error('Erro ao buscar métricas das variantes:', error)
+    return []
+  }
 }
 
 /**
@@ -142,7 +251,9 @@ function getDefaultMetrics(): ExperimentMetrics {
     conversionRate: 0,
     confidence: 0,
     revenue: 0,
-    improvement: 0
+    improvement: 0,
+    pValue: 1,
+    isSignificant: false
   }
 }
 
@@ -151,7 +262,7 @@ function getDefaultMetrics(): ExperimentMetrics {
  */
 export async function calculateMultipleExperimentMetrics(experimentIds: string[]): Promise<Record<string, ExperimentMetrics>> {
   const metrics: Record<string, ExperimentMetrics> = {}
-  
+
   // Processar em lotes para evitar sobrecarga
   const batchSize = 5
   for (let i = 0; i < experimentIds.length; i += batchSize) {
@@ -160,13 +271,13 @@ export async function calculateMultipleExperimentMetrics(experimentIds: string[]
       const result = await calculateExperimentMetrics(id)
       return { id, metrics: result }
     })
-    
+
     const batchResults = await Promise.all(batchPromises)
     batchResults.forEach(({ id, metrics: expMetrics }) => {
       metrics[id] = expMetrics
     })
   }
-  
+
   return metrics
 }
 
@@ -180,16 +291,16 @@ export function formatMetricValue(value: number, type: 'visitors' | 'conversion'
         return `${(value / 1000).toFixed(1)}k`
       }
       return value.toLocaleString('pt-BR')
-    
+
     case 'conversion':
       return `${value.toFixed(1)}%`
-    
+
     case 'revenue':
       return `R$ ${value.toLocaleString('pt-BR')}`
-    
+
     case 'improvement':
       return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
-    
+
     default:
       return value.toString()
   }

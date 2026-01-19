@@ -39,13 +39,18 @@ export function useApp() {
       preferences: {
         sidebarCollapsed: false,
         pinnedExperiments: [],
-        theme: 'auto' as const,
+        defaultTimeRange: '30d' as const,
+        showTooltips: true,
+        autoRefresh: false,
+        refreshInterval: 30000,
+        defaultView: 'grid' as const,
+        theme: 'system' as const,
         language: 'pt-BR' as const
       },
-      updatePreference: () => {},
-      toggleSidebar: () => {},
-      togglePin: () => {},
-      clearPreferences: () => {}
+      updatePreference: () => { },
+      toggleSidebar: () => { },
+      togglePin: () => { },
+      clearPreferences: () => { }
     }
   }
   return context

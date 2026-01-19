@@ -145,25 +145,25 @@ export interface KiwifyPurchase {
 
 export type KiwifyWebhookData =
   | {
-      event_type: 'purchase.approved' | 'purchase.refused';
-      purchase: KiwifyPurchase;
-    }
+    event_type: 'purchase.approved' | 'purchase.refused' | 'purchase.chargeback';
+    purchase: KiwifyPurchase;
+  }
   | {
-      event_type:
-        | 'subscription.created'
-        | 'subscription.updated'
-        | 'subscription.canceled';
-      subscription: KiwifySubscription;
-    }
+    event_type:
+    | 'subscription.created'
+    | 'subscription.updated'
+    | 'subscription.canceled';
+    subscription: KiwifySubscription;
+  }
   | {
-      event_type:
-        | 'payment.approved'
-        | 'payment.refused'
-        | 'payment.late'
-        | 'payment.refunded';
-      payment: KiwifyPayment;
-      subscription?: KiwifySubscription;
-    };
+    event_type:
+    | 'payment.approved'
+    | 'payment.refused'
+    | 'payment.late'
+    | 'payment.refunded';
+    payment: KiwifyPayment;
+    subscription?: KiwifySubscription;
+  };
 
 // =====================================================
 // API RESPONSES

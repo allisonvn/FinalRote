@@ -1,21 +1,22 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { checkSubscription } from '@/lib/auth/subscription-check'
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
-  
+
   // Bypass completo para todos os arquivos do Next.js (estáticos, chunks, HMR, etc.)
   if (pathname.startsWith('/_next/')) {
     return NextResponse.next()
   }
-  
+
   const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
   const isAuthRoute = pathname.startsWith('/auth')
-  const isProtectedRoute = ['/dashboard', '/experiments', '/analytics', '/settings'].some(route =>
+  const isProtectedRoute = ['/dashboard', '/experiments', '/analytics', '/settings', '/billing', '/blocked'].some(route =>
     pathname.startsWith(route)
   )
 
@@ -72,6 +73,19 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = new URL('/auth/signin', request.url)
     redirectUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(redirectUrl)
+  }
+
+  // 3. Subscription Gate (Post-Auth)
+  if (user && isProtectedRoute) {
+    const { allowed, redirectUrl } = await checkSubscription({
+      supabase,
+      userId: user.id,
+      path: pathname
+    })
+
+    if (!allowed && redirectUrl) {
+      return NextResponse.redirect(new URL(redirectUrl, request.url))
+    }
   }
 
   if (isAuthRoute && user && !pathname.includes('/callback')) {

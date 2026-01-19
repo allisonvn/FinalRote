@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   validateKiwifyWebhook,
   processKiwifyWebhook,
-} from '@/lib/kiwify/webhooks';
+} from '@/lib/kiwify/webhooks-integrated';
 import type { KiwifyWebhookPayload } from '@/types/kiwify';
 
 export async function POST(request: NextRequest) {

@@ -47,16 +47,15 @@ export function logError(error: Error, errorInfo?: Partial<ErrorInfo>) {
     console.group('🚨 Error Logged')
     console.error('Error:', error)
     // Só logar errorData se tiver informações relevantes
-    const hasRelevantInfo = errorData.message || errorData.stack || errorData.componentStack
-    if (hasRelevantInfo) {
-      const logData: Partial<ErrorInfo> = {}
-      if (errorData.message) logData.message = errorData.message
-      if (errorData.stack) logData.stack = errorData.stack
-      if (errorData.componentStack) logData.componentStack = errorData.componentStack
-      if (errorData.errorBoundary) logData.errorBoundary = errorData.errorBoundary
-      if (Object.keys(logData).length > 0) {
-        console.error('Error Info:', logData)
-      }
+    const logData: Partial<ErrorInfo> = {}
+    if (errorData.message) logData.message = errorData.message
+    if (errorData.stack) logData.stack = errorData.stack
+    if (errorData.componentStack) logData.componentStack = errorData.componentStack
+    if (errorData.errorBoundary) logData.errorBoundary = errorData.errorBoundary
+    if (errorData.timestamp) logData.timestamp = errorData.timestamp
+    
+    if (Object.keys(logData).length > 0) {
+      console.error('Error Info:', logData)
     }
     console.groupEnd()
   }
@@ -70,7 +69,7 @@ export function logError(error: Error, errorInfo?: Partial<ErrorInfo>) {
 
 export function handleChunkLoadError(error: Error) {
   console.warn('Chunk load error detected, attempting recovery...', error)
-  
+
   // Attempt to reload the page after a short delay
   if (typeof window !== 'undefined') {
     setTimeout(() => {
@@ -95,12 +94,12 @@ export function setupGlobalErrorHandlers() {
   window.addEventListener('unhandledrejection', (event) => {
     const error = event.reason
     try {
-      const errorObj = error instanceof Error 
-        ? error 
-        : typeof error === 'string' 
+      const errorObj = error instanceof Error
+        ? error
+        : typeof error === 'string'
           ? new Error(error)
           : new Error(JSON.stringify(error))
-      
+
       logError(errorObj, {
         errorBoundary: 'unhandledrejection',
       })

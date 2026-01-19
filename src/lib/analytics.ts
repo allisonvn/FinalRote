@@ -1,4 +1,44 @@
 import { createClient } from './supabase/client'
+import { analyzeExperiment } from '@/lib/statistics'
+
+export async function getExperimentStatsFromRPC(experimentId?: string) {
+  const supabase = createClient()
+  try {
+    const { data, error } = await supabase.rpc('get_experiment_stats', {
+      p_experiment_id: experimentId || null
+    })
+
+    if (error) {
+      console.warn('⚠️ Erro ao chamar RPC get_experiment_stats:', error)
+      return null
+    }
+
+    return data
+  } catch (err) {
+    console.error('Erro na chamada RPC:', err)
+    return null
+  }
+}
+
+// Helper to check if error is an RLS-blocked empty error (Supabase returns {} when RLS blocks access)
+function isRlsBlockedError(error: unknown): boolean {
+  if (!error) return false
+  // Empty object {} means RLS blocked the query
+  if (typeof error === 'object' && Object.keys(error).length === 0) return true
+  // Check for common RLS error messages
+  const errorStr = JSON.stringify(error)
+  return errorStr === '{}' || errorStr.includes('row-level security')
+}
+
+// Log query errors appropriately - warn for RLS, error for actual issues
+function logQueryError(context: string, error: unknown): void {
+  if (isRlsBlockedError(error)) {
+    // RLS blocking is expected when not authenticated - just warn
+    console.warn(`⚠️ ${context}: Acesso bloqueado por RLS (usuário pode não estar autenticado)`)
+  } else {
+    console.error(`❌ ${context}:`, error)
+  }
+}
 
 export interface DashboardStats {
   activeExperiments: number
@@ -30,7 +70,7 @@ export interface RevenueData {
   lift: number
 }
 
-export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): Promise<DashboardStats> {
+export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30d'): Promise<DashboardStats> {
   try {
     const supabase = createClient()
     // Tentar buscar da view materializada primeiro, se falhar, usar tabela experiments
@@ -44,14 +84,14 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
           .from('experiments')
           .select('id, name, status, created_at')
           .order('created_at', { ascending: false }),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Timeout')), 5000)
         )
       ]) as any
 
       console.log('📊 Dados de experiments:', result)
 
-      experiments = result.data?.map(exp => ({
+      experiments = result.data?.map((exp: any) => ({
         experiment_id: exp.id,
         experiment_name: exp.name,
         status: exp.status,
@@ -96,7 +136,7 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
       .eq('event_type', 'conversion')
 
     if (convError) {
-      console.error('Erro ao buscar conversões:', convError)
+      logQueryError('Erro ao buscar conversões', convError)
     }
 
     // Buscar total de projetos
@@ -105,7 +145,7 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
       .select('id', { count: 'exact' })
 
     if (projError) {
-      console.error('Erro ao buscar projetos:', projError)
+      logQueryError('Erro ao buscar projetos', projError)
     }
 
     // Mapear período
@@ -118,16 +158,16 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
       .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
 
     if (uvError) {
-      console.error('Erro ao buscar visitantes únicos:', uvError)
+      logQueryError('Erro ao buscar visitantes únicos', uvError)
     }
 
     // Calcular métricas baseadas nos dados reais ou simuladas quando não há dados
     const experimentsData = experiments || []
-    const activeExperiments = experimentsData.filter(exp => exp.status === 'running').length
-    
+    const activeExperiments = experimentsData.filter((exp: any) => exp.status === 'running').length
+
     // Se não há dados reais, usar valores baseados na estrutura real mas simulados
     const hasRealData = experimentsData.length > 0 || (events && events.length > 0)
-    
+
     if (!hasRealData) {
       // Retornar apenas zeros quando não há dados reais
       return {
@@ -142,12 +182,12 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
     }
 
     // Calcular com dados reais
-    const totalVisitors = experimentsData.reduce((sum, exp) => sum + (exp.total_visitors || 0), 0) || 
-                         (uniqueVisitors ? new Set(uniqueVisitors.map(v => v.visitor_id)).size : 0)
-    
-    const totalConversions = experimentsData.reduce((sum, exp) => sum + (exp.total_conversions || 0), 0) || 
-                           (conversions?.length || 0)
-    
+    const totalVisitors = experimentsData.reduce((sum: number, exp: any) => sum + (exp.total_visitors || 0), 0) ||
+      (uniqueVisitors ? new Set(uniqueVisitors.map((v: any) => v.visitor_id)).size : 0)
+
+    const totalConversions = experimentsData.reduce((sum: number, exp: any) => sum + (exp.total_conversions || 0), 0) ||
+      (conversions?.length || 0)
+
     const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
 
     return {
@@ -155,13 +195,13 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
       totalVisitors,
       conversionRate: Math.round(conversionRate * 100) / 100,
       totalProjects: projects?.length || 1,
-      totalRevenue: totalConversions * 50, // Valor médio por conversão
-      avgSessionDuration: 240, // 4 minutos médio
-      bounceRate: 45 // 45% bounce rate
+      totalRevenue: 0,
+      avgSessionDuration: 240,
+      bounceRate: 45
     }
   } catch (error) {
     console.error('Erro ao calcular estatísticas:', error)
-    
+
     // Fallback com dados zerados quando há erro
     return {
       activeExperiments: 0,
@@ -175,7 +215,7 @@ export async function getDashboardStats(range: '7d'|'30d'|'90d'|'1y' = '30d'): P
   }
 }
 
-export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d'): Promise<ExperimentMetrics[]> {
+export async function getExperimentMetrics(range: '24h' | '7d' | '30d' | '90d' | '1y' = '30d'): Promise<ExperimentMetrics[]> {
   try {
     const supabase = createClient()
     // Buscar experimentos com consulta otimizada (limite para performance)
@@ -191,7 +231,7 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
       .limit(20) // Limitar para melhor performance
 
     if (error) {
-      console.error('Erro ao buscar experimentos:', error)
+      logQueryError('Erro ao buscar experimentos', error)
       return []
     }
 
@@ -200,10 +240,10 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
     }
 
     // Buscar estatísticas de cada experimento
-    const metrics = await Promise.all(experiments.map(async (exp) => {
+    const metrics = await Promise.all(experiments.map(async (exp: any) => {
       // SEMPRE buscar de assignments e events para garantir dados reais
       console.log(`📊 Buscando dados para experimento: ${exp.name}`)
-      
+
       // Buscar variantes para identificar o controle
       const { data: variants } = await supabase
         .from('variants')
@@ -244,61 +284,54 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
         })
 
         if (assignments && assignments.length > 0) {
-            const controlId = variants.find(v => v.is_control)?.id
-            
-            // Calcular visitantes e conversões por variante
-            const controlAssignments = assignments.filter(a => a.variant_id === controlId)
-            const variantAssignments = assignments.filter(a => a.variant_id !== controlId)
-            
-            const controlVisitorIds = new Set(controlAssignments.map(a => a.visitor_id))
-            const variantVisitorIds = new Set(variantAssignments.map(a => a.visitor_id))
-            
-            const controlVisitors = controlVisitorIds.size
-            const variantVisitors = variantVisitorIds.size
-            const totalVisitors = new Set(assignments.map(a => a.visitor_id)).size
-            
-            // Calcular conversões
-            const controlConversions = events?.filter(e => controlVisitorIds.has(e.visitor_id) && e.event_type === 'conversion').length || 0
-            const variantConversions = events?.filter(e => variantVisitorIds.has(e.visitor_id) && e.event_type === 'conversion').length || 0
-            const totalConversions = controlConversions + variantConversions
-            
-            // Calcular taxas
-            const controlRate = controlVisitors > 0 ? (controlConversions / controlVisitors) * 100 : 0
-            const variantRate = variantVisitors > 0 ? (variantConversions / variantVisitors) * 100 : 0
-            
-            // Calcular improvement
-            const improvement = controlRate > 0 ? ((variantRate - controlRate) / controlRate) * 100 : 0
-            
-            // Calcular significância
-            let significance = 0
-            if (controlVisitors > 30 && variantVisitors > 30) {
-              const p1 = variantRate / 100
-              const p2 = controlRate / 100
-              const n1 = variantVisitors
-              const n2 = controlVisitors
-              
-              const pooled_p = (variantConversions + controlConversions) / (n1 + n2)
-              const se = Math.sqrt(pooled_p * (1 - pooled_p) * (1/n1 + 1/n2))
-              const z = se > 0 ? (p1 - p2) / se : 0
-              
-              if (Math.abs(z) > 0) {
-                significance = Math.min(99.9, Math.max(0, 50 + (z * 15)))
-              }
-            }
-            
-            return {
-              id: exp.id,
-              name: exp.name,
-              status: exp.status,
-              visitors: totalVisitors,
-              conversions: totalConversions,
-              conversionRate: totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0,
-              improvement: Math.round(improvement * 10) / 10,
-              significance: Math.round(significance * 10) / 10,
-              startDate: exp.created_at,
-              endDate: undefined
-            }
+          const controlId = variants.find((v: any) => v.is_control)?.id
+
+          // Calcular visitantes e conversões por variante
+          const controlAssignments = assignments.filter((a: any) => a.variant_id === controlId)
+          const variantAssignments = assignments.filter((a: any) => a.variant_id !== controlId)
+
+          const controlVisitorIds = new Set(controlAssignments.map((a: any) => a.visitor_id))
+          const variantVisitorIds = new Set(variantAssignments.map((a: any) => a.visitor_id))
+
+          const controlVisitors = controlVisitorIds.size
+          const variantVisitors = variantVisitorIds.size
+          const totalVisitors = new Set(assignments.map((a: any) => a.visitor_id)).size
+
+          // Calcular conversões
+          const controlConversions = events?.filter((e: any) => controlVisitorIds.has(e.visitor_id) && e.event_type === 'conversion').length || 0
+          const variantConversions = events?.filter((e: any) => variantVisitorIds.has(e.visitor_id) && e.event_type === 'conversion').length || 0
+          const totalConversions = controlConversions + variantConversions
+
+          // Calcular taxas
+          const controlRate = controlVisitors > 0 ? (controlConversions / controlVisitors) * 100 : 0
+          const variantRate = variantVisitors > 0 ? (variantConversions / variantVisitors) * 100 : 0
+
+          // Calcular improvement
+          const improvement = controlRate > 0 ? ((variantRate - controlRate) / controlRate) * 100 : 0
+
+          // Calcular significância com analyzeExperiment
+          const stats = analyzeExperiment(
+            controlVisitors,
+            controlConversions,
+            variantVisitors,
+            variantConversions
+          )
+
+          const significance = stats.significance
+
+          return {
+            id: exp.id,
+            name: exp.name,
+            status: exp.status,
+            visitors: totalVisitors,
+            conversions: totalConversions,
+            conversionRate: totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0,
+            improvement: Math.round(improvement * 10) / 10,
+            significance: Math.round(significance * 10) / 10,
+            startDate: exp.created_at,
+            endDate: undefined
           }
+        }
       } catch (err) {
         console.error('Erro ao buscar dados:', err)
       }
@@ -327,10 +360,10 @@ export async function getExperimentMetrics(range: '7d'|'30d'|'90d'|'1y' = '30d')
 }
 
 // Dispositivo (device_type) breakdown por período
-export async function getDeviceBreakdown(range: '7d'|'30d'|'90d'|'1y' = '30d', experimentId?: string) {
+export async function getDeviceBreakdown(range: '24h' | '7d' | '30d' | '90d' | '1y' = '30d', experimentId?: string) {
   try {
     const supabase = createClient()
-    const days = range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
+    const days = range === '24h' ? 1 : range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
     // Se experimento for especificado, filtrar sessões apenas dos visitantes desse experimento
     let visitorSet: Set<string> | null = null
@@ -345,7 +378,7 @@ export async function getDeviceBreakdown(range: '7d'|'30d'|'90d'|'1y' = '30d', e
           .select('visitor_id')
           .eq('experiment_id', experimentId)
           .gte('created_at', since)
-        visitorSet = new Set<string>([...(ass?.map(a=>a.visitor_id)||[]), ...(evs?.map(e=>e.visitor_id)||[])])
+        visitorSet = new Set<string>([...(ass?.map((a: any) => a.visitor_id) || []), ...(evs?.map((e: any) => e.visitor_id) || [])])
       } catch (e) {
         console.error('Erro ao coletar visitantes do experimento:', e)
       }
@@ -365,7 +398,7 @@ export async function getDeviceBreakdown(range: '7d'|'30d'|'90d'|'1y' = '30d', e
     if (error || !sessions) return []
 
     const map = new Map<string, Set<string>>()
-    sessions.forEach(s => {
+    sessions.forEach((s: any) => {
       const key = s.device_type || 'desktop'
       if (!map.has(key)) map.set(key, new Set())
       map.get(key)!.add(s.visitor_id)
@@ -378,10 +411,10 @@ export async function getDeviceBreakdown(range: '7d'|'30d'|'90d'|'1y' = '30d', e
 }
 
 // Funil básico por evento (page_view -> click -> conversion)
-export async function getFunnelData(range: '7d'|'30d'|'90d'|'1y' = '30d') {
+export async function getFunnelData(range: '24h' | '7d' | '30d' | '90d' | '1y' = '30d') {
   try {
     const supabase = createClient()
-    const days = range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
+    const days = range === '24h' ? 1 : range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
     const { data: events, error } = await supabase
       .from('events')
@@ -390,12 +423,12 @@ export async function getFunnelData(range: '7d'|'30d'|'90d'|'1y' = '30d') {
 
     if (error || !events) return []
 
-    const types: Array<'page_view'|'click'|'conversion'> = ['page_view','click','conversion']
+    const types: Array<'page_view' | 'click' | 'conversion'> = ['page_view', 'click', 'conversion']
     const counts = new Map<string, number>()
     const visitors = new Map<string, Set<string>>()
     types.forEach(t => { counts.set(t, 0); visitors.set(t, new Set()) })
 
-    events.forEach(e => {
+    events.forEach((e: any) => {
       if (!counts.has(e.event_type)) return
       counts.set(e.event_type, (counts.get(e.event_type) || 0) + 1)
       visitors.get(e.event_type)!.add(e.visitor_id)
@@ -412,7 +445,7 @@ export async function getFunnelData(range: '7d'|'30d'|'90d'|'1y' = '30d') {
   }
 }
 
-export async function getRevenueData(range: '7d'|'30d'|'90d'|'1y' = '120d' as any, experimentId?: string): Promise<RevenueData[]> {
+export async function getRevenueData(range: '24h' | '7d' | '30d' | '90d' | '1y' = '30d', experimentId?: string): Promise<RevenueData[]> {
   try {
     const supabase = createClient()
     // Buscar eventos de conversão do período agrupados por semana
@@ -458,7 +491,7 @@ export async function getRevenueData(range: '7d'|'30d'|'90d'|'1y' = '120d' as an
 
     // Criar mapa de visitor_id -> is_control
     const visitorControlMap = new Map()
-    assignments?.forEach(assignment => {
+    assignments?.forEach((assignment: any) => {
       visitorControlMap.set(
         `${assignment.experiment_id}_${assignment.visitor_id}`,
         assignment.variants.is_control
@@ -468,19 +501,21 @@ export async function getRevenueData(range: '7d'|'30d'|'90d'|'1y' = '120d' as an
     // Agrupar eventos por semana
     const weeklyData = new Map<string, { control: number; variants: number; total: number }>()
 
-    events.forEach(event => {
+    events.forEach((event: any) => {
       // Encontrar início da semana (segunda-feira)
       const eventDate = new Date(event.created_at)
       const monday = new Date(eventDate)
       monday.setDate(eventDate.getDate() - eventDate.getDay() + 1)
       const weekKey = monday.toISOString().split('T')[0]
 
+      if (!weekKey) return // Proteção contra data inválida
+
       if (!weeklyData.has(weekKey)) {
         weeklyData.set(weekKey, { control: 0, variants: 0, total: 0 })
       }
 
       const weekData = weeklyData.get(weekKey)!
-      const eventValue = event.value || 50 // Valor padrão se não especificado
+      const eventValue = event.value || 0 // Valor real apenas
 
       // Verificar se é controle ou variante
       const visitorKey = `${event.experiment_id}_${event.visitor_id}`
@@ -509,7 +544,7 @@ export async function getRevenueData(range: '7d'|'30d'|'90d'|'1y' = '120d' as an
         }
       })
       .sort((a, b) => new Date(a.period.split('/').reverse().join('-')).getTime() -
-                     new Date(b.period.split('/').reverse().join('-')).getTime())
+        new Date(b.period.split('/').reverse().join('-')).getTime())
 
   } catch (error) {
     console.error('Erro ao processar dados de receita:', error)
@@ -562,7 +597,7 @@ export async function getVisitorTrends(range: '24h' | '7d' | '30d' | '90d' | '1y
 
     // Criar mapa de visitor_id -> is_control
     const visitorControlMap = new Map()
-    assignments?.forEach(assignment => {
+    assignments?.forEach((assignment: any) => {
       visitorControlMap.set(
         `${assignment.experiment_id}_${assignment.visitor_id}`,
         assignment.variants.is_control
@@ -572,7 +607,7 @@ export async function getVisitorTrends(range: '24h' | '7d' | '30d' | '90d' | '1y
     // Agrupar por dia
     const dailyStats = new Map()
 
-    events.forEach(event => {
+    events.forEach((event: any) => {
       const date = event.created_at.split('T')[0]
       if (!dailyStats.has(date)) {
         dailyStats.set(date, {
@@ -594,7 +629,7 @@ export async function getVisitorTrends(range: '24h' | '7d' | '30d' | '90d' | '1y
         dayData.controlVisitors.add(event.visitor_id)
       } else {
         // Para demo, alternamos entre variante A e B
-        const hash = event.visitor_id.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+        const hash = event.visitor_id.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)
         if (hash % 2 === 0) {
           dayData.variantAVisitors.add(event.visitor_id)
         } else {
@@ -607,7 +642,7 @@ export async function getVisitorTrends(range: '24h' | '7d' | '30d' | '90d' | '1y
         if (isControl) {
           dayData.controlRate += 1
         } else {
-          const hash = event.visitor_id.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+          const hash = event.visitor_id.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)
           if (hash % 2 === 0) {
             dayData.variantARate += 1
           } else {
@@ -629,9 +664,9 @@ export async function getVisitorTrends(range: '24h' | '7d' | '30d' | '90d' | '1y
           control_rate: controlVisitors > 0 ?
             Math.round((stats.controlRate / controlVisitors) * 1000) / 10 : 0,
           variant_a_rate: variantAVisitors > 0 ?
-            Math.round((stats.variantARate / variantAVisitors) * 1200) / 10 : 0, // 20% boost
+            Math.round((stats.variantARate / variantAVisitors) * 1000) / 10 : 0,
           variant_b_rate: variantBVisitors > 0 ?
-            Math.round((stats.variantBRate / variantBVisitors) * 1350) / 10 : 0, // 35% boost
+            Math.round((stats.variantBRate / variantBVisitors) * 1000) / 10 : 0,
           total_visitors: controlVisitors + variantAVisitors + variantBVisitors
         }
       })
@@ -687,7 +722,7 @@ export interface AudienceSegment {
 }
 
 // Função para buscar dados de campanhas baseadas em UTMs
-export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Promise<CampaignData[]> {
+export async function getCampaignData(range: '7d' | '30d' | '90d' | '1y' = '90d'): Promise<CampaignData[]> {
   try {
     const supabase = createClient()
     const days = range === '7d' ? 7 : range === '1y' ? 365 : range === '30d' ? 30 : 90
@@ -717,68 +752,7 @@ export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Pro
     }
 
     if (!sessions || sessions.length === 0) {
-      // Retornar dados simulados para demonstração se não houver dados reais
-      return [
-        {
-          id: 'campaign_1',
-          name: 'Campanha Black Friday (Google)',
-          source: 'google',
-          medium: 'cpc',
-          campaign: 'black-friday-2024',
-          content: 'anuncio-principal',
-          term: 'ofertas black friday',
-          visitors: 2345,
-          conversions: 234,
-          conversionRate: 9.98,
-          revenue: 15678.90,
-          cost: 2345.67,
-          cpc: 2.45,
-          cpm: 15.67,
-          ctr: 6.42,
-          impressions: 156789,
-          clicks: 5023,
-          startDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'active' as const
-        },
-        {
-          id: 'campaign_2', 
-          name: 'Remarketing Facebook (Meta)',
-          source: 'facebook',
-          medium: 'cpc',
-          campaign: 'remarketing-conversao',
-          visitors: 1234,
-          conversions: 156,
-          conversionRate: 12.64,
-          revenue: 8234.56,
-          cost: 1234.56,
-          cpc: 1.89,
-          cpm: 12.89,
-          ctr: 3.2,
-          impressions: 45678,
-          clicks: 1462,
-          startDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'active' as const
-        },
-        {
-          id: 'campaign_3',
-          name: 'Tráfego Orgânico (SEO)',
-          source: 'organic',
-          medium: 'organic',
-          campaign: 'seo-organico',
-          visitors: 8945,
-          conversions: 189,
-          conversionRate: 2.11,
-          revenue: 5678.90,
-          cost: 0,
-          cpc: 0,
-          cpm: 0,
-          ctr: 3.2,
-          impressions: 0,
-          clicks: 8945,
-          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'active' as const
-        }
-      ]
+      return []
     }
 
     // Buscar eventos de conversão para calcular receita
@@ -794,11 +768,11 @@ export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Pro
 
     // Criar mapa de conversões por visitor_id
     const conversionMap = new Map<string, { count: number; revenue: number }>()
-    conversions?.forEach(conv => {
+    conversions?.forEach((conv: any) => {
       const existing = conversionMap.get(conv.visitor_id) || { count: 0, revenue: 0 }
       conversionMap.set(conv.visitor_id, {
         count: existing.count + 1,
-        revenue: existing.revenue + (conv.value || 50)
+        revenue: existing.revenue + (conv.value || 0)
       })
     })
 
@@ -815,9 +789,9 @@ export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Pro
       sessions: any[]
     }>()
 
-    sessions.forEach(session => {
+    sessions.forEach((session: any) => {
       const key = `${session.utm_source || 'direct'}_${session.utm_medium || 'none'}_${session.utm_campaign}`
-      
+
       if (!campaignMap.has(key)) {
         campaignMap.set(key, {
           source: session.utm_source || 'direct',
@@ -848,7 +822,7 @@ export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Pro
     return Array.from(campaignMap.entries()).map(([key, data], index) => {
       const visitors = data.visitors.size
       const conversionRate = visitors > 0 ? (data.conversions / visitors) * 100 : 0
-      
+
       // Simular dados adicionais para demo
       const clicks = Math.floor(visitors * 1.2) // CTR simulado
       const impressions = Math.floor(clicks * 15) // CTR de ~6-8%
@@ -885,7 +859,7 @@ export async function getCampaignData(range: '7d'|'30d'|'90d'|'1y' = '90d'): Pro
 }
 
 // Função para buscar segmentos de audiência
-export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '60d'): Promise<AudienceSegment[]> {
+export async function getAudienceSegments(range: '7d' | '30d' | '60d' | '90d' | '1y' = '60d'): Promise<AudienceSegment[]> {
   try {
     const supabase = createClient()
     const days = range === '7d' ? 7 : range === '1y' ? 365 : range === '30d' ? 30 : range === '90d' ? 90 : 60
@@ -909,59 +883,7 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
     }
 
     if (!sessions || sessions.length === 0) {
-      // Retornar segmentos simulados para demonstração
-      return [
-        {
-          id: 'segment_google',
-          name: 'Tráfego Google',
-          description: 'Visitantes vindos do Google (orgânico + pago)',
-          conditions: { source: ['google'] },
-          visitors: 4567,
-          conversionRate: 8.2,
-          avgValue: 85.50,
-          totalRevenue: 21234.50
-        },
-        {
-          id: 'segment_mobile',
-          name: 'Usuários Mobile',
-          description: 'Visitantes usando dispositivos móveis',
-          conditions: { device: ['mobile'] },
-          visitors: 6789,
-          conversionRate: 4.6,
-          avgValue: 62.30,
-          totalRevenue: 19456.78
-        },
-        {
-          id: 'segment_facebook',
-          name: 'Tráfego Facebook',
-          description: 'Visitantes vindos do Facebook e Instagram',
-          conditions: { source: ['facebook', 'instagram'] },
-          visitors: 2341,
-          conversionRate: 12.4,
-          avgValue: 95.20,
-          totalRevenue: 27658.90
-        },
-        {
-          id: 'segment_br',
-          name: 'Visitantes BR',
-          description: 'Visitantes do Brasil',
-          conditions: { country: ['BR'] },
-          visitors: 8234,
-          conversionRate: 6.8,
-          avgValue: 78.90,
-          totalRevenue: 44123.67
-        },
-        {
-          id: 'segment_desktop',
-          name: 'Usuários Desktop',
-          description: 'Visitantes usando computadores',
-          conditions: { device: ['desktop'] },
-          visitors: 3456,
-          conversionRate: 11.2,
-          avgValue: 125.30,
-          totalRevenue: 48567.89
-        }
-      ]
+      return []
     }
 
     // Buscar conversões para calcular taxas
@@ -976,8 +898,8 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
     }
 
     const conversionMap = new Map<string, number>()
-    conversions?.forEach(conv => {
-      conversionMap.set(conv.visitor_id, (conv.value || 50))
+    conversions?.forEach((conv: any) => {
+      conversionMap.set(conv.visitor_id, (conv.value || 0))
     })
 
     // Criar segmentos baseados em diferentes critérios
@@ -985,7 +907,7 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
 
     // Segmento por fonte de tráfego
     const sourceGroups = new Map<string, Set<string>>()
-    sessions.forEach(session => {
+    sessions.forEach((session: any) => {
       const source = session.utm_source || 'direct'
       if (!sourceGroups.has(source)) {
         sourceGroups.set(source, new Set())
@@ -995,7 +917,7 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
 
     sourceGroups.forEach((visitors, source) => {
       const conversions = Array.from(visitors).filter(v => conversionMap.has(v))
-      const revenue = conversions.reduce((sum, v) => sum + conversionMap.get(v)!, 0)
+      const revenue = conversions.reduce((sum: number, v: string) => sum + (conversionMap.get(v) || 0), 0)
       const conversionRate = visitors.size > 0 ? (conversions.length / visitors.size) * 100 : 0
 
       segments.push({
@@ -1012,7 +934,7 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
 
     // Segmento por dispositivo
     const deviceGroups = new Map<string, Set<string>>()
-    sessions.forEach(session => {
+    sessions.forEach((session: any) => {
       const device = session.device_type || 'desktop'
       if (!deviceGroups.has(device)) {
         deviceGroups.set(device, new Set())
@@ -1022,7 +944,7 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
 
     deviceGroups.forEach((visitors, device) => {
       const conversions = Array.from(visitors).filter(v => conversionMap.has(v))
-      const revenue = conversions.reduce((sum, v) => sum + conversionMap.get(v)!, 0)
+      const revenue = conversions.reduce((sum: number, v: string) => sum + (conversionMap.get(v) || 0), 0)
       const conversionRate = visitors.size > 0 ? (conversions.length / visitors.size) * 100 : 0
 
       segments.push({
@@ -1039,7 +961,7 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
 
     // Segmento por país (top 5)
     const countryGroups = new Map<string, Set<string>>()
-    sessions.forEach(session => {
+    sessions.forEach((session: any) => {
       const country = session.country_code || 'unknown'
       if (!countryGroups.has(country)) {
         countryGroups.set(country, new Set())
@@ -1054,7 +976,7 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
 
     topCountries.forEach(([country, visitors]) => {
       const conversions = Array.from(visitors).filter(v => conversionMap.has(v))
-      const revenue = conversions.reduce((sum, v) => sum + conversionMap.get(v)!, 0)
+      const revenue = conversions.reduce((sum: number, v: string) => sum + (conversionMap.get(v) || 0), 0)
       const conversionRate = visitors.size > 0 ? (conversions.length / visitors.size) * 100 : 0
 
       segments.push({
@@ -1076,5 +998,60 @@ export async function getAudienceSegments(range: '7d'|'30d'|'60d'|'90d'|'1y' = '
   } catch (error) {
     console.error('Erro ao processar segmentos de audiência:', error)
     return []
+  }
+}
+
+export async function getPreviousPeriodMetrics(range: '24h' | '30d' | '7d' | '90d' | '1y' = '30d', experimentId?: string) {
+  try {
+    const supabase = createClient()
+
+    // Calcular datas do período anterior
+    const days = range === '24h' ? 1 : range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
+    const endDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000)
+
+    // Buscar visitantes do período anterior
+    let q = supabase
+      .from('events')
+      .select('visitor_id', { count: 'exact', head: true })
+      .gte('created_at', startDate.toISOString())
+      .lt('created_at', endDate.toISOString())
+
+    if (experimentId) {
+      q = q.eq('experiment_id', experimentId)
+    }
+
+    const { count: visitors, error } = await q
+
+    if (error) throw error
+
+    // Buscar conversões do período anterior
+    let qConv = supabase
+      .from('events')
+      .select('visitor_id', { count: 'exact', head: true })
+      .gte('created_at', startDate.toISOString())
+      .lt('created_at', endDate.toISOString())
+      .eq('event_type', 'conversion')
+
+    if (experimentId) {
+      qConv = qConv.eq('experiment_id', experimentId)
+    }
+
+    const { count: conversions, error: convError } = await qConv
+
+    if (convError) throw convError
+
+    const visitorCount = visitors || 0
+    const conversionCount = conversions || 0
+
+    return {
+      visitors: visitorCount,
+      conversions: conversionCount,
+      conversionRate: visitorCount > 0 ? (conversionCount / visitorCount) * 100 : 0
+    }
+
+  } catch (error) {
+    console.error('Erro ao buscar métricas do período anterior:', error)
+    return { visitors: 0, conversions: 0, conversionRate: 0 }
   }
 }

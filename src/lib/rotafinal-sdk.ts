@@ -375,11 +375,11 @@ class RotaFinal {
       if (value) {
         // Sanitizar valor
         const sanitizedValue = this.sanitizeUTMValue(value, param)
-        
+
         // Salvar em localStorage e cookie
         localStorage.setItem(`rf_${param}`, sanitizedValue)
         this.setCookie(param, sanitizedValue, 30)
-        
+
         hasUTMs = true
         this.log(`UTM captured: ${param} = ${sanitizedValue}`)
       }
@@ -398,25 +398,31 @@ class RotaFinal {
    */
   private sanitizeUTMValue(value: string, param: string): string {
     if (!value) return value
-    
+
     // Para UTM source, medium, campaign - limpar espaços
     if (['utm_source', 'utm_medium', 'utm_campaign'].includes(param)) {
       return value.trim().replace(/\s+/g, '_')
     }
-    
+
     return value.trim()
   }
 
   /**
    * Define cookie
    */
-  private setCookie(name: string, value: string, days: number): void {
+  private setCookie(name: string, value: string, days?: number): void {
     if (typeof document === 'undefined') return
-    
+
     const expires = new Date()
-    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000))
-    
-    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; Secure; SameSite=Lax`
+    const expiryDays = days !== undefined ? days : this.config.cookieExpiry
+    expires.setTime(expires.getTime() + (expiryDays * 24 * 60 * 60 * 1000))
+
+    let cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; Secure; SameSite=Lax`
+    if (this.config.cookieDomain) {
+      cookie += `; domain=${this.config.cookieDomain}`
+    }
+
+    document.cookie = cookie
   }
 
   /**
@@ -424,13 +430,9 @@ class RotaFinal {
    */
   private getCookie(name: string): string | null {
     if (typeof document === 'undefined') return null
-    
-    const value = `; ${document.cookie}`
-    const parts = value.split(`; ${name}=`)
-    if (parts.length === 2) {
-      return parts.pop()?.split(';').shift() || null
-    }
-    return null
+
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+    return match ? (match[2] || null) : null
   }
 
   /**
@@ -516,40 +518,40 @@ class RotaFinal {
     if (userAgent.indexOf('Chrome') > -1) {
       browserName = 'Chrome'
       const match = userAgent.match(/Chrome\/([0-9.]+)/)
-      browserVersion = match ? match[1] : 'unknown'
+      browserVersion = (match && match[1]) ? match[1] : 'unknown'
     } else if (userAgent.indexOf('Firefox') > -1) {
       browserName = 'Firefox'
       const match = userAgent.match(/Firefox\/([0-9.]+)/)
-      browserVersion = match ? match[1] : 'unknown'
+      browserVersion = (match && match[1]) ? match[1] : 'unknown'
     } else if (userAgent.indexOf('Safari') > -1) {
       browserName = 'Safari'
       const match = userAgent.match(/Version\/([0-9.]+)/)
-      browserVersion = match ? match[1] : 'unknown'
+      browserVersion = (match && match[1]) ? match[1] : 'unknown'
     } else if (userAgent.indexOf('Edge') > -1) {
       browserName = 'Edge'
       const match = userAgent.match(/Edge\/([0-9.]+)/)
-      browserVersion = match ? match[1] : 'unknown'
+      browserVersion = (match && match[1]) ? match[1] : 'unknown'
     }
 
     // Detectar OS
     if (userAgent.indexOf('Windows NT') > -1) {
       osName = 'Windows'
       const match = userAgent.match(/Windows NT ([0-9.]+)/)
-      osVersion = match ? match[1] : 'unknown'
+      osVersion = (match && match[1]) ? match[1] : 'unknown'
     } else if (userAgent.indexOf('Mac OS X') > -1) {
       osName = 'macOS'
       const match = userAgent.match(/Mac OS X ([0-9_.]+)/)
-      osVersion = match ? match[1].replace(/_/g, '.') : 'unknown'
+      osVersion = (match && match[1]) ? match[1].replace(/_/g, '.') : 'unknown'
     } else if (userAgent.indexOf('Linux') > -1) {
       osName = 'Linux'
     } else if (/Android/.test(userAgent)) {
       osName = 'Android'
       const match = userAgent.match(/Android ([0-9.]+)/)
-      osVersion = match ? match[1] : 'unknown'
+      osVersion = (match && match[1]) ? match[1] : 'unknown'
     } else if (/iPhone|iPad|iPod/.test(userAgent)) {
       osName = 'iOS'
       const match = userAgent.match(/OS ([0-9_]+)/)
-      osVersion = match ? match[1].replace(/_/g, '.') : 'unknown'
+      osVersion = (match && match[1]) ? match[1].replace(/_/g, '.') : 'unknown'
     }
 
     return {
@@ -599,15 +601,15 @@ class RotaFinal {
    * Obtém métricas de um experimento
    */
   async getMetrics(
-    experimentKey: string, 
-    fromDate?: string, 
+    experimentKey: string,
+    fromDate?: string,
     toDate?: string
   ): Promise<ExperimentMetrics | null> {
     try {
       const params = new URLSearchParams({
         experiment_key: experimentKey
       })
-      
+
       if (fromDate) params.append('from_date', fromDate)
       if (toDate) params.append('to_date', toDate)
 
@@ -712,30 +714,6 @@ class RotaFinal {
   }
 
   /**
-   * Helpers de cookie
-   */
-  private getCookie(name: string): string | null {
-    if (typeof document === 'undefined') return null
-    
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
-    return match ? match[2] : null
-  }
-
-  private setCookie(name: string, value: string): void {
-    if (typeof document === 'undefined') return
-
-    const expires = new Date()
-    expires.setDate(expires.getDate() + this.config.cookieExpiry)
-    
-    let cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/`
-    if (this.config.cookieDomain) {
-      cookie += `; domain=${this.config.cookieDomain}`
-    }
-    
-    document.cookie = cookie
-  }
-
-  /**
    * Logging helpers
    */
   private log(...args: any[]): void {
@@ -761,7 +739,8 @@ class RotaFinal {
 }
 
 // Exportar classe e tipos
-export { RotaFinal, RotaFinalConfig, Variant, TrackEvent, ExperimentMetrics }
+export { RotaFinal }
+export type { RotaFinalConfig, Variant, TrackEvent, ExperimentMetrics }
 
 // Exportar como default também
 export default RotaFinal

@@ -4,13 +4,15 @@
  */
 
 import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   type KiwifyWebhookPayload,
   type ProcessWebhookResult,
   type WebhookValidationResult,
   KiwifyStatusMap,
 } from '@/types/kiwify';
+import { type Database } from '@/types/supabase';
+import { sendEmail } from '@/lib/resend/client';
 
 /**
  * Validar assinatura do webhook da Kiwify
@@ -51,7 +53,7 @@ export async function processKiwifyWebhook(
 ): Promise<ProcessWebhookResult> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
   try {
     switch (webhook.event) {
@@ -99,7 +101,7 @@ export async function processKiwifyWebhook(
  */
 async function handlePurchaseApproved(
   webhook: KiwifyWebhookPayload,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient<Database>
 ): Promise<ProcessWebhookResult> {
   if (webhook.data.event_type !== 'purchase.approved') {
     return { success: false, action: 'ignored', error: 'Invalid event type' };
@@ -147,7 +149,7 @@ async function handlePurchaseApproved(
   // 3. Buscar plano correspondente ao produto da Kiwify
   const { data: plan } = await supabase
     .from('plans')
-    .select('id, slug')
+    .select('id, slug, name')
     .eq('kiwify_product_id', purchase.product.id)
     .single();
 
@@ -295,6 +297,19 @@ async function handlePurchaseApproved(
     },
   });
 
+  // 7. Enviar email de boas-vindas
+  await sendEmail({
+    to: customerEmail,
+    template: 'welcome',
+    data: {
+      name: customerName,
+      appName: 'Rota Final',
+      planName: plan.name || plan.slug,
+      dashboardUrl: process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard` : 'https://rotafinal.com/dashboard',
+    },
+    userId: userId,
+  });
+
   return {
     success: true,
     action: 'created',
@@ -308,7 +323,7 @@ async function handlePurchaseApproved(
  */
 async function handleSubscriptionUpdated(
   webhook: KiwifyWebhookPayload,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient<Database>
 ): Promise<ProcessWebhookResult> {
   if (
     webhook.data.event_type !== 'subscription.created' &&
@@ -381,7 +396,7 @@ async function handleSubscriptionUpdated(
  */
 async function handleSubscriptionCanceled(
   webhook: KiwifyWebhookPayload,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient<Database>
 ): Promise<ProcessWebhookResult> {
   if (webhook.data.event_type !== 'subscription.canceled') {
     return { success: false, action: 'ignored', error: 'Invalid event type' };
@@ -437,7 +452,7 @@ async function handleSubscriptionCanceled(
  */
 async function handlePaymentApproved(
   webhook: KiwifyWebhookPayload,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient<Database>
 ): Promise<ProcessWebhookResult> {
   if (webhook.data.event_type !== 'payment.approved') {
     return { success: false, action: 'ignored', error: 'Invalid event type' };
@@ -517,7 +532,7 @@ async function handlePaymentApproved(
  */
 async function handlePaymentIssue(
   webhook: KiwifyWebhookPayload,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient<Database>
 ): Promise<ProcessWebhookResult> {
   if (
     webhook.data.event_type !== 'payment.late' &&
@@ -587,7 +602,7 @@ async function handlePaymentIssue(
  */
 async function handleRefundOrChargeback(
   webhook: KiwifyWebhookPayload,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient<Database>
 ): Promise<ProcessWebhookResult> {
   if (
     webhook.data.event_type !== 'payment.refunded' &&
@@ -596,7 +611,12 @@ async function handleRefundOrChargeback(
     return { success: false, action: 'ignored', error: 'Invalid event type' };
   }
 
-  const { payment } = webhook.data;
+  let payment;
+  if ('payment' in webhook.data) {
+    payment = webhook.data.payment;
+  } else {
+    payment = webhook.data.purchase.payment;
+  }
 
   const { data: existingSub } = await supabase
     .from('subscriptions')

@@ -176,10 +176,24 @@ export type Database = {
           event_type: string | null
           experiment_id: string | null
           id: string
+          project_id: string
           utm_data: Json | null
           value: number | null
           variant_id: string | null
           visitor_id: string
+          utm_source: string | null
+          utm_medium: string | null
+          utm_campaign: string | null
+          utm_term: string | null
+          utm_content: string | null
+          device_type: string | null
+          browser: string | null
+          country: string | null
+          os: string | null
+          city: string | null
+          session_id: string | null
+          referrer: string | null
+          properties: Json | null
         }
         Insert: {
           created_at?: string
@@ -188,10 +202,24 @@ export type Database = {
           event_type?: string | null
           experiment_id?: string | null
           id?: string
+          project_id: string
           utm_data?: Json | null
           value?: number | null
           variant_id?: string | null
           visitor_id: string
+          utm_source?: string | null
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          utm_term?: string | null
+          utm_content?: string | null
+          device_type?: string | null
+          browser?: string | null
+          country?: string | null
+          os?: string | null
+          city?: string | null
+          session_id?: string | null
+          referrer?: string | null
+          properties?: Json | null
         }
         Update: {
           created_at?: string
@@ -200,10 +228,24 @@ export type Database = {
           event_type?: string | null
           experiment_id?: string | null
           id?: string
+          project_id?: string
           utm_data?: Json | null
           value?: number | null
           variant_id?: string | null
           visitor_id?: string
+          utm_source?: string | null
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          utm_term?: string | null
+          utm_content?: string | null
+          device_type?: string | null
+          browser?: string | null
+          country?: string | null
+          os?: string | null
+          city?: string | null
+          session_id?: string | null
+          referrer?: string | null
+          properties?: Json | null
         }
         Relationships: [
           {
@@ -225,6 +267,13 @@ export type Database = {
             columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -460,7 +509,13 @@ export type Database = {
           metadata: Json
           name: string
           plan: string | null
+          plan_slug: string | null
           slug: string
+          subscription_status: string | null
+          subscription_end: string | null
+          is_blocked: boolean | null
+          blocked_reason: string | null
+          blocked_at: string | null
         }
         Insert: {
           created_at?: string
@@ -470,7 +525,13 @@ export type Database = {
           metadata?: Json
           name: string
           plan?: string | null
+          plan_slug?: string | null
           slug: string
+          subscription_status?: string | null
+          subscription_end?: string | null
+          is_blocked?: boolean | null
+          blocked_reason?: string | null
+          blocked_at?: string | null
         }
         Update: {
           created_at?: string
@@ -480,7 +541,13 @@ export type Database = {
           metadata?: Json
           name?: string
           plan?: string | null
+          plan_slug?: string | null
           slug?: string
+          subscription_status?: string | null
+          subscription_end?: string | null
+          is_blocked?: boolean | null
+          blocked_reason?: string | null
+          blocked_at?: string | null
         }
         Relationships: [
           {
@@ -491,6 +558,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          id: string
+          slug: string
+          kiwify_product_id: string
+          created_at: string
+          name: string
+          description: string | null
+          price: number | null
+          interval: string | null
+          features: Json | null
+          is_active: boolean
+        }
+        Insert: {
+          id?: string
+          slug: string
+          kiwify_product_id: string
+          created_at?: string
+          name: string
+          description?: string | null
+          price?: number | null
+          interval?: string | null
+          features?: Json | null
+          is_active?: boolean
+        }
+        Update: {
+          id?: string
+          slug?: string
+          kiwify_product_id?: string
+          created_at?: string
+          name?: string
+          description?: string | null
+          price?: number | null
+          interval?: string | null
+          features?: Json | null
+          is_active?: boolean
+        }
+        Relationships: []
       }
       project_statuses: {
         Row: {
@@ -595,6 +701,158 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          org_id: string
+          plan_id: string
+          kiwify_subscription_id: string
+          kiwify_customer_id: string
+          kiwify_order_id: string
+          status: string
+          billing_cycle: string
+          current_period_start: string
+          current_period_end: string
+          price_amount: number | null
+          last_payment_at: string | null
+          next_payment_at: string | null
+          created_at: string
+          updated_at: string
+          payment_failed_count: number | null
+          canceled_at: string | null
+          cancel_reason: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          org_id: string
+          plan_id: string
+          kiwify_subscription_id: string
+          kiwify_customer_id: string
+          kiwify_order_id: string
+          status: string
+          billing_cycle: string
+          current_period_start: string
+          current_period_end: string
+          price_amount?: number | null
+          last_payment_at?: string | null
+          next_payment_at?: string | null
+          created_at?: string
+          updated_at?: string
+          payment_failed_count?: number | null
+          canceled_at?: string | null
+          cancel_reason?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          org_id?: string
+          plan_id?: string
+          kiwify_subscription_id?: string
+          kiwify_customer_id?: string
+          kiwify_order_id?: string
+          status?: string
+          billing_cycle?: string
+          current_period_start?: string
+          current_period_end?: string
+          price_amount?: number | null
+          last_payment_at?: string | null
+          next_payment_at?: string | null
+          created_at?: string
+          updated_at?: string
+          payment_failed_count?: number | null
+          canceled_at?: string | null
+          cancel_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_logs: {
+        Row: {
+          id: number
+          subscription_id: string
+          user_id: string
+          org_id: string | null
+          event_type: string
+          event_source: string
+          old_status: string | null
+          new_status: string
+          new_plan_id: string | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          subscription_id: string
+          user_id: string
+          org_id?: string | null
+          event_type: string
+          event_source: string
+          old_status?: string | null
+          new_status: string
+          new_plan_id?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          subscription_id?: string
+          user_id?: string
+          org_id?: string | null
+          event_type?: string
+          event_source?: string
+          old_status?: string | null
+          new_status?: string
+          new_plan_id?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_logs_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_comments: {
         Row: {
@@ -1043,8 +1301,8 @@ export type Database = {
       }
       get_experiment_metrics: {
         Args:
-          | { exp_id: string; from_date?: string; to_date?: string }
-          | { p_experiment_key: string }
+        | { exp_id: string; from_date?: string; to_date?: string }
+        | { p_experiment_key: string }
         Returns: {
           conversion_rate: number
           conversions: number
@@ -1087,11 +1345,11 @@ export type Database = {
     }
     Enums: {
       experiment_status:
-        | "draft"
-        | "running"
-        | "paused"
-        | "completed"
-        | "archived"
+      | "draft"
+      | "running"
+      | "paused"
+      | "completed"
+      | "archived"
       experiment_type: "redirect" | "element" | "split_url" | "mab"
     }
     CompositeTypes: {
@@ -1106,116 +1364,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-    ? R
-    : never
+  ? R
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
+    DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] &
+    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+  ? R
+  : never
+  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
+    Insert: infer I
+  }
+  ? I
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Insert: infer I
+  }
+  ? I
+  : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
+    Update: infer U
+  }
+  ? U
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Update: infer U
+  }
+  ? U
+  : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Enums"]
+  | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["CompositeTypes"]
+  | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+  : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   public: {

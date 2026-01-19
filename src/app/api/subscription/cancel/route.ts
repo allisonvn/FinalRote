@@ -4,19 +4,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await createClient();
 
     // 1. Verificar autenticação
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
     const { data: user } = await supabase
       .from('users')
       .select('default_org_id')
-      .eq('id', session.user.id)
+      .eq('id', authUser.id)
       .single();
 
     if (!user?.default_org_id) {
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
       .from('organization_members')
       .select('role')
       .eq('org_id', user.default_org_id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', authUser.id)
       .single();
 
     if (!member || !['owner', 'admin'].includes(member.role)) {
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
     // 6. Log do evento
     await supabase.from('subscription_logs').insert({
       subscription_id: subscription.id,
-      user_id: session.user.id,
+      user_id: authUser.id,
       event_type: 'cancel_requested',
       event_source: 'user',
       metadata: {
