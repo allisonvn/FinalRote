@@ -12,14 +12,17 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Log the error using our error handler
-    logError(error, {
-      errorBoundary: 'global-error',
-    })
+    // Garantir que temos um erro válido antes de logar
+    if (error && (error instanceof Error || error.message || error.stack)) {
+      // Log the error using our error handler
+      logError(error instanceof Error ? error : new Error(error.message || 'Erro desconhecido'), {
+        errorBoundary: 'global-error',
+      })
 
-    // Handle chunk load errors specifically
-    if (isChunkLoadError(error)) {
-      handleChunkLoadError(error)
+      // Handle chunk load errors specifically
+      if (isChunkLoadError(error instanceof Error ? error : new Error(error.message || ''))) {
+        handleChunkLoadError(error instanceof Error ? error : new Error(error.message || ''))
+      }
     }
   }, [error])
 

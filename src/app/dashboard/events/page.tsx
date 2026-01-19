@@ -10,8 +10,22 @@ import { SavedFiltersManager } from '@/components/dashboard/saved-filters-manage
 import { useEvents } from '@/hooks/useEvents'
 
 // 🚀 Lazy load componentes pesados para melhor performance e code splitting
-const EventTrendsChart = lazy(() => import('@/components/dashboard/event-trends-chart').then(mod => ({ default: mod.EventTrendsChart })))
-const UTMAnalysisTable = lazy(() => import('@/components/dashboard/utm-analysis-table').then(mod => ({ default: mod.UTMAnalysisTable })))
+const EventTrendsChart = lazy(() => 
+  import('@/components/dashboard/event-trends-chart').then(mod => {
+    if (!mod.EventTrendsChart) {
+      throw new Error('EventTrendsChart não encontrado no módulo')
+    }
+    return { default: mod.EventTrendsChart }
+  })
+)
+const UTMAnalysisTable = lazy(() => 
+  import('@/components/dashboard/utm-analysis-table').then(mod => {
+    if (!mod.UTMAnalysisTable) {
+      throw new Error('UTMAnalysisTable não encontrado no módulo')
+    }
+    return { default: mod.UTMAnalysisTable }
+  })
+)
 
 // Import skeleton components para loading states
 import {
@@ -26,10 +40,14 @@ import {
   Target,
   Zap,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Radio,
+  Download
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { subDays, eachDayOfInterval } from 'date-fns'
+import { toast } from 'sonner'
 
 interface Experiment {
   id: string
@@ -73,7 +91,7 @@ export default function EventsPage() {
         const { data, error } = await supabase
           .from('experiments')
           .select('id, name')
-          .eq('status', 'active')
+          .in('status', ['running', 'paused', 'draft'])
           .order('created_at', { ascending: false })
 
         if (error) {
@@ -103,7 +121,7 @@ export default function EventsPage() {
 
     const days = eachDayOfInterval({ start: startDate, end: endDate })
 
-    const timeSeriesData = days.map(day => {
+    const timeSeriesData = days.map((day: Date) => {
       const dayStr = `${day.getDate().toString().padStart(2, '0')}/${(day.getMonth() + 1).toString().padStart(2, '0')}`
       const dayEvents = events.filter(e => {
         const eventDate = new Date(e.created_at)
@@ -130,8 +148,8 @@ export default function EventsPage() {
     const firstHalf = timeSeriesData.slice(0, midPoint)
     const secondHalf = timeSeriesData.slice(midPoint)
 
-    const firstHalfTotal = firstHalf.reduce((sum, day) => sum + day.total, 0)
-    const secondHalfTotal = secondHalf.reduce((sum, day) => sum + day.total, 0)
+    const firstHalfTotal = firstHalf.reduce((sum: number, day: { total: number }) => sum + day.total, 0)
+    const secondHalfTotal = secondHalf.reduce((sum: number, day: { total: number }) => sum + day.total, 0)
 
     const firstHalfAvg = firstHalf.length > 0 ? firstHalfTotal / firstHalf.length : 0
     const secondHalfAvg = secondHalf.length > 0 ? secondHalfTotal / secondHalf.length : 0
@@ -142,6 +160,56 @@ export default function EventsPage() {
 
     return { timeSeriesData, distributionData, periodChange }
   }, [events, stats])
+
+  const handleExport = () => {
+    if (events.length === 0) {
+      toast.error('Não há eventos para exportar')
+      return
+    }
+
+    const headers = [
+      'Data',
+      'Evento',
+      'Tipo',
+      'Visitor ID',
+      'Source',
+      'Medium',
+      'Campaign',
+      'Device',
+      'Browser',
+      'Country',
+      'Value'
+    ]
+
+    const csvContent = [
+      headers.join(','),
+      ...events.map(e => [
+        new Date(e.created_at).toLocaleString('pt-BR'),
+        e.event_name,
+        e.event_type,
+        e.visitor_id,
+        e.utm_source || '',
+        e.utm_medium || '',
+        e.utm_campaign || '',
+        e.device_type || '',
+        e.browser || '',
+        e.country || '',
+        e.value || 0
+      ].map(field => `"${field}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `events_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast.success('Relatório exportado com sucesso!')
+  }
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -288,7 +356,7 @@ export default function EventsPage() {
       <div className="w-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
 
-          {/* Header com botão de atualizar */}
+          {/* Header com botão de atualizar e toggle real-time */}
           <Card className="backdrop-blur-xl bg-white/95 border-0 shadow-xl p-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -296,15 +364,49 @@ export default function EventsPage() {
                 <p className="text-base text-slate-600">Performance detalhada das suas campanhas UTM com métricas de conversão e rastreamento</p>
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refresh}
-                className="border-2"
-              >
-                <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
-                Atualizar
-              </Button>
+              <div className="flex items-center gap-4">
+                {/* Real-time Toggle */}
+                <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <Radio className={cn(
+                      "h-4 w-4 transition-colors",
+                      realTimeEnabled ? "text-green-500 animate-pulse" : "text-slate-400"
+                    )} />
+                    <span className="text-sm font-medium text-slate-700">Real-time</span>
+                  </div>
+                  <Switch
+                    checked={realTimeEnabled}
+                    onCheckedChange={setRealTimeEnabled}
+                    className="data-[state=checked]:bg-green-500"
+                  />
+                  {realTimeEnabled && (
+                    <Badge className="bg-green-100 text-green-700 border-green-200 text-xs animate-pulse">
+                      Ao vivo
+                    </Badge>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  className="border-2"
+                  disabled={events.length === 0}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Exportar
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refresh}
+                  className="border-2"
+                >
+                  <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
+                  Atualizar
+                </Button>
+              </div>
             </div>
           </Card>
 

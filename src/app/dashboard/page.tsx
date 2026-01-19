@@ -34,8 +34,22 @@ import { cn } from '@/lib/utils'
 import SettingsPanel from '@/components/settings/SettingsPanel'
 
 // 🚀 Lazy load componentes pesados para melhor performance e code splitting
-const EventTrendsChart = lazy(() => import('@/components/dashboard/event-trends-chart').then(mod => ({ default: mod.EventTrendsChart })))
-const UTMAnalysisTable = lazy(() => import('@/components/dashboard/utm-analysis-table').then(mod => ({ default: mod.UTMAnalysisTable })))
+const EventTrendsChart = lazy(() => 
+  import('@/components/dashboard/event-trends-chart').then(mod => {
+    if (!mod.EventTrendsChart) {
+      throw new Error('EventTrendsChart não encontrado no módulo')
+    }
+    return { default: mod.EventTrendsChart }
+  })
+)
+const UTMAnalysisTable = lazy(() => 
+  import('@/components/dashboard/utm-analysis-table').then(mod => {
+    if (!mod.UTMAnalysisTable) {
+      throw new Error('UTMAnalysisTable não encontrado no módulo')
+    }
+    return { default: mod.UTMAnalysisTable }
+  })
+)
 
 // Import skeleton components para loading states
 import {
@@ -63,9 +77,9 @@ interface Experiment {
   min_sample_size?: number
   project_id?: string
 }
-interface Stats { 
-  activeExperiments: number; 
-  totalVisitors: number; 
+interface Stats {
+  activeExperiments: number;
+  totalVisitors: number;
   conversionRate: number;
   totalProjects: number;
   totalRevenue?: number;
@@ -76,7 +90,7 @@ interface Stats {
 export default function Dashboard() {
   const router = useRouter()
   const [experiments, setExperiments] = useState<Experiment[]>([])
-  const { updateVariant: updateVariantInDB, updateVariants } = useSupabaseExperiments()
+  const { updateVariant: updateVariantInDB, updateVariants, createExperiment, refetch: loadExperiments } = useSupabaseExperiments()
   // Projetos removidos
   const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'draft' | 'paused' | 'completed'>('all')
   const [query, setQuery] = useState('')
@@ -107,17 +121,17 @@ export default function Dashboard() {
     lastUpdate,
     refreshData
   } = useRealtimeAnalytics(timeRange)
-  
+
   // Estado para controlar carregamento inicial
   const [initialLoad, setInitialLoad] = useState(true)
-  const [drawerTab, setDrawerTab] = useState<'details'|'code'|'timeline'>('details')
+  const [drawerTab, setDrawerTab] = useState<'details' | 'code' | 'timeline'>('details')
   // Filtro por múltiplas tags
   const [tagFilters, setTagFilters] = useState<string[]>([])
   const [clickPickerActive, setClickPickerActive] = useState(false)
   const [clickPickerHighlight, setClickPickerHighlight] = useState<HTMLElement | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [layout, setLayout] = useState<'grid'|'list'>('grid')
-  const [groupBy, setGroupBy] = useState<'none'|'project'|'tag'>('none')
+  const [layout, setLayout] = useState<'grid' | 'list'>('grid')
+  const [groupBy, setGroupBy] = useState<'none' | 'project' | 'tag'>('none')
   const [savedViews, setSavedViews] = useState<Array<{ id: string; name: string; config: any; created_at: string }>>([])
   const [activeViewId, setActiveViewId] = useState<string>('')
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
@@ -126,13 +140,13 @@ export default function Dashboard() {
   const [tagHighlightIndex, setTagHighlightIndex] = useState<number>(0)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
-  
+
   const supabase = createClient()
 
   // Estado da aba Configurações (render dentro do dashboard)
   const [cfgNome, setCfgNome] = useState('Usuário Demo')
   const [cfgEmail] = useState('demo@rotafinal.com')
-  const [cfgTema, setCfgTema] = useState<'auto'|'claro'|'escuro'>('auto')
+  const [cfgTema, setCfgTema] = useState<'auto' | 'claro' | 'escuro'>('auto')
   const [cfgIdioma, setCfgIdioma] = useState<'pt-BR'>('pt-BR')
   const [cfgNotifEmail, setCfgNotifEmail] = useState(true)
   const [cfgNotifSistema, setCfgNotifSistema] = useState(true)
@@ -140,7 +154,7 @@ export default function Dashboard() {
   const [cfgSalvando, setCfgSalvando] = useState(false)
   const [cfgAllowedDomains, setCfgAllowedDomains] = useState('')
   const [cfgCurrentProjectId, setCfgCurrentProjectId] = useState<string | null>(null)
-  
+
   // Close action menus on outside click
   useEffect(() => {
     if (!menuOpen) return
@@ -167,7 +181,7 @@ export default function Dashboard() {
       try {
         const projectId = localStorage.getItem('currentProjectId')
         setCfgCurrentProjectId(projectId)
-        
+
         if (projectId) {
           const response = await fetch(`/api/settings/custom-domains?projectId=${projectId}`)
           if (response.ok) {
@@ -195,11 +209,11 @@ export default function Dashboard() {
       if (views) setSavedViews(JSON.parse(views))
       const activeView = localStorage.getItem('dashboard.activeViewId')
       if (activeView) setActiveViewId(activeView)
-      const storedTema = localStorage.getItem('preferencias.tema') as 'auto'|'claro'|'escuro' | null
+      const storedTema = localStorage.getItem('preferencias.tema') as 'auto' | 'claro' | 'escuro' | null
       const storedIdioma = localStorage.getItem('preferencias.idioma') as 'pt-BR' | null
       if (storedTema) setCfgTema(storedTema)
       if (storedIdioma) setCfgIdioma(storedIdioma)
-    } catch {}
+    } catch { }
   }, [])
   useEffect(() => {
     try {
@@ -207,7 +221,7 @@ export default function Dashboard() {
       localStorage.setItem('filters.tags', JSON.stringify(tagFilters))
       localStorage.setItem('dashboard.savedViews', JSON.stringify(savedViews))
       localStorage.setItem('dashboard.activeViewId', activeViewId)
-    } catch {}
+    } catch { }
   }, [pinnedIds, tagFilters, savedViews, activeViewId])
 
   useEffect(() => {
@@ -224,21 +238,21 @@ export default function Dashboard() {
           console.log('⚠️ Usuário não autenticado para carregar projetos')
           return
         }
-        
+
         console.log('🔄 Carregando projetos para usuário:', sessionData.session.user.id)
-        
+
         const { data, error } = await (supabase as any)
           .from('projects')
           .select('id, name')
           .order('created_at', { ascending: false })
-          
+
         if (error) {
           console.error('❌ Erro ao carregar projetos:', error)
           // Usar projeto padrão se houver erro
           setProjects([{ id: 'b302fac6-3255-4923-833b-5e71a11d5bfe', name: 'Projeto Principal' }])
           return
         }
-        
+
         console.log('✅ Projetos carregados:', data?.length || 0)
         setProjects(data || [{ id: 'b302fac6-3255-4923-833b-5e71a11d5bfe', name: 'Projeto Principal' }])
       } catch (err) {
@@ -273,7 +287,7 @@ export default function Dashboard() {
         meta_valor: e.goal_value || null,
         duracao_dias: e.duration_days || null,
         alocacao_trafego: e.traffic_allocation || null,
-        variantes: (e.variants||[]).map(v => ({ nome: v.name, controle: v.is_control, url: v.url || null })),
+        variantes: (e.variants || []).map(v => ({ nome: v.name, controle: v.is_control, url: v.url || null })),
         tags: e.tags || []
       })), null, 2)
       const blob = new Blob([dataStr], { type: 'application/json' })
@@ -289,20 +303,20 @@ export default function Dashboard() {
   }
   const exportCSV = () => {
     try {
-      const headers = ['id','nome','status','metodo','meta_tipo','meta_valor','algoritmo','url_alvo','variantes','urls_variantes','tags']
+      const headers = ['id', 'nome', 'status', 'metodo', 'meta_tipo', 'meta_valor', 'algoritmo', 'url_alvo', 'variantes', 'urls_variantes', 'tags']
       const rows = sorted.map(e => [
         e.id,
-        '"' + (e.name||'').replace(/"/g,'""') + '"',
+        '"' + (e.name || '').replace(/"/g, '""') + '"',
         e.status,
         // coluna projeto removida,
         e.test_type || '',
         e.goal_type || '',
-        '"' + (e.goal_value || '').replace(/"/g,'""') + '"',
+        '"' + (e.goal_value || '').replace(/"/g, '""') + '"',
         e.algorithm || '',
-        '"' + (e.target_url || '').replace(/"/g,'""') + '"',
-        String(e.variants?.length||0),
-        '"' + ((e.variants||[]).map(v => `${v.name}:${v.url||''}`).join('|').replace(/"/g,'""')) + '"',
-        '"' + ((e.tags||[]).join('|').replace(/"/g,'""')) + '"'
+        '"' + (e.target_url || '').replace(/"/g, '""') + '"',
+        String(e.variants?.length || 0),
+        '"' + ((e.variants || []).map(v => `${v.name}:${v.url || ''}`).join('|').replace(/"/g, '""')) + '"',
+        '"' + ((e.tags || []).join('|').replace(/"/g, '""')) + '"'
       ].join(','))
       const csv = [headers.join(','), ...rows].join('\n')
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -320,18 +334,18 @@ export default function Dashboard() {
   // Relatório CSV com link de código (data URL)
   const exportReportCSV = () => {
     try {
-      const headers = ['id','nome','status','projeto','meta_tipo','meta_valor','link_codigo_html']
+      const headers = ['id', 'nome', 'status', 'projeto', 'meta_tipo', 'meta_valor', 'link_codigo_html']
       const rows = sorted.map(e => {
         const code = enhanceInstallCode(generateInstallCodeForExperiment(e))
-        const html = `<!doctype html>\n<html><head><meta charset=\"utf-8\"/><title>${(e.name||'').replace(/"/g,'""')}</title></head><body>\n${code}\n</body></html>`
+        const html = `<!doctype html>\n<html><head><meta charset=\"utf-8\"/><title>${(e.name || '').replace(/"/g, '""')}</title></head><body>\n${code}\n</body></html>`
         const base64 = btoa(unescape(encodeURIComponent(html)))
         const dataUrl = `data:text/html;base64,${base64}`
         return [
           e.id,
-          '"' + (e.name||'').replace(/"/g,'""') + '"',
+          '"' + (e.name || '').replace(/"/g, '""') + '"',
           e.status,
           e.goal_type || '',
-          '"' + (e.goal_value || '').replace(/"/g,'""') + '"',
+          '"' + (e.goal_value || '').replace(/"/g, '""') + '"',
           '"' + dataUrl + '"'
         ].join(',')
       })
@@ -349,7 +363,7 @@ export default function Dashboard() {
   }
 
   // Ações da aba Configurações
-  const aplicarTema = (valor: 'auto'|'claro'|'escuro') => {
+  const aplicarTema = (valor: 'auto' | 'claro' | 'escuro') => {
     setCfgTema(valor)
     if (valor === 'auto') {
       document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -406,7 +420,7 @@ export default function Dashboard() {
     setActiveViewId('')
     toast.success('Visão excluída')
   }
-  
+
   // Modal management
   const modalRef = useRef<HTMLDivElement | null>(null)
   const step1NameRef = useRef<HTMLInputElement | null>(null)
@@ -449,42 +463,43 @@ export default function Dashboard() {
   }
 
   // reuse top-level supabase instance
-  
+
   // New experiment modal states
   const [experimentStep, setExperimentStep] = useState(1)
   const [experimentForm, setExperimentForm] = useState({
     // Step 1: Basic Info
     name: '',
     description: '',
-    
+
     // Step 2: Test Setup
     targetUrl: '',
     testType: 'split_url', // 'split_url', 'visual', 'feature_flag'
     audienceType: 'all', // 'all', 'returning', 'custom'
     trafficAllocation: 100,
-    
+
     // Step 3: Variants
     variants: [
       { name: 'Original', description: 'Versão atual da sua página', url: '', isControl: true },
       { name: 'Variação A', description: 'Nova versão para testar', url: '', isControl: false }
     ],
-    
+
     // Step 4: Conversion Setup (NEW)
     conversionType: 'page_view', // 'page_view', 'click', 'form_submit', 'custom'
     conversionUrl: '', // URL da página de conversão/obrigado
     conversionSelector: '', // Para cliques ou formulários
     conversionEvent: '', // Para eventos customizados
-    
+
     // Step 5: Goals & Metrics
     primaryGoal: '',
     goalType: 'page_view', // 'page_view', 'click', 'form_submit', 'custom'
     goalValue: '',
+    conversionValue: 0, // ✅ Adicionado campo para valor da conversão
     duration: 14, // days
     minSampleSize: 1000,
-    
+
     // Algorithm
     algorithm: 'thompson_sampling', // 'uniform', 'thompson_sampling', 'ucb1'
-    
+
     // Step 6: Install Code (new)
     installCode: ''
   })
@@ -506,7 +521,7 @@ export default function Dashboard() {
   const checkUser = async () => {
     try {
       const { data: { user }, error } = await supabase.auth.getUser()
-      
+
       if (error) {
         console.error('Erro ao verificar autenticação:', error)
         // Redirecionar para login se não autenticado
@@ -531,17 +546,17 @@ export default function Dashboard() {
     try {
       setLoading(true)
       console.log('🔄 Carregando experimentos do Supabase...')
-      
+
       // Verificar autenticação primeiro
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       console.log('👤 Usuário autenticado:', user?.id || 'NENHUM')
-      
+
       if (authError || !user) {
         console.log('⚠️ Usuário não autenticado, usando dados vazios')
         setExperiments([])
         return
       }
-      
+
       // Carregar experimentos com variantes
       const projectIds = projects.map(p => p.id)
       let query = supabase
@@ -560,12 +575,12 @@ export default function Dashboard() {
         `)
         .order('created_at', { ascending: false })
         .limit(50) // Limitar para melhor performance
-      
+
       // Aplicar filtro por projetos apenas se houver projetos carregados
       if (projectIds.length > 0) {
         query = query.in('project_id', projectIds)
       }
-      
+
       const { data: experimentsData, error: experimentsError } = await query
 
       if (experimentsError) {
@@ -576,7 +591,7 @@ export default function Dashboard() {
       }
 
       console.log('✅ Experimentos carregados para o usuário:', experimentsData?.length || 0)
-      
+
       // Transformar dados para o formato esperado (com variants)
       const formattedExperiments = (experimentsData || []).map((exp: any) => ({
         id: exp.id,
@@ -595,23 +610,23 @@ export default function Dashboard() {
 
       setExperiments(formattedExperiments)
       setInitialLoad(false) // Marcar carregamento inicial como completo
-      
+
       // ✅ Estatísticas agora vêm do hook em tempo real
       console.log('📊 Estatísticas em tempo real:', realtimeStats)
-      
+
     } catch (error) {
       // Melhorar serialização do erro para logging
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : typeof error === 'object' && error !== null
-        ? JSON.stringify(error, Object.getOwnPropertyNames(error))
-        : String(error)
-      
+          ? JSON.stringify(error, Object.getOwnPropertyNames(error))
+          : String(error)
+
       console.error('Erro ao carregar dados:', errorMessage, error)
       // Em caso de erro, mostrar lista vazia
       console.log('❌ Erro ao carregar experimentos, mostrando lista vazia')
       setExperiments([])
-      
+
       // ✅ Estatísticas agora são gerenciadas pelo hook em tempo real
       console.log('📈 Hook em tempo real carregará as estatísticas automaticamente')
     } finally {
@@ -657,13 +672,14 @@ export default function Dashboard() {
       primaryGoal: '',
       goalType: 'page_view',
       goalValue: '',
+      conversionValue: 0,
       duration: 14,
       minSampleSize: 1000,
       algorithm: 'thompson_sampling',
       installCode: ''
     })
   }
-  
+
   const copyInstallSnippet = async () => {
     try {
       const exp = selectedExperiment || experiments[0]
@@ -809,7 +825,7 @@ ${baseCode}
       if (clickPickerHighlight && clickPickerHighlight !== target) {
         clickPickerHighlight.style.outline = (clickPickerHighlight as any).__prevOutline || ''
       }
-      ;(target as any).__prevOutline = target.style.outline
+      ; (target as any).__prevOutline = target.style.outline
       target.style.outline = '2px solid hsl(var(--primary))'
       setClickPickerHighlight(target)
     }
@@ -849,7 +865,7 @@ ${baseCode}
     ] as Array<{ time: string; title: string; description: string; color: string }>
     if (exp.status === 'running' || exp.status === 'paused' || exp.status === 'completed') {
       items.push({ time: minutes(5), title: 'Iniciado', description: 'Tráfego direcionado às variantes', color: 'hsl(var(--success))' })
-      items.push({ time: minutes(30), title: 'Primeiras conversões', description: `${(exp.variants?.length||2)} variantes recebendo tráfego`, color: 'hsl(var(--primary))' })
+      items.push({ time: minutes(30), title: 'Primeiras conversões', description: `${(exp.variants?.length || 2)} variantes recebendo tráfego`, color: 'hsl(var(--primary))' })
     }
     if (exp.status === 'paused') {
       items.push({ time: minutes(60), title: 'Pausado', description: 'Execução pausada temporariamente', color: 'hsl(var(--warning))' })
@@ -931,7 +947,7 @@ ${baseCode}
       root.style.overflow = previousOverflow
     }
   }, [showNew, experimentStep, saving])
-  
+
   const validateCurrentStep = (): boolean => {
     switch (experimentStep) {
       case 1:
@@ -940,7 +956,7 @@ ${baseCode}
           return false
         }
         return true
-      
+
       case 2:
         if (!experimentForm.targetUrl.trim()) {
           toast.error('URL da página é obrigatória')
@@ -953,7 +969,7 @@ ${baseCode}
           return false
         }
         return true
-      
+
       case 3:
         if (experimentForm.variants.length < 2) {
           toast.error('É necessário pelo menos 2 versões')
@@ -975,7 +991,7 @@ ${baseCode}
           }
         }
         return true
-      
+
       case 4:
         // Validação do Step 4 - Conversão
         if (experimentForm.conversionType === 'page_view' && !experimentForm.conversionUrl.trim()) {
@@ -991,21 +1007,21 @@ ${baseCode}
           return false
         }
         return true
-        
+
       case 5:
         return true
-      
+
       default:
         return true
     }
   }
-  
+
   const handleExperimentStepNext = () => {
     if (validateCurrentStep() && experimentStep < 5) {
       setExperimentStep(prev => prev + 1)
     }
   }
-  
+
   const handleExperimentStepPrev = () => {
     if (experimentStep > 1) {
       setExperimentStep(prev => prev - 1)
@@ -1083,14 +1099,14 @@ ${baseCode}
     }
     // Não permite pular etapas múltiplas à frente
   }
-  
+
   const addVariant = () => {
     // Removida limitação de máximo de variantes - agora aceita quantas o usuário quiser
     const variantIndex = experimentForm.variants.length - 1
-    const letter = variantIndex < 26 
-      ? String.fromCharCode(65 + variantIndex) 
+    const letter = variantIndex < 26
+      ? String.fromCharCode(65 + variantIndex)
       : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
-    
+
     const newVariant = {
       name: `Variante ${letter}`,
       description: '',
@@ -1102,33 +1118,33 @@ ${baseCode}
       variants: [...prev.variants, newVariant]
     }))
   }
-  
+
   const removeVariant = (index: number) => {
     if (experimentForm.variants.length <= 2) {
       toast.error('É necessário pelo menos 2 variantes')
       return
     }
-    
+
     if (experimentForm.variants[index]?.isControl) {
       toast.error('Não é possível remover a variante de controle')
       return
     }
-    
+
     setExperimentForm(prev => ({
       ...prev,
       variants: prev.variants.filter((_, i) => i !== index)
     }))
   }
-  
+
   const updateVariant = (index: number, field: string, value: string) => {
     setExperimentForm(prev => ({
       ...prev,
-      variants: prev.variants.map((variant, i) => 
+      variants: prev.variants.map((variant, i) =>
         i === index ? { ...variant, [field]: value } : variant
       )
     }))
   }
-  
+
   const setVariantAsControl = (index: number) => {
     setExperimentForm(prev => ({
       ...prev,
@@ -1138,11 +1154,11 @@ ${baseCode}
       }))
     }))
   }
-  
+
   const handleCreateFullExperiment = async () => {
     try {
       setSaving(true)
-      
+
       // Validate final step
       if (!validateCurrentStep()) {
         return
@@ -1158,7 +1174,7 @@ ${baseCode}
 
       // Obter projeto para vincular o experimento (obrigatório)
       let projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
-      
+
       // Se não há projeto, usar o projeto padrão conhecido
       if (!projectId) {
         projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Projeto Principal
@@ -1204,7 +1220,7 @@ ${baseCode}
       // ATUALIZAR VARIANTES COM AS URLs CONFIGURADAS
       // ============================
       console.log('📝 Atualizando variantes com URLs configuradas...')
-      
+
       // Buscar as variantes criadas automaticamente pelo hook
       const { data: createdVariants, error: variantsError } = await supabase
         .from('variants')
@@ -1227,10 +1243,12 @@ ${baseCode}
           const dbVariant = createdVariants[i]
           const formVariant = experimentForm.variants[i]
 
+          if (!formVariant) continue;
+
           const updateData = {
             name: formVariant.name || dbVariant.name,
             description: formVariant.description || dbVariant.description,
-            redirect_url: formVariant.isControl 
+            redirect_url: formVariant.isControl
               ? experimentForm.targetUrl?.trim() // ✅ Controle usa a URL da Etapa 1
               : formVariant.url?.trim() // ✅ Outras variantes usam suas próprias URLs
           }
@@ -1257,12 +1275,12 @@ ${baseCode}
       toast.success(`✅ Experimento "${newExperiment.name}" criado com sucesso!`)
       setShowNew(false)
       setExperimentStep(1)
-      
+
       // Recarregar lista de experimentos
       await loadExperiments()
-      
+
       console.log('🎉 Experimento criado e salvo no Supabase!')
-      
+
     } catch (error) {
       console.error('❌ Erro geral ao criar experimento:', error)
       toast.error('Erro inesperado ao criar experimento')
@@ -1379,13 +1397,13 @@ ${baseCode}
       // Deletar variantes padrão criadas pela API e criar as variantes do modal
       if (formData.variants && formData.variants.length > 0) {
         console.log('🔄 Deleting default variants and creating custom variants from modal...')
-        
+
         // Deletar variantes padrão
         const { error: deleteError } = await supabase
           .from('variants')
           .delete()
           .eq('experiment_id', experiment.id)
-        
+
         if (deleteError) {
           console.error('⚠️ Error deleting default variants:', deleteError)
         }
@@ -1528,24 +1546,24 @@ ${baseCode}
     console.log('📊 Stats atualizadas automaticamente pelo hook')
   }
 
-   const startExperiment = async (id: string) => {
-     try {
-       // Atualizar via API
-       const response = await fetch(`/api/experiments/${id}`, {
-         method: 'PATCH',
-         headers: {
-           'Content-Type': 'application/json',
-         },
-        body: JSON.stringify({ 
+  const startExperiment = async (id: string) => {
+    try {
+      // Atualizar via API
+      const response = await fetch(`/api/experiments/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           status: 'running'
         }),
         credentials: 'include'
-       })
+      })
 
-       if (!response.ok) {
-         const result = await response.json()
-         throw new Error(result.error || 'Erro ao atualizar experimento')
-       }
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Erro ao atualizar experimento')
+      }
 
       // Sucesso - atualizar estado local
       setExperiments(prev => {
@@ -1553,66 +1571,66 @@ ${baseCode}
         updateStatsFromExperiments(next)
         return next
       })
-      
+
       toast.success('Experimento iniciado com sucesso!')
-       setMenuOpen(null)
-     } catch (error) {
-       console.error('Erro ao iniciar experimento:', error)
-       toast.error('Erro ao iniciar experimento')
-     }
-   }
+      setMenuOpen(null)
+    } catch (error) {
+      console.error('Erro ao iniciar experimento:', error)
+      toast.error('Erro ao iniciar experimento')
+    }
+  }
 
-   const pauseExperiment = async (id: string) => {
-     try {
-       // Atualizar via API
-       const response = await fetch(`/api/experiments/${id}`, {
-         method: 'PATCH',
-         headers: {
-           'Content-Type': 'application/json',
-         },
-         body: JSON.stringify({ status: 'paused' }),
-         credentials: 'include'
-       })
+  const pauseExperiment = async (id: string) => {
+    try {
+      // Atualizar via API
+      const response = await fetch(`/api/experiments/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'paused' }),
+        credentials: 'include'
+      })
 
-       if (!response.ok) {
-         const result = await response.json()
-         throw new Error(result.error || 'Erro ao pausar experimento')
-       }
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Erro ao pausar experimento')
+      }
 
-       // Atualizar na lista local
-       setExperiments(prev => {
-         const next = prev.map(e => e.id === id ? { ...e, status: 'paused' as const } : e)
-         updateStatsFromExperiments(next)
-         return next
-       })
-       
-       toast.info('Experimento pausado')
-       setMenuOpen(null)
-     } catch (error) {
-       console.error('Erro ao pausar experimento:', error)
-       toast.error('Erro ao pausar experimento')
-     }
-   }
+      // Atualizar na lista local
+      setExperiments(prev => {
+        const next = prev.map(e => e.id === id ? { ...e, status: 'paused' as const } : e)
+        updateStatsFromExperiments(next)
+        return next
+      })
 
-   const completeExperiment = async (id: string) => {
-     try {
-       // Atualizar via API
-       const response = await fetch(`/api/experiments/${id}`, {
-         method: 'PATCH',
-         headers: {
-           'Content-Type': 'application/json',
-         },
-         body: JSON.stringify({ 
-           status: 'completed',
-           ended_at: new Date().toISOString()
-         }),
-         credentials: 'include'
-       })
+      toast.info('Experimento pausado')
+      setMenuOpen(null)
+    } catch (error) {
+      console.error('Erro ao pausar experimento:', error)
+      toast.error('Erro ao pausar experimento')
+    }
+  }
 
-       if (!response.ok) {
-         const result = await response.json()
-         throw new Error(result.error || 'Erro ao completar experimento')
-       }
+  const completeExperiment = async (id: string) => {
+    try {
+      // Atualizar via API
+      const response = await fetch(`/api/experiments/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'completed',
+          ended_at: new Date().toISOString()
+        }),
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Erro ao completar experimento')
+      }
 
       // Sucesso - atualizar estado local
       setExperiments(prev => {
@@ -1620,14 +1638,14 @@ ${baseCode}
         updateStatsFromExperiments(next)
         return next
       })
-      
+
       toast.success('Experimento concluído')
-       setMenuOpen(null)
-     } catch (error) {
-       console.error('Erro ao concluir experimento:', error)
-       toast.error('Erro ao concluir experimento')
-     }
-   }
+      setMenuOpen(null)
+    } catch (error) {
+      console.error('Erro ao concluir experimento:', error)
+      toast.error('Erro ao concluir experimento')
+    }
+  }
 
   const duplicateExperiment = (id: string) => {
     setExperiments(prev => {
@@ -1681,7 +1699,7 @@ ${baseCode}
         updateStatsFromExperiments(next)
         return next
       })
-      
+
       toast.success('Experimento excluído com sucesso!')
       setMenuOpen(null)
     } catch (error) {
@@ -1769,10 +1787,10 @@ ${baseCode}
     }
     try {
       setSaving(true)
-      
+
       // TODO: Implementar criação real do experimento no Supabase
       console.log('Criando experimento:', newForm.name.trim())
-      
+
       // Por enquanto, apenas fechar o modal
       setShowNew(false)
       toast.success('Funcionalidade em desenvolvimento - experimento não foi criado')
@@ -1799,18 +1817,18 @@ ${baseCode}
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             className="hover:bg-accent/50"
           >
             <BarChart3 className="w-4 h-4 mr-2" />
             Relatórios
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             className="bg-gradient-primary shadow-lg hover:shadow-xl transition-all duration-300"
             onClick={handleNewExperiment}
           >
@@ -1827,7 +1845,7 @@ ${baseCode}
           <div className="absolute -left-12 -bottom-12 h-48 w-48 rounded-full bg-gradient-primary blur-2xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 blur-3xl" />
         </div>
-        
+
         {/* Toolbar superior: período */}
         <div className="relative mb-6 flex justify-end">
           <div className="inline-flex items-center gap-2 rounded-xl border border-border/40 bg-background/70 backdrop-blur px-2 py-1.5">
@@ -1844,33 +1862,33 @@ ${baseCode}
             </Select>
           </div>
         </div>
-        
+
         <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
           <div className="flex-1">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
               <Zap className="w-4 h-4 mr-2" />
               Plataforma de A/B Testing
             </div>
-            
+
             <h2 id="dashboard-hero-title" className="text-balance text-5xl md:text-6xl font-extrabold tracking-tight leading-tight text-foreground mb-4">
               Otimize suas conversões com IA
             </h2>
-            
+
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed mb-8">
               Execute experimentos A/B com distribuição inteligente de tráfego e maximize resultados sem esforço.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
+              <Button
                 onClick={handleNewExperiment}
-                size="lg" 
+                size="lg"
                 className="bg-gradient-primary text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Criar Experimento
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 className="border-border/50 hover:bg-accent/50"
               >
@@ -1879,7 +1897,7 @@ ${baseCode}
               </Button>
             </div>
           </div>
-          
+
           {/* Stats Preview */}
           <div className="lg:w-80">
             <div className="grid grid-cols-2 gap-4">
@@ -2000,13 +2018,13 @@ ${baseCode}
 
       {/* Enhanced KPI Grid */}
       {/** helper to label current period */}
-      { /* NOTE: simple map for period label */ }
+      { /* NOTE: simple map for period label */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {(() => { /* block scope to compute label */ })()}
-        { /* compute label inline */ }
-        { /* eslint-disable-next-line */ }
-        { null }
-        { /* Using local timeRange for subtitles */ }
+        { /* compute label inline */}
+        { /* eslint-disable-next-line */}
+        {null}
+        { /* Using local timeRange for subtitles */}
         <KpiCard
           title="Experimentos Ativos"
           value={realtimeStats?.activeExperiments || 0}
@@ -2030,8 +2048,8 @@ ${baseCode}
           realtime={isConnected}
           sparklineData={[20, 25, 23, 29, 40, 38, 45, 52]}
         />
-        <KpiCard 
-          title="Taxa de Conversão" 
+        <KpiCard
+          title="Taxa de Conversão"
           value={`${realtimeStats?.conversionRate?.toFixed(2) || '0.00'}%`}
           change={8}
           trend="up"
@@ -2102,13 +2120,13 @@ ${baseCode}
     const getInitialProjectId = () => {
       if (typeof window === 'undefined') return null
       let projectId = localStorage.getItem('currentProjectId')
-      
+
       // Se não houver project_id no localStorage, usar o padrão que tem dados
       if (!projectId) {
         projectId = '00000000-0000-0000-0000-000000000002'
         localStorage.setItem('currentProjectId', projectId)
       }
-      
+
       return projectId
     }
 
@@ -2120,9 +2138,9 @@ ${baseCode}
         const newProjectId = localStorage.getItem('currentProjectId')
         setCurrentProjectId(newProjectId)
       }
-      
+
       window.addEventListener('storage', handleStorageChange)
-      
+
       // Também escutar mudanças no mesmo contexto (quando atualizado via setItem)
       const interval = setInterval(() => {
         const newProjectId = localStorage.getItem('currentProjectId')
@@ -2130,7 +2148,7 @@ ${baseCode}
           setCurrentProjectId(newProjectId)
         }
       }, 1000)
-      
+
       return () => {
         window.removeEventListener('storage', handleStorageChange)
         clearInterval(interval)
@@ -2518,7 +2536,7 @@ ${baseCode}
       for (let i = 0; i < 100; i++) {
         const experiment = experiments[Math.floor(Math.random() * experiments.length)]
         const adjustedType = Math.random() < 0.6 ? 'pageview' : Math.random() < 0.3 ? 'click' : Math.random() < 0.1 ? 'conversion' : 'custom'
-        
+
         events.push({
           id: `mock-event-${i}`,
           event_type: adjustedType,  // Usando event_type (padrão Supabase)
@@ -2574,16 +2592,16 @@ ${baseCode}
     const filteredEvents = events.filter(event => {
       // O Supabase salva dados em event_data, não em properties
       const properties = event.event_data || event.properties || {}
-      
+
       return (eventTypeFilter === 'all' || event.type === eventTypeFilter || event.event_type === eventTypeFilter) &&
-             (experimentFilter === 'all' || event.experiments?.name === experimentFilter) &&
-             (utmSourceFilter === 'all' || properties.utm_source === utmSourceFilter) &&
-             (utmMediumFilter === 'all' || properties.utm_medium === utmMediumFilter) &&
-             (utmCampaignFilter === 'all' || properties.utm_campaign === utmCampaignFilter)
+        (experimentFilter === 'all' || event.experiments?.name === experimentFilter) &&
+        (utmSourceFilter === 'all' || properties.utm_source === utmSourceFilter) &&
+        (utmMediumFilter === 'all' || properties.utm_medium === utmMediumFilter) &&
+        (utmCampaignFilter === 'all' || properties.utm_campaign === utmCampaignFilter)
     })
 
     const formatEventType = (type: string) => ({ pageview: 'Visualização', click: 'Clique', conversion: 'Conversão', custom: 'Custom' }[type] || type)
-    
+
     if (loading && events.length === 0) {
       return (
         <div className="space-y-6">
@@ -2595,8 +2613,8 @@ ${baseCode}
     }
 
     if (!loading && filteredEvents.length === 0) {
-      return <EmptyState 
-        title="Nenhum evento encontrado" 
+      return <EmptyState
+        title="Nenhum evento encontrado"
         description="Ainda não há eventos para os filtros selecionados. Tente ajustar os filtros ou aguarde novos eventos."
         icon={<Search className="w-12 h-12 text-gray-400" />}
         actionLabel="Limpar Filtros"
@@ -2673,7 +2691,7 @@ ${baseCode}
                     <span className="text-3xl font-black">{formatNumber(eventStats.total)}</span>
                   </div>
                 </Card>
-                
+
                 {/* Visitantes Únicos */}
                 <Card className="bg-gradient-to-br from-purple-500/40 to-pink-500/40 backdrop-blur-xl border-purple-300/50 text-white hover:bg-purple-500/50 transition-all shadow-lg hover:shadow-purple-500/30">
                   <div className="p-4 flex flex-col">
@@ -2684,7 +2702,7 @@ ${baseCode}
                     <span className="text-3xl font-black">{formatNumber(eventStats.uniqueVisitors)}</span>
                   </div>
                 </Card>
-                
+
                 {/* Page Views */}
                 <Card className="bg-gradient-to-br from-emerald-500/40 to-green-500/40 backdrop-blur-xl border-emerald-300/50 text-white hover:bg-emerald-500/50 transition-all shadow-lg hover:shadow-emerald-500/30">
                   <div className="p-4 flex flex-col">
@@ -2695,7 +2713,7 @@ ${baseCode}
                     <span className="text-3xl font-black">{formatNumber(eventStats.pageviews)}</span>
                   </div>
                 </Card>
-                
+
                 {/* Cliques */}
                 <Card className="bg-gradient-to-br from-orange-500/40 to-amber-500/40 backdrop-blur-xl border-orange-300/50 text-white hover:bg-orange-500/50 transition-all shadow-lg hover:shadow-orange-500/30">
                   <div className="p-4 flex flex-col">
@@ -2706,7 +2724,7 @@ ${baseCode}
                     <span className="text-3xl font-black">{formatNumber(eventStats.clicks)}</span>
                   </div>
                 </Card>
-                
+
                 {/* Conversões */}
                 <Card className="bg-gradient-to-br from-rose-500/40 to-red-500/40 backdrop-blur-xl border-rose-300/50 text-white hover:bg-rose-500/50 transition-all shadow-lg hover:shadow-rose-500/30">
                   <div className="p-4 flex flex-col">
@@ -2717,7 +2735,7 @@ ${baseCode}
                     <span className="text-3xl font-black">{formatNumber(eventStats.conversions)}</span>
                   </div>
                 </Card>
-                
+
                 {/* Receita Total */}
                 <Card className="bg-gradient-to-br from-yellow-500/40 to-yellow-600/40 backdrop-blur-xl border-yellow-300/50 text-white hover:bg-yellow-500/50 transition-all shadow-lg hover:shadow-yellow-500/30">
                   <div className="p-4 flex flex-col">
@@ -2741,18 +2759,18 @@ ${baseCode}
               <p className="text-sm text-gray-500 mt-1">Mostrando {filteredEvents.length} de {events.length} eventos</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={loadEventsData} 
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadEventsData}
                 disabled={loading}
                 className="border-gray-300 hover:bg-gray-50"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Atualizar
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   const csvData = filteredEvents.map(event => ({
@@ -2765,12 +2783,12 @@ ${baseCode}
                     url: event.page_url || '',
                     propriedades: JSON.stringify(event.properties || {})
                   }))
-                  
+
                   if (csvData.length === 0) {
                     toast.error('Nenhum evento para exportar')
                     return
                   }
-                  
+
                   const csv = [
                     Object.keys(csvData[0] || {}),
                     ...csvData.map(row => Object.values(row))
@@ -2899,14 +2917,14 @@ ${baseCode}
                   {(() => {
                     // Agrupar eventos por UTM Campaign usando dados reais
                     const campaignMap: Record<string, any> = {}
-                    
+
                     filteredEvents.forEach(event => {
                       // Buscar propriedades reais do evento do Supabase
                       // O Supabase salva em event_data (JSONB), não em properties
                       const properties = event.event_data || event.properties || {}
                       const campaign = properties.utm_campaign || properties.utmCampaign || 'Sem Campanha'
                       const source = properties.utm_source || properties.utmSource || 'Sem Fonte'
-                      
+
                       if (!campaignMap[campaign]) {
                         campaignMap[campaign] = {
                           campaign,
@@ -2919,9 +2937,9 @@ ${baseCode}
                           totalEvents: 0
                         }
                       }
-                      
+
                       campaignMap[campaign].totalEvents++
-                      
+
                       // Contabilizar tipos de eventos reais
                       if (event.type === 'pageview' || event.event_type === 'pageview') {
                         campaignMap[campaign].impressions++
@@ -2933,12 +2951,12 @@ ${baseCode}
                         campaignMap[campaign].conversions++
                         campaignMap[campaign].revenue += Number(event.value) || 0
                       }
-                      
+
                       campaignMap[campaign].visitors.add(event.visitor_id)
                     })
-                    
+
                     const campaigns = Object.values(campaignMap)
-                    
+
                     // Se não houver dados, mostrar linha de "nenhum resultado"
                     if (campaigns.length === 0) {
                       return (
@@ -2950,12 +2968,12 @@ ${baseCode}
                         </tr>
                       )
                     }
-                    
+
                     return campaigns.map((data: any) => {
-                      const conversionRate = data.impressions > 0 
-                        ? ((data.conversions / data.impressions) * 100).toFixed(2) 
+                      const conversionRate = data.impressions > 0
+                        ? ((data.conversions / data.impressions) * 100).toFixed(2)
                         : '0.00'
-                      
+
                       return (
                         <tr key={data.campaign} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -3044,7 +3062,7 @@ ${baseCode}
       toast.success('Nome atualizado')
     }
     return (
-      <div className={"fixed inset-0 z-50 " + (drawerOpen ? '' : 'pointer-events-none') } aria-hidden={!drawerOpen}>
+      <div className={"fixed inset-0 z-50 " + (drawerOpen ? '' : 'pointer-events-none')} aria-hidden={!drawerOpen}>
         {/* Overlay */}
         <div className={"absolute inset-0 bg-black/40 transition-opacity " + (drawerOpen ? 'opacity-100' : 'opacity-0')} onClick={closeExperimentDrawer} />
         {/* Panel */}
@@ -3100,452 +3118,452 @@ ${baseCode}
               {/* Tabs e Aparência aprimorada */}
               <div>
                 <div className="inline-flex items-center gap-1 rounded-xl border bg-card/60 p-1 mb-4">
-                  <button className={"px-3 py-1.5 rounded-lg text-sm transition-all " + (drawerTab==='details' ? 'bg-primary/10 text-primary border border-primary/30 shadow-sm' : 'text-muted-foreground hover:bg-accent/60 border border-transparent')} onClick={() => setDrawerTab('details')}>Detalhes</button>
-                  <button className={"px-3 py-1.5 rounded-lg text-sm transition-all " + (drawerTab==='code' ? 'bg-primary/10 text-primary border border-primary/30 shadow-sm' : 'text-muted-foreground hover:bg-accent/60 border border-transparent')} onClick={() => setDrawerTab('code')}>Código</button>
-                  <button className={"px-3 py-1.5 rounded-lg text-sm transition-all " + (drawerTab==='timeline' ? 'bg-primary/10 text-primary border border-primary/30 shadow-sm' : 'text-muted-foreground hover:bg-accent/60 border border-transparent')} onClick={() => setDrawerTab('timeline')}>Timeline</button>
+                  <button className={"px-3 py-1.5 rounded-lg text-sm transition-all " + (drawerTab === 'details' ? 'bg-primary/10 text-primary border border-primary/30 shadow-sm' : 'text-muted-foreground hover:bg-accent/60 border border-transparent')} onClick={() => setDrawerTab('details')}>Detalhes</button>
+                  <button className={"px-3 py-1.5 rounded-lg text-sm transition-all " + (drawerTab === 'code' ? 'bg-primary/10 text-primary border border-primary/30 shadow-sm' : 'text-muted-foreground hover:bg-accent/60 border border-transparent')} onClick={() => setDrawerTab('code')}>Código</button>
+                  <button className={"px-3 py-1.5 rounded-lg text-sm transition-all " + (drawerTab === 'timeline' ? 'bg-primary/10 text-primary border border-primary/30 shadow-sm' : 'text-muted-foreground hover:bg-accent/60 border border-transparent')} onClick={() => setDrawerTab('timeline')}>Timeline</button>
                 </div>
               </div>
 
               {drawerTab === 'details' && (
-              <>
-              {/* Overview */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 rounded-xl border bg-card/60 flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Status</div>
-                    <div className="font-medium">{getStatusLabel(exp.status)}</div>
-                  </div>
-                  <Activity className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60 flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Variantes</div>
-                    <div className="font-medium">{variantCount}</div>
-                  </div>
-                  <Shuffle className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-
-              {/* Configurações gerais (editáveis) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border bg-card/60 md:col-span-2">
-                  <label className="text-xs text-muted-foreground">Descrição</label>
-                  <Textarea value={exp.description || ''} onChange={(e) => {
-                    const val = e.target.value
-                    setSelectedExperiment(se => se ? { ...se, description: val } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, description: val } : e))
-                  }} className="mt-1" rows={3} placeholder="Explique o objetivo, hipótese e contexto do experimento" />
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">Projeto</label>
-                  <Select value={exp.project_id || 'none'} onValueChange={(v) => {
-                    setSelectedExperiment(se => se ? { ...se, project_id: v === 'none' ? undefined : v } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, project_id: v === 'none' ? undefined : v } : e))
-                  }}>
-                    <SelectTrigger className="mt-1 h-9 rounded-xl">
-                      <span>{projects.find(p => p.id === exp.project_id)?.name || 'Sem projeto'}</span>
-                      <SelectValue className="sr-only" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem projeto</SelectItem>
-                      {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">Método</label>
-                  <Select value={exp.test_type || 'split_url'} onValueChange={(v) => {
-                    setSelectedExperiment(se => se ? { ...se, test_type: v as any } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, test_type: v as any } : e))
-                  }}>
-                    <SelectTrigger className="mt-1 h-9 rounded-xl">
-                      <span>{getMethodLabel(exp.test_type || 'split_url')}</span>
-                      <SelectValue className="sr-only" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="split_url">Divisão de URL</SelectItem>
-                      <SelectItem value="visual">Teste visual</SelectItem>
-                      <SelectItem value="feature_flag">Sinalizador de recurso</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">Algoritmo</label>
-                  <Select value={exp.algorithm || 'thompson_sampling'} onValueChange={(v) => {
-                    setSelectedExperiment(se => se ? { ...se, algorithm: v as any } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, algorithm: v as any } : e))
-                  }}>
-                    <SelectTrigger className="mt-1 h-9 rounded-xl">
-                      <span>{getAlgoLabel(exp.algorithm || 'thompson_sampling')}</span>
-                      <SelectValue className="sr-only" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="thompson_sampling">Amostragem de Thompson</SelectItem>
-                      <SelectItem value="ucb1">UCB1</SelectItem>
-                      <SelectItem value="uniform">Uniforme</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">URL da página</label>
-                  <Input value={exp.target_url || ''} onChange={(e) => {
-                    const val = e.target.value
-                    setSelectedExperiment(se => se ? { ...se, target_url: val } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, target_url: val } : e))
-                  }} className="mt-1 h-9" placeholder="https://seusite.com" />
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">Duração (dias)</label>
-                  <Input type="number" min={1} max={90} value={exp.duration_days || 14} onChange={(e) => {
-                    const val = Number(e.target.value)
-                    setSelectedExperiment(se => se ? { ...se, duration_days: val } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, duration_days: val } : e))
-                  }} className="mt-1 h-9" />
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">Amostra mínima</label>
-                  <Input type="number" min={100} value={exp.min_sample_size || 1000} onChange={(e) => {
-                    const val = Number(e.target.value)
-                    setSelectedExperiment(se => se ? { ...se, min_sample_size: val } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, min_sample_size: val } : e))
-                  }} className="mt-1 h-9" />
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">Alocação de tráfego (%)</label>
-                  <Input type="number" min={1} max={100} value={Math.round((exp.traffic_allocation||1))} onChange={(e) => {
-                    const val = Math.max(1, Math.min(100, Number(e.target.value)))
-                    const trafficAllocation = Math.floor(val) // INTEGER no banco
-                    setSelectedExperiment(se => se ? { ...se, traffic_allocation: trafficAllocation } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, traffic_allocation: trafficAllocation } : e))
-                  }} className="mt-1 h-9" />
-                </div>
-                <div className="p-4 rounded-xl border bg-card/60">
-                  <label className="text-xs text-muted-foreground">Tipo de meta</label>
-                  <Select value={exp.goal_type || 'page_view'} onValueChange={(v) => {
-                    setSelectedExperiment(se => se ? { ...se, goal_type: v as any } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: v as any } : e))
-                  }}>
-                    <SelectTrigger className="mt-1 h-9 rounded-xl">
-                      <span>{getGoalTypeLabel(exp.goal_type || 'page_view')}</span>
-                      <SelectValue className="sr-only" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="page_view">Visualização de página</SelectItem>
-                      <SelectItem value="click">Clique em elemento</SelectItem>
-                      <SelectItem value="form_submit">Envio de formulário</SelectItem>
-                      <SelectItem value="custom">Evento customizado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input value={exp.goal_value || ''} onChange={(e) => {
-                    const val = e.target.value
-                    setSelectedExperiment(se => se ? { ...se, goal_value: val } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_value: val } : e))
-                  }} className="mt-2 h-9" placeholder=".selector ou /caminho ou nome_do_evento" />
-                  { (exp.goal_type || 'page_view') === 'click' && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Button size="sm" variant={clickPickerActive ? 'default' : 'outline'} onClick={() => setClickPickerActive(!clickPickerActive)}>
-                        {clickPickerActive ? 'Clique em um elemento na página (ESC para cancelar)' : 'Selecionar no site'}
-                      </Button>
-                      <span className="text-[11px] text-muted-foreground">Dica: abra a página alvo e use o seletor visual.</span>
+                <>
+                  {/* Overview */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-4 rounded-xl border bg-card/60 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Status</div>
+                        <div className="font-medium">{getStatusLabel(exp.status)}</div>
+                      </div>
+                      <Activity className="w-4 h-4 text-muted-foreground" />
                     </div>
-                  )}
-
-                  {/* Templates rápidos de metas */}
-                  <div className="mt-3">
-                    <div className="text-xs text-muted-foreground mb-1">Templates rápidos</div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => {
-                        setSelectedExperiment(se => se ? { ...se, goal_type: 'click', goal_value: '.btn-primary' } : se)
-                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'click', goal_value: '.btn-primary' } : e))
-                      }}>.btn-primary</Button>
-                      <Button size="sm" variant="outline" onClick={() => {
-                        setSelectedExperiment(se => se ? { ...se, goal_type: 'form_submit', goal_value: '#contact-form' } : se)
-                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'form_submit', goal_value: '#contact-form' } : e))
-                      }}>#contact-form</Button>
-                      <Button size="sm" variant="outline" onClick={() => {
-                        setSelectedExperiment(se => se ? { ...se, goal_type: 'page_view', goal_value: '/checkout' } : se)
-                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'page_view', goal_value: '/checkout' } : e))
-                      }}>/checkout</Button>
-                      <Button size="sm" variant="outline" onClick={() => {
-                        setSelectedExperiment(se => se ? { ...se, goal_type: 'custom', goal_value: 'purchase_complete' } : se)
-                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'custom', goal_value: 'purchase_complete' } : e))
-                      }}>purchase_complete</Button>
+                    <div className="p-4 rounded-xl border bg-card/60 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Variantes</div>
+                        <div className="font-medium">{variantCount}</div>
+                      </div>
+                      <Shuffle className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Tags */}
-              <div className="p-4 rounded-xl border bg-card/60">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold">Tags</h4>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap mb-2">
-                  {(exp.tags||[]).length === 0 && (
-                    <span className="text-xs text-muted-foreground">Sem tags</span>
-                  )}
-                  {(exp.tags||[]).map((t, i) => (
-                    <span key={i} className="chip bg-accent/40 border-border/60">
-                      {t}
-                      <button className="ml-1" onClick={() => {
-                        setSelectedExperiment(se => se ? { ...se, tags: (se.tags||[]).filter(x => x !== t) } : se)
-                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: (e.tags||[]).filter(x => x !== t) } : e))
-                      }}>×</button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input placeholder="Nova tag" className="h-9" onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const val = newTagValue.trim()
-                      if (!val) return
-                      setSelectedExperiment(se => se ? { ...se, tags: Array.from(new Set([...(se.tags||[]), val])) } : se)
-                      setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: Array.from(new Set([...(e.tags||[]), val])) } : e))
-                      setNewTagValue('')
-                    }
-                  }} value={newTagValue} onChange={(e) => setNewTagValue(e.target.value)} />
-                  <Button size="sm" variant="outline" onClick={() => {
-                    const val = newTagValue.trim()
-                    if (!val) return
-                    setSelectedExperiment(se => se ? { ...se, tags: Array.from(new Set([...(se.tags||[]), val])) } : se)
-                    setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: Array.from(new Set([...(e.tags||[]), val])) } : e))
-                    setNewTagValue('')
-                  }}>Adicionar</Button>
-                </div>
-                {(() => {
-                  const tagSet = new Set<string>()
-                  experiments.forEach(e => (e.tags || []).forEach(t => tagSet.add(t)))
-                  const existing = new Set(exp.tags || [])
-                  const suggestions = Array.from(tagSet).filter(t => !existing.has(t) && t.toLowerCase().includes(newTagValue.toLowerCase())).slice(0, 6)
-                  if (suggestions.length === 0 || !newTagValue) return null
-                  return (
-                    <div className="mt-2 flex items-center gap-1 flex-wrap">
-                      <span className="text-xs text-muted-foreground mr-1">Sugestões:</span>
-                      {suggestions.map(s => (
-                        <button key={s} className="chip hover-lift" onClick={() => {
-                          setSelectedExperiment(se => se ? { ...se, tags: Array.from(new Set([...(se.tags||[]), s])) } : se)
-                          setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: Array.from(new Set([...(e.tags||[]), s])) } : e))
-                          setNewTagValue('')
-                        }}>{s}</button>
+                  {/* Configurações gerais (editáveis) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl border bg-card/60 md:col-span-2">
+                      <label className="text-xs text-muted-foreground">Descrição</label>
+                      <Textarea value={exp.description || ''} onChange={(e) => {
+                        const val = e.target.value
+                        setSelectedExperiment(se => se ? { ...se, description: val } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, description: val } : e))
+                      }} className="mt-1" rows={3} placeholder="Explique o objetivo, hipótese e contexto do experimento" />
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">Projeto</label>
+                      <Select value={exp.project_id || 'none'} onValueChange={(v) => {
+                        setSelectedExperiment(se => se ? { ...se, project_id: v === 'none' ? undefined : v } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, project_id: v === 'none' ? undefined : v } : e))
+                      }}>
+                        <SelectTrigger className="mt-1 h-9 rounded-xl">
+                          <span>{projects.find(p => p.id === exp.project_id)?.name || 'Sem projeto'}</span>
+                          <SelectValue className="sr-only" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem projeto</SelectItem>
+                          {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">Método</label>
+                      <Select value={exp.test_type || 'split_url'} onValueChange={(v) => {
+                        setSelectedExperiment(se => se ? { ...se, test_type: v as any } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, test_type: v as any } : e))
+                      }}>
+                        <SelectTrigger className="mt-1 h-9 rounded-xl">
+                          <span>{getMethodLabel(exp.test_type || 'split_url')}</span>
+                          <SelectValue className="sr-only" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="split_url">Divisão de URL</SelectItem>
+                          <SelectItem value="visual">Teste visual</SelectItem>
+                          <SelectItem value="feature_flag">Sinalizador de recurso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">Algoritmo</label>
+                      <Select value={exp.algorithm || 'thompson_sampling'} onValueChange={(v) => {
+                        setSelectedExperiment(se => se ? { ...se, algorithm: v as any } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, algorithm: v as any } : e))
+                      }}>
+                        <SelectTrigger className="mt-1 h-9 rounded-xl">
+                          <span>{getAlgoLabel(exp.algorithm || 'thompson_sampling')}</span>
+                          <SelectValue className="sr-only" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="thompson_sampling">Amostragem de Thompson</SelectItem>
+                          <SelectItem value="ucb1">UCB1</SelectItem>
+                          <SelectItem value="uniform">Uniforme</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">URL da página</label>
+                      <Input value={exp.target_url || ''} onChange={(e) => {
+                        const val = e.target.value
+                        setSelectedExperiment(se => se ? { ...se, target_url: val } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, target_url: val } : e))
+                      }} className="mt-1 h-9" placeholder="https://seusite.com" />
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">Duração (dias)</label>
+                      <Input type="number" min={1} max={90} value={exp.duration_days || 14} onChange={(e) => {
+                        const val = Number(e.target.value)
+                        setSelectedExperiment(se => se ? { ...se, duration_days: val } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, duration_days: val } : e))
+                      }} className="mt-1 h-9" />
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">Amostra mínima</label>
+                      <Input type="number" min={100} value={exp.min_sample_size || 1000} onChange={(e) => {
+                        const val = Number(e.target.value)
+                        setSelectedExperiment(se => se ? { ...se, min_sample_size: val } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, min_sample_size: val } : e))
+                      }} className="mt-1 h-9" />
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">Alocação de tráfego (%)</label>
+                      <Input type="number" min={1} max={100} value={Math.round((exp.traffic_allocation || 1))} onChange={(e) => {
+                        const val = Math.max(1, Math.min(100, Number(e.target.value)))
+                        const trafficAllocation = Math.floor(val) // INTEGER no banco
+                        setSelectedExperiment(se => se ? { ...se, traffic_allocation: trafficAllocation } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, traffic_allocation: trafficAllocation } : e))
+                      }} className="mt-1 h-9" />
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card/60">
+                      <label className="text-xs text-muted-foreground">Tipo de meta</label>
+                      <Select value={exp.goal_type || 'page_view'} onValueChange={(v) => {
+                        setSelectedExperiment(se => se ? { ...se, goal_type: v as any } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: v as any } : e))
+                      }}>
+                        <SelectTrigger className="mt-1 h-9 rounded-xl">
+                          <span>{getGoalTypeLabel(exp.goal_type || 'page_view')}</span>
+                          <SelectValue className="sr-only" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="page_view">Visualização de página</SelectItem>
+                          <SelectItem value="click">Clique em elemento</SelectItem>
+                          <SelectItem value="form_submit">Envio de formulário</SelectItem>
+                          <SelectItem value="custom">Evento customizado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input value={exp.goal_value || ''} onChange={(e) => {
+                        const val = e.target.value
+                        setSelectedExperiment(se => se ? { ...se, goal_value: val } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_value: val } : e))
+                      }} className="mt-2 h-9" placeholder=".selector ou /caminho ou nome_do_evento" />
+                      {(exp.goal_type || 'page_view') === 'click' && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Button size="sm" variant={clickPickerActive ? 'default' : 'outline'} onClick={() => setClickPickerActive(!clickPickerActive)}>
+                            {clickPickerActive ? 'Clique em um elemento na página (ESC para cancelar)' : 'Selecionar no site'}
+                          </Button>
+                          <span className="text-[11px] text-muted-foreground">Dica: abra a página alvo e use o seletor visual.</span>
+                        </div>
+                      )}
+
+                      {/* Templates rápidos de metas */}
+                      <div className="mt-3">
+                        <div className="text-xs text-muted-foreground mb-1">Templates rápidos</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setSelectedExperiment(se => se ? { ...se, goal_type: 'click', goal_value: '.btn-primary' } : se)
+                            setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'click', goal_value: '.btn-primary' } : e))
+                          }}>.btn-primary</Button>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setSelectedExperiment(se => se ? { ...se, goal_type: 'form_submit', goal_value: '#contact-form' } : se)
+                            setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'form_submit', goal_value: '#contact-form' } : e))
+                          }}>#contact-form</Button>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setSelectedExperiment(se => se ? { ...se, goal_type: 'page_view', goal_value: '/checkout' } : se)
+                            setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'page_view', goal_value: '/checkout' } : e))
+                          }}>/checkout</Button>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setSelectedExperiment(se => se ? { ...se, goal_type: 'custom', goal_value: 'purchase_complete' } : se)
+                            setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, goal_type: 'custom', goal_value: 'purchase_complete' } : e))
+                          }}>purchase_complete</Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  <div className="p-4 rounded-xl border bg-card/60">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold">Tags</h4>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      {(exp.tags || []).length === 0 && (
+                        <span className="text-xs text-muted-foreground">Sem tags</span>
+                      )}
+                      {(exp.tags || []).map((t, i) => (
+                        <span key={i} className="chip bg-accent/40 border-border/60">
+                          {t}
+                          <button className="ml-1" onClick={() => {
+                            setSelectedExperiment(se => se ? { ...se, tags: (se.tags || []).filter(x => x !== t) } : se)
+                            setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: (e.tags || []).filter(x => x !== t) } : e))
+                          }}>×</button>
+                        </span>
                       ))}
                     </div>
-                  )
-                })()}
-              </div>
+                    <div className="flex items-center gap-2">
+                      <Input placeholder="Nova tag" className="h-9" onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = newTagValue.trim()
+                          if (!val) return
+                          setSelectedExperiment(se => se ? { ...se, tags: Array.from(new Set([...(se.tags || []), val])) } : se)
+                          setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: Array.from(new Set([...(e.tags || []), val])) } : e))
+                          setNewTagValue('')
+                        }
+                      }} value={newTagValue} onChange={(e) => setNewTagValue(e.target.value)} />
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const val = newTagValue.trim()
+                        if (!val) return
+                        setSelectedExperiment(se => se ? { ...se, tags: Array.from(new Set([...(se.tags || []), val])) } : se)
+                        setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: Array.from(new Set([...(e.tags || []), val])) } : e))
+                        setNewTagValue('')
+                      }}>Adicionar</Button>
+                    </div>
+                    {(() => {
+                      const tagSet = new Set<string>()
+                      experiments.forEach(e => (e.tags || []).forEach(t => tagSet.add(t)))
+                      const existing = new Set(exp.tags || [])
+                      const suggestions = Array.from(tagSet).filter(t => !existing.has(t) && t.toLowerCase().includes(newTagValue.toLowerCase())).slice(0, 6)
+                      if (suggestions.length === 0 || !newTagValue) return null
+                      return (
+                        <div className="mt-2 flex items-center gap-1 flex-wrap">
+                          <span className="text-xs text-muted-foreground mr-1">Sugestões:</span>
+                          {suggestions.map(s => (
+                            <button key={s} className="chip hover-lift" onClick={() => {
+                              setSelectedExperiment(se => se ? { ...se, tags: Array.from(new Set([...(se.tags || []), s])) } : se)
+                              setExperiments(prev => prev.map(e => e.id === exp.id ? { ...e, tags: Array.from(new Set([...(e.tags || []), s])) } : e))
+                              setNewTagValue('')
+                            }}>{s}</button>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
 
-              {/* Variantes (com links) */}
-              {variantCount > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-2">Variantes</h4>
-                  <div className="space-y-2">
-                    {exp.variants!.map((v, idx) => (
-                      <div key={v.id} className="flex items-center justify-between p-2 rounded-md border bg-accent/20">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className={"w-2 h-2 rounded-full " + (v.is_control ? 'bg-primary' : 'bg-muted-foreground')} />
-                          <Input 
-                            value={v.name}
-                            onChange={(e) => {
-                              const newName = e.target.value
-                              // Update local drawer state
-                              setSelectedExperiment(se => {
-                                if (!se || !se.variants) return se
-                                const updated = se.variants.map((vv, i) => i === idx ? { ...vv, name: newName } : vv)
-                                return { ...se, variants: updated }
-                              })
-                              // Update global list
-                              setExperiments(prev => prev.map(ex => {
-                                if (ex.id !== exp.id || !ex.variants) return ex
-                                const updated = ex.variants.map((vv, i) => i === idx ? { ...vv, name: newName } : vv)
-                                return { ...ex, variants: updated }
-                              }))
-                            }}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 ml-3">
-                          {v.is_control ? (
-                            <Badge variant="outline" className="text-xs">Controle</Badge>
-                          ) : (
-                            <Button size="sm" variant="ghost" onClick={() => {
-                              // Set this variant as control
-                              setSelectedExperiment(se => {
-                                if (!se || !se.variants) return se
-                                const updated = se.variants.map((vv, i) => ({ ...vv, is_control: i === idx }))
-                                return { ...se, variants: updated }
-                              })
-                              setExperiments(prev => prev.map(ex => {
-                                if (ex.id !== exp.id || !ex.variants) return ex
-                                const updated = ex.variants.map((vv, i) => ({ ...vv, is_control: i === idx }))
-                                return { ...ex, variants: updated }
-                              }))
-                            }} className="h-8">
-                              Definir Controle
-                            </Button>
-                          )}
-                          {exp.variants!.length > 2 && !v.is_control && (
-                            <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => {
-                              setSelectedExperiment(se => {
-                                if (!se || !se.variants) return se
-                                if (se.variants.length <= 2) { toast.error('É necessário pelo menos 2 variantes'); return se }
-                                const updated = se.variants.filter((_, i) => i !== idx)
-                                return { ...se, variants: updated }
-                              })
-                              setExperiments(prev => prev.map(ex => {
-                                if (ex.id !== exp.id || !ex.variants) return ex
-                                if (ex.variants.length <= 2) return ex
-                                const updated = ex.variants.filter((_, i) => i !== idx)
-                                return { ...ex, variants: updated }
-                              }))
-                            }}>
-                              Remover
-                            </Button>
-                          )}
-                        </div>
+                  {/* Variantes (com links) */}
+                  {variantCount > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2">Variantes</h4>
+                      <div className="space-y-2">
+                        {exp.variants!.map((v, idx) => (
+                          <div key={v.id} className="flex items-center justify-between p-2 rounded-md border bg-accent/20">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <span className={"w-2 h-2 rounded-full " + (v.is_control ? 'bg-primary' : 'bg-muted-foreground')} />
+                              <Input
+                                value={v.name}
+                                onChange={(e) => {
+                                  const newName = e.target.value
+                                  // Update local drawer state
+                                  setSelectedExperiment(se => {
+                                    if (!se || !se.variants) return se
+                                    const updated = se.variants.map((vv, i) => i === idx ? { ...vv, name: newName } : vv)
+                                    return { ...se, variants: updated }
+                                  })
+                                  // Update global list
+                                  setExperiments(prev => prev.map(ex => {
+                                    if (ex.id !== exp.id || !ex.variants) return ex
+                                    const updated = ex.variants.map((vv, i) => i === idx ? { ...vv, name: newName } : vv)
+                                    return { ...ex, variants: updated }
+                                  }))
+                                }}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 ml-3">
+                              {v.is_control ? (
+                                <Badge variant="outline" className="text-xs">Controle</Badge>
+                              ) : (
+                                <Button size="sm" variant="ghost" onClick={() => {
+                                  // Set this variant as control
+                                  setSelectedExperiment(se => {
+                                    if (!se || !se.variants) return se
+                                    const updated = se.variants.map((vv, i) => ({ ...vv, is_control: i === idx }))
+                                    return { ...se, variants: updated }
+                                  })
+                                  setExperiments(prev => prev.map(ex => {
+                                    if (ex.id !== exp.id || !ex.variants) return ex
+                                    const updated = ex.variants.map((vv, i) => ({ ...vv, is_control: i === idx }))
+                                    return { ...ex, variants: updated }
+                                  }))
+                                }} className="h-8">
+                                  Definir Controle
+                                </Button>
+                              )}
+                              {exp.variants!.length > 2 && !v.is_control && (
+                                <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => {
+                                  setSelectedExperiment(se => {
+                                    if (!se || !se.variants) return se
+                                    if (se.variants.length <= 2) { toast.error('É necessário pelo menos 2 variantes'); return se }
+                                    const updated = se.variants.filter((_, i) => i !== idx)
+                                    return { ...se, variants: updated }
+                                  })
+                                  setExperiments(prev => prev.map(ex => {
+                                    if (ex.id !== exp.id || !ex.variants) return ex
+                                    if (ex.variants.length <= 2) return ex
+                                    const updated = ex.variants.filter((_, i) => i !== idx)
+                                    return { ...ex, variants: updated }
+                                  }))
+                                }}>
+                                  Remover
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-2">
-                    <Button size="sm" variant="outline" onClick={() => {
-                      setSelectedExperiment(se => {
-                        if (!se) return se
-                        const count = se.variants?.length || 0
-                        // Removida limitação - agora aceita quantas variantes o usuário quiser
-                        const variantIndex = count - 1
-                        const nextLetter = variantIndex < 26 
-                          ? String.fromCharCode(65 + variantIndex)
-                          : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
-                        const nextName = `Variante ${nextLetter}`
-                        const newVar: Variant = { id: `v-${Date.now()}`, name: nextName, key: nextName.toLowerCase().replace(/\s+/g, '-'), is_control: false, url: '' }
-                        return { ...se, variants: [...(se.variants||[]), newVar] }
-                      })
-                      setExperiments(prev => prev.map(ex => {
-                        if (ex.id !== exp.id) return ex
-                        const count = ex.variants?.length || 0
-                        // Removida limitação - agora aceita quantas variantes o usuário quiser
-                        const variantIndex = count - 1
-                        const nextLetter = variantIndex < 26 
-                          ? String.fromCharCode(65 + variantIndex)
-                          : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
-                        const nextName = `Variante ${nextLetter}`
-                        const newVar: Variant = { id: `v-${Date.now()}`, name: nextName, key: nextName.toLowerCase().replace(/\s+/g, '-'), is_control: false, url: '' }
-                        return { ...ex, variants: [...(ex.variants||[]), newVar] }
-                      }))
-                    }}>Adicionar Variante</Button>
-                  </div>
-                  {/* Links das variantes (Split URL) */}
-                  <div className="mt-3 space-y-2">
-                    <div className="text-xs text-muted-foreground">Links das variantes {exp.test_type === 'split_url' ? '' : '(somente em Split URL)'}</div>
-                    {exp.test_type === 'split_url' && (
-                      <div className="mb-2">
+                      <div className="mt-2">
                         <Button size="sm" variant="outline" onClick={() => {
-                          const urls = (exp.variants||[]).map(v => v.config?.redirect_url || v.redirect_url).filter(Boolean) as string[]
-                          if (urls.length === 0) { toast.error('Nenhuma URL definida para as variantes'); return }
-                          urls.forEach(u => window.open(u, '_blank'))
-                        }}>Abrir todas as URLs</Button>
+                          setSelectedExperiment(se => {
+                            if (!se) return se
+                            const count = se.variants?.length || 0
+                            // Removida limitação - agora aceita quantas variantes o usuário quiser
+                            const variantIndex = count - 1
+                            const nextLetter = variantIndex < 26
+                              ? String.fromCharCode(65 + variantIndex)
+                              : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
+                            const nextName = `Variante ${nextLetter}`
+                            const newVar: Variant = { id: `v-${Date.now()}`, name: nextName, key: nextName.toLowerCase().replace(/\s+/g, '-'), is_control: false, url: '' }
+                            return { ...se, variants: [...(se.variants || []), newVar] }
+                          })
+                          setExperiments(prev => prev.map(ex => {
+                            if (ex.id !== exp.id) return ex
+                            const count = ex.variants?.length || 0
+                            // Removida limitação - agora aceita quantas variantes o usuário quiser
+                            const variantIndex = count - 1
+                            const nextLetter = variantIndex < 26
+                              ? String.fromCharCode(65 + variantIndex)
+                              : `${Math.floor(variantIndex / 26)}${String.fromCharCode(65 + (variantIndex % 26))}`
+                            const nextName = `Variante ${nextLetter}`
+                            const newVar: Variant = { id: `v-${Date.now()}`, name: nextName, key: nextName.toLowerCase().replace(/\s+/g, '-'), is_control: false, url: '' }
+                            return { ...ex, variants: [...(ex.variants || []), newVar] }
+                          }))
+                        }}>Adicionar Variante</Button>
                       </div>
-                    )}
-                    {exp.variants!.map((v, idx) => (
-                      <div key={v.id+"-url"} className="flex items-center gap-2">
-                        <span className="text-xs w-16 shrink-0 {v.is_control ? 'text-primary' : ''}">{v.is_control ? 'Controle' : 'Variante'}</span>
-                        <Input
-                          value={v.config?.redirect_url || v.redirect_url || ''}
-                          onChange={async (e) => {
-                            const url = e.target.value
-                            
-                            // Atualizar estado local imediatamente
-                            setSelectedExperiment(se => {
-                              if (!se || !se.variants) return se
-                              const updated = se.variants.map((vv, i) => {
-                                if (i === idx) {
-                                  return { 
-                                    ...vv, 
-                                    redirect_url: url,
-                                    config: { ...((vv as any).config || {}), redirect_url: url }
-                                  }
-                                }
-                                return vv
-                              })
-                              return { ...se, variants: updated }
-                            })
-                            setExperiments(prev => prev.map(ex => {
-                              if (ex.id !== exp.id || !ex.variants) return ex
-                              const updated = ex.variants.map((vv, i) => {
-                                if (i === idx) {
-                                  return { 
-                                    ...vv, 
-                                    redirect_url: url,
-                                    config: { ...((vv as any).config || {}), redirect_url: url }
-                                  }
-                                }
-                                return vv
-                              })
-                              return { ...ex, variants: updated }
-                            }))
-                            
-                            // Salvar no Supabase
-                            try {
-                              await updateVariantInDB(v.id, { redirect_url: url })
-                            } catch (error) {
-                              console.error('Erro ao salvar URL:', error)
-                              toast.error('Erro ao salvar URL da variante')
-                            }
-                          }}
-                          placeholder={exp.test_type === 'split_url' ? (v.is_control ? exp.target_url || 'https://seusite.com/pagina-original' : 'https://seusite.com/variante') : 'N/A'}
-                          disabled={exp.test_type !== 'split_url' || v.is_control}
-                          className="h-8 text-sm"
-                        />
-                        {(v.config?.redirect_url || v.redirect_url) && (
-                          <a href={v.config?.redirect_url || v.redirect_url} target="_blank" className="text-xs text-primary underline">
-                            Abrir
-                          </a>
+                      {/* Links das variantes (Split URL) */}
+                      <div className="mt-3 space-y-2">
+                        <div className="text-xs text-muted-foreground">Links das variantes {exp.test_type === 'split_url' ? '' : '(somente em Split URL)'}</div>
+                        {exp.test_type === 'split_url' && (
+                          <div className="mb-2">
+                            <Button size="sm" variant="outline" onClick={() => {
+                              const urls = (exp.variants || []).map(v => v.config?.redirect_url || v.redirect_url).filter(Boolean) as string[]
+                              if (urls.length === 0) { toast.error('Nenhuma URL definida para as variantes'); return }
+                              urls.forEach(u => window.open(u, '_blank'))
+                            }}>Abrir todas as URLs</Button>
+                          </div>
                         )}
+                        {exp.variants!.map((v, idx) => (
+                          <div key={v.id + "-url"} className="flex items-center gap-2">
+                            <span className="text-xs w-16 shrink-0 {v.is_control ? 'text-primary' : ''}">{v.is_control ? 'Controle' : 'Variante'}</span>
+                            <Input
+                              value={v.config?.redirect_url || v.redirect_url || ''}
+                              onChange={async (e) => {
+                                const url = e.target.value
+
+                                // Atualizar estado local imediatamente
+                                setSelectedExperiment(se => {
+                                  if (!se || !se.variants) return se
+                                  const updated = se.variants.map((vv, i) => {
+                                    if (i === idx) {
+                                      return {
+                                        ...vv,
+                                        redirect_url: url,
+                                        config: { ...((vv as any).config || {}), redirect_url: url }
+                                      }
+                                    }
+                                    return vv
+                                  })
+                                  return { ...se, variants: updated }
+                                })
+                                setExperiments(prev => prev.map(ex => {
+                                  if (ex.id !== exp.id || !ex.variants) return ex
+                                  const updated = ex.variants.map((vv, i) => {
+                                    if (i === idx) {
+                                      return {
+                                        ...vv,
+                                        redirect_url: url,
+                                        config: { ...((vv as any).config || {}), redirect_url: url }
+                                      }
+                                    }
+                                    return vv
+                                  })
+                                  return { ...ex, variants: updated }
+                                }))
+
+                                // Salvar no Supabase
+                                try {
+                                  await updateVariantInDB(v.id, { redirect_url: url })
+                                } catch (error) {
+                                  console.error('Erro ao salvar URL:', error)
+                                  toast.error('Erro ao salvar URL da variante')
+                                }
+                              }}
+                              placeholder={exp.test_type === 'split_url' ? (v.is_control ? exp.target_url || 'https://seusite.com/pagina-original' : 'https://seusite.com/variante') : 'N/A'}
+                              disabled={exp.test_type !== 'split_url' || v.is_control}
+                              className="h-8 text-sm"
+                            />
+                            {(v.config?.redirect_url || v.redirect_url) && (
+                              <a href={v.config?.redirect_url || v.redirect_url} target="_blank" className="text-xs text-primary underline">
+                                Abrir
+                              </a>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              </>
+                    </div>
+                  )}
+                </>
               )}
 
               {drawerTab === 'code' && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold">Código para inserir na página</h4>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => copyExperimentCode(exp)}>
-                      <Code className="w-4 h-4 mr-1" /> Copiar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      const blob = new Blob([
-                        '<!doctype html>\n<html><head><meta charset="utf-8"/><title>Experimento '+(exp.name||'')+'</title></head><body>\n',
-                        code,
-                        '\n<!-- Conteúdo da página -->\n</body></html>'
-                      ], { type: 'text/html' })
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `experimento-${exp.id}.html`
-                      document.body.appendChild(a)
-                      a.click()
-                      a.remove()
-                      URL.revokeObjectURL(url)
-                    }}>
-                      Baixar .html
-                    </Button>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold">Código para inserir na página</h4>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => copyExperimentCode(exp)}>
+                        <Code className="w-4 h-4 mr-1" /> Copiar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const blob = new Blob([
+                          '<!doctype html>\n<html><head><meta charset="utf-8"/><title>Experimento ' + (exp.name || '') + '</title></head><body>\n',
+                          code,
+                          '\n<!-- Conteúdo da página -->\n</body></html>'
+                        ], { type: 'text/html' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `experimento-${exp.id}.html`
+                        document.body.appendChild(a)
+                        a.click()
+                        a.remove()
+                        URL.revokeObjectURL(url)
+                      }}>
+                        Baixar .html
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-card p-3">
+                    <pre className="text-xs whitespace-pre-wrap leading-relaxed">{code}</pre>
                   </div>
                 </div>
-                <div className="rounded-lg border bg-card p-3">
-                  <pre className="text-xs whitespace-pre-wrap leading-relaxed">{code}</pre>
-                </div>
-              </div>
               )}
 
               {drawerTab === 'details' && (
-              /* Tips */
-              <div className="p-3 rounded-lg border bg-muted/30">
-                <div className="text-sm font-medium mb-1 flex items-center gap-2"><Lightbulb className="w-4 h-4" /> Dica</div>
-                <div className="text-xs text-muted-foreground">As alterações visuais são aplicadas automaticamente pelo código gerado, com base nas configurações das variantes. Não é necessário alterar o HTML.</div>
-              </div>
+                /* Tips */
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <div className="text-sm font-medium mb-1 flex items-center gap-2"><Lightbulb className="w-4 h-4" /> Dica</div>
+                  <div className="text-xs text-muted-foreground">As alterações visuais são aplicadas automaticamente pelo código gerado, com base nas configurações das variantes. Não é necessário alterar o HTML.</div>
+                </div>
               )}
 
               {drawerTab === 'timeline' && (
@@ -3586,7 +3604,7 @@ ${baseCode}
           const canClick = step.number <= experimentStep + 1
           const Icon = step.icon
           const palette = stepColorStyles[step.color]
-          
+
           return (
             <div key={step.number} className="flex items-center gap-6">
               <div className="flex flex-col items-center gap-3">
@@ -3605,14 +3623,14 @@ ${baseCode}
                     <Icon className="w-5 h-5" />
                   )}
                 </button>
-                
+
                 <div className="text-center">
                   <div className={`text-sm font-semibold ${isActive ? palette.labelActive : isCompleted ? palette.labelCompleted : 'text-gray-400 dark:text-gray-500'}`}>
                     {step.title}
                   </div>
                 </div>
               </div>
-              
+
               {index < 3 && (
                 <div className={`w-12 h-1 rounded-full transition-all duration-300 ${experimentStep > step.number ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700'}`} />
               )}
@@ -3642,7 +3660,7 @@ ${baseCode}
           <label className="block text-sm font-semibold text-slate-900 mb-3">
             Nome do Experimento *
           </label>
-          <Input 
+          <Input
             ref={step1NameRef}
             value={experimentForm.name}
             onChange={(e) => setExperimentForm(prev => ({ ...prev, name: e.target.value }))}
@@ -3654,13 +3672,13 @@ ${baseCode}
             Use um nome descritivo que identifique claramente o teste
           </p>
         </div>
-        
+
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-slate-900 mb-3">
             Descrição
             <span className="ml-2 text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">(Opcional)</span>
           </label>
-          <Textarea 
+          <Textarea
             value={experimentForm.description}
             onChange={(e) => setExperimentForm(prev => ({ ...prev, description: e.target.value }))}
             placeholder="Descreva sua hipótese e o que espera descobrir com este teste..."
@@ -3708,10 +3726,10 @@ ${baseCode}
         <p className="text-muted-foreground">Configure a URL da página que receberá o tráfego (esta será a Página 1 do teste)</p>
       </div>
 
-          <div className="space-y-4">
-            <div>
+      <div className="space-y-4">
+        <div>
           <label className="text-sm font-medium text-foreground">URL da Página Original (Página 1) *</label>
-              <Input 
+          <Input
             ref={step2UrlRef}
             value={experimentForm.targetUrl}
             onChange={(e) => setExperimentForm(prev => ({ ...prev, targetUrl: e.target.value }))}
@@ -3719,12 +3737,12 @@ ${baseCode}
             className="mt-1.5"
           />
           <p className="text-xs text-muted-foreground mt-1">🎯 Esta é a <strong>Página 1</strong> do seu teste A/B. Ela competirá com as outras variantes que você configurar na próxima etapa.</p>
-            </div>
-            
-            <div>
+        </div>
+
+        <div>
           <label className="text-sm font-medium text-foreground">Tipo de Teste</label>
-          <Select 
-            value={experimentForm.testType} 
+          <Select
+            value={experimentForm.testType}
             onValueChange={(value) => setExperimentForm(prev => ({ ...prev, testType: value as any }))}
           >
             <SelectTrigger className="mt-1.5">
@@ -3765,8 +3783,8 @@ ${baseCode}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-foreground">Audiência</label>
-            <Select 
-              value={experimentForm.audienceType} 
+            <Select
+              value={experimentForm.audienceType}
               onValueChange={(value) => setExperimentForm(prev => ({ ...prev, audienceType: value as any }))}
             >
               <SelectTrigger className="mt-1.5">
@@ -3783,9 +3801,9 @@ ${baseCode}
           <div>
             <label className="text-sm font-medium text-foreground">Alocação de Tráfego</label>
             <div className="mt-1.5 flex items-center gap-2">
-              <Input 
-                type="number" 
-                min={1} 
+              <Input
+                type="number"
+                min={1}
                 max={100}
                 value={experimentForm.trafficAllocation}
                 onChange={(e) => setExperimentForm(prev => ({ ...prev, trafficAllocation: Number(e.target.value) }))}
@@ -3825,16 +3843,14 @@ ${baseCode}
 
       <div className="space-y-4">
         {experimentForm.variants.map((variant, index) => (
-          <div key={index} className={`p-4 rounded-lg border-2 transition-colors ${
-            variant.isControl 
-              ? 'border-primary/50 bg-primary/5' 
-              : 'border-border bg-card'
-          }`}>
+          <div key={index} className={`p-4 rounded-lg border-2 transition-colors ${variant.isControl
+            ? 'border-primary/50 bg-primary/5'
+            : 'border-border bg-card'
+            }`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${
-                  variant.isControl ? 'bg-primary' : 'bg-muted-foreground'
-                }`} />
+                <div className={`w-3 h-3 rounded-full ${variant.isControl ? 'bg-primary' : 'bg-muted-foreground'
+                  }`} />
                 <Input
                   ref={index === 0 ? step3Variant0Ref : undefined}
                   value={variant.name}
@@ -3846,7 +3862,7 @@ ${baseCode}
                   <Badge variant="outline" className="text-xs">Controle</Badge>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-1">
                 {!variant.isControl && (
                   <Button
@@ -3857,7 +3873,7 @@ ${baseCode}
                     className="h-8 px-2 text-xs"
                   >
                     Definir como Controle
-            </Button>
+                  </Button>
                 )}
                 {experimentForm.variants.length > 2 && !variant.isControl && (
                   <Button
@@ -3868,9 +3884,9 @@ ${baseCode}
                     className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />
-            </Button>
+                  </Button>
                 )}
-          </div>
+              </div>
             </div>
 
             <Textarea
@@ -3918,9 +3934,9 @@ ${baseCode}
             <div>
               <p className="text-sm font-medium text-green-900 mb-1">Como funciona</p>
               <p className="text-xs text-green-700">
-                ✅ <strong>Página 1</strong> (da Etapa 1) competirá com todas as variantes cadastradas aqui.<br/>
-                ✅ Cada variante deve ter uma URL diferente.<br/>
-                ✅ O tráfego será distribuído automaticamente entre TODAS as páginas (incluindo a Página 1).<br/>
+                ✅ <strong>Página 1</strong> (da Etapa 1) competirá com todas as variantes cadastradas aqui.<br />
+                ✅ Cada variante deve ter uma URL diferente.<br />
+                ✅ O tráfego será distribuído automaticamente entre TODAS as páginas (incluindo a Página 1).<br />
                 ✅ O sistema rastreará qual página gerou cada conversão.
               </p>
             </div>
@@ -3949,7 +3965,7 @@ ${baseCode}
           </h4>
           <div>
             <label className="text-sm font-medium text-blue-900">Qual é o objetivo principal? *</label>
-            <Input 
+            <Input
               ref={step4GoalRef}
               value={experimentForm.primaryGoal}
               onChange={(e) => setExperimentForm(prev => ({ ...prev, primaryGoal: e.target.value }))}
@@ -3967,15 +3983,15 @@ ${baseCode}
             URL da Página de Sucesso
           </h4>
           <p className="text-sm text-green-700 mb-4">
-            ✅ Sempre que houver uma visita nesta página, o sistema contará uma conversão para a página que originou o acesso.<br/>
+            ✅ Sempre que houver uma visita nesta página, o sistema contará uma conversão para a página que originou o acesso.<br />
             ✅ Tudo será registrado automaticamente no Supabase, incluindo qual variante gerou a conversão.
           </p>
-          
+
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-green-900">Tipo de Conversão *</label>
-              <Select 
-                value={experimentForm.conversionType} 
+              <Select
+                value={experimentForm.conversionType}
                 onValueChange={(value) => setExperimentForm(prev => ({ ...prev, conversionType: value as any }))}
               >
                 <SelectTrigger className="mt-2 border-green-200 focus:border-green-500">
@@ -4025,7 +4041,7 @@ ${baseCode}
             {experimentForm.conversionType === 'page_view' && (
               <div>
                 <label className="text-sm font-medium text-green-900">URL da Página de Sucesso *</label>
-                <Input 
+                <Input
                   value={experimentForm.conversionUrl}
                   onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionUrl: e.target.value }))}
                   placeholder="https://seusite.com/obrigado"
@@ -4033,10 +4049,10 @@ ${baseCode}
                 />
                 <p className="text-xs text-green-700 mt-1">
                   🎯 <strong>Rastreamento Inteligente de Conversões:</strong>
-                  <br/>• Toda visita nesta página contará como conversão
-                  <br/>• O sistema registrará automaticamente qual página (variante) originou a conversão
-                  <br/>• O valor da conversão (configurado abaixo) será associado à variante vencedora
-                  <br/>• Tudo fica salvo no Supabase para análise posterior
+                  <br />• Toda visita nesta página contará como conversão
+                  <br />• O sistema registrará automaticamente qual página (variante) originou a conversão
+                  <br />• O valor da conversão (configurado abaixo) será associado à variante vencedora
+                  <br />• Tudo fica salvo no Supabase para análise posterior
                 </p>
               </div>
             )}
@@ -4044,7 +4060,7 @@ ${baseCode}
             {experimentForm.conversionType === 'click' && (
               <div>
                 <label className="text-sm font-medium text-green-900">Seletor CSS do Elemento *</label>
-                <Input 
+                <Input
                   value={experimentForm.conversionSelector}
                   onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionSelector: e.target.value }))}
                   placeholder=".btn-comprar, #botao-checkout"
@@ -4057,7 +4073,7 @@ ${baseCode}
             {experimentForm.conversionType === 'form_submit' && (
               <div>
                 <label className="text-sm font-medium text-green-900">Seletor do Formulário *</label>
-                <Input 
+                <Input
                   value={experimentForm.conversionSelector}
                   onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionSelector: e.target.value }))}
                   placeholder="#form-contato, .form-newsletter"
@@ -4070,7 +4086,7 @@ ${baseCode}
             {experimentForm.conversionType === 'custom' && (
               <div>
                 <label className="text-sm font-medium text-green-900">Nome do Evento Personalizado *</label>
-                <Input 
+                <Input
                   value={experimentForm.conversionEvent}
                   onChange={(e) => setExperimentForm(prev => ({ ...prev, conversionEvent: e.target.value }))}
                   placeholder="purchase_complete, signup_success"
@@ -4088,12 +4104,12 @@ ${baseCode}
             <Settings className="w-5 h-5" />
             Configurações do Teste
           </h4>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-purple-900">Duração Estimada</label>
               <div className="mt-2 flex items-center gap-2">
-                <Input 
+                <Input
                   type="number"
                   min={1}
                   max={90}
@@ -4107,8 +4123,8 @@ ${baseCode}
 
             <div>
               <label className="text-sm font-medium text-purple-900">Algoritmo de Teste A/B</label>
-              <Select 
-                value={experimentForm.algorithm} 
+              <Select
+                value={experimentForm.algorithm}
                 onValueChange={(value) => setExperimentForm(prev => ({ ...prev, algorithm: value as any }))}
               >
                 <SelectTrigger className="mt-2 border-purple-200 focus:border-purple-500">
@@ -4155,9 +4171,9 @@ ${baseCode}
             <p><span className="font-medium">Objetivo:</span> {experimentForm.primaryGoal || 'Não definido'}</p>
             <p><span className="font-medium">Conversão:</span> {
               experimentForm.conversionType === 'page_view' ? 'Visualização de Página' :
-              experimentForm.conversionType === 'click' ? 'Clique em Elemento' :
-              experimentForm.conversionType === 'form_submit' ? 'Envio de Formulário' :
-              experimentForm.conversionType === 'custom' ? 'Evento Personalizado' : 'Não definido'
+                experimentForm.conversionType === 'click' ? 'Clique em Elemento' :
+                  experimentForm.conversionType === 'form_submit' ? 'Envio de Formulário' :
+                    experimentForm.conversionType === 'custom' ? 'Evento Personalizado' : 'Não definido'
             }</p>
             <p><span className="font-medium">Duração:</span> {experimentForm.duration} dias</p>
           </div>
@@ -4220,9 +4236,9 @@ ${baseCode}
                 Copiar & Colar
               </Button>
             </div>
-              <pre className="text-xs bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto whitespace-pre-wrap leading-relaxed">
+            <pre className="text-xs bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto whitespace-pre-wrap leading-relaxed">
               <code>{code}</code>
-              </pre>
+            </pre>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -4277,7 +4293,7 @@ ${baseCode}
             </div>
           </div>
 
-          
+
 
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5">
             <h4 className="font-semibold text-amber-900 mb-3 flex items-center gap-2">
@@ -4313,11 +4329,11 @@ ${baseCode}
   const renderNewExperimentModal = () => (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="new-experiment-title">
       {/* Enhanced Backdrop */}
-      <div 
-        className="absolute inset-0 bg-gradient-to-br from-slate-900/60 via-slate-800/50 to-indigo-900/60 backdrop-blur-md" 
-        onClick={() => !saving && setShowNew(false)} 
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-slate-900/60 via-slate-800/50 to-indigo-900/60 backdrop-blur-md"
+        onClick={() => !saving && setShowNew(false)}
       />
-      
+
       {/* Enhanced Modal */}
       <div ref={modalRef} className="relative mx-auto mt-4 mb-4 w-full max-w-4xl h-[92vh] rounded-3xl bg-white shadow-2xl border border-white/20 overflow-hidden focus:outline-none" tabIndex={-1} style={{
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)'
@@ -4328,7 +4344,7 @@ ${baseCode}
             {/* Background decoration */}
             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent" />
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-radial from-white/5 to-transparent rounded-full -translate-y-32 translate-x-32" />
-            
+
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -4342,8 +4358,8 @@ ${baseCode}
                     <p className="text-white/80 text-sm">Otimize suas conversões com testes inteligentes</p>
                   </div>
                 </div>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={() => !saving && setShowNew(false)}
                   className="h-10 w-10 p-0 rounded-xl hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm"
@@ -4352,12 +4368,12 @@ ${baseCode}
                   <X className="w-5 h-5" />
                 </Button>
               </div>
-              
+
               {/* Enhanced Progress */}
               <div className="space-y-3">
                 <div className="relative">
                   <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transition-all duration-500 ease-out"
                       style={{ width: `${(experimentStep / 5) * 100}%` }}
                     />
@@ -4386,7 +4402,7 @@ ${baseCode}
                   const isCompleted = step.number < experimentStep
                   const canClick = step.number <= experimentStep + 1
                   const Icon = step.icon
-                  
+
                   return (
                     <div key={step.number} className="flex items-center gap-4">
                       <div className="flex flex-col items-center gap-2">
@@ -4395,11 +4411,11 @@ ${baseCode}
                           onClick={() => canClick && goToStep(step.number)}
                           disabled={!canClick}
                           className={`relative w-12 h-12 rounded-2xl flex items-center justify-center font-semibold transition-all duration-300 transform
-                            ${isActive 
-                              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-110 ring-4 ring-indigo-500/20' 
+                            ${isActive
+                              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-110 ring-4 ring-indigo-500/20'
                               : isCompleted
-                              ? 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700 border border-slate-300 hover:scale-105 hover:shadow-md'
-                              : 'bg-slate-100 text-slate-400 border border-slate-200'}
+                                ? 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700 border border-slate-300 hover:scale-105 hover:shadow-md'
+                                : 'bg-slate-100 text-slate-400 border border-slate-200'}
                             ${canClick ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed'}
                           `}
                         >
@@ -4412,22 +4428,20 @@ ${baseCode}
                             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent" />
                           )}
                         </button>
-                        
+
                         <div className="text-center">
-                          <div className={`text-xs font-semibold transition-colors ${
-                            isActive ? 'text-indigo-600' : isCompleted ? 'text-slate-700' : 'text-slate-400'
-                          }`}>
+                          <div className={`text-xs font-semibold transition-colors ${isActive ? 'text-indigo-600' : isCompleted ? 'text-slate-700' : 'text-slate-400'
+                            }`}>
                             {step.title}
                           </div>
                         </div>
                       </div>
-                      
+
                       {index < 4 && (
-                        <div className={`w-16 h-1 rounded-full transition-all duration-500 ${
-                          experimentStep > step.number 
-                            ? 'bg-gradient-to-r from-indigo-400 to-purple-400' 
-                            : 'bg-slate-200'
-                        }`} />
+                        <div className={`w-16 h-1 rounded-full transition-all duration-500 ${experimentStep > step.number
+                          ? 'bg-gradient-to-r from-indigo-400 to-purple-400'
+                          : 'bg-slate-200'
+                          }`} />
                       )}
                     </div>
                   )

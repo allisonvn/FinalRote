@@ -2,8 +2,7 @@
 
 // Script para inicializar o tratamento de erros de chunk loading
 // Este arquivo é executado no lado do cliente
-
-import { chunkErrorHandler } from '@/utils/chunkErrorHandler'
+// Side-effect apenas - não precisa exportar nada
 
 // Inicializar o handler de erros de chunk
 if (typeof window !== 'undefined') {
@@ -32,7 +31,7 @@ if (typeof window !== 'undefined') {
           error.message?.includes('net::ERR_ABORTED')
         )) {
           console.warn('ChunkLoadError interceptado:', error)
-          
+
           // Tentar recarregar a página após um delay
           setTimeout(() => {
             console.log('Recarregando página devido a ChunkLoadError...')
@@ -50,14 +49,14 @@ if (typeof window !== 'undefined') {
     // Extrair URL primeiro para verificar antes de fazer a requisição
     const url = typeof input === 'string' ? input : input.toString()
     const isChunkOrStatic = url.includes('/_next/static/') || url.includes('/assets/')
-    
+
     try {
       const response = await originalFetch(input, init)
-      
+
       // Verificar se é uma requisição para chunks do Next.js
       if (isChunkOrStatic && !response.ok) {
         console.warn(`Erro ao carregar chunk: ${url} - Status: ${response.status}`)
-        
+
         // Se for erro 400 ou 404, tentar recarregar a página
         if (response.status === 400 || response.status === 404) {
           setTimeout(() => {
@@ -66,7 +65,7 @@ if (typeof window !== 'undefined') {
           }, 1000)
         }
       }
-      
+
       return response
     } catch (error) {
       // Se for chunk ou recurso estático, logar e retornar resposta mockada
@@ -77,12 +76,18 @@ if (typeof window !== 'undefined') {
           statusText: 'Not Found (mock)'
         })
       }
-      
-      // Para outras requisições (Supabase, API, etc), propagar o erro normalmente
-      // Não logar aqui pois pode ser um erro esperado da aplicação
+
+      // Para requisições ao Supabase, não logar "Failed to fetch" pois será tratado pelo código da aplicação
+      const isSupabaseRequest = url.includes('supabase.co') || url.includes('/rest/v1/')
+      if (isSupabaseRequest) {
+        // Propagar o erro silenciosamente - o código de analytics já trata isso
+        throw error
+      }
+
+      // Para outras requisições, propagar o erro normalmente
       throw error
     }
   }
 }
 
-export default chunkErrorHandler
+// Este arquivo é apenas para side-effects, não precisa exportar nada

@@ -46,8 +46,17 @@ export function logError(error: Error, errorInfo?: Partial<ErrorInfo>) {
   if (process.env.NODE_ENV === 'development') {
     console.group('🚨 Error Logged')
     console.error('Error:', error)
-    if (errorData.message || errorData.stack) {
-      console.error('Error Info:', errorData)
+    // Só logar errorData se tiver informações relevantes
+    const hasRelevantInfo = errorData.message || errorData.stack || errorData.componentStack
+    if (hasRelevantInfo) {
+      const logData: Partial<ErrorInfo> = {}
+      if (errorData.message) logData.message = errorData.message
+      if (errorData.stack) logData.stack = errorData.stack
+      if (errorData.componentStack) logData.componentStack = errorData.componentStack
+      if (errorData.errorBoundary) logData.errorBoundary = errorData.errorBoundary
+      if (Object.keys(logData).length > 0) {
+        console.error('Error Info:', logData)
+      }
     }
     console.groupEnd()
   }
