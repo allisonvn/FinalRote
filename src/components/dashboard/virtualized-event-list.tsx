@@ -23,20 +23,20 @@ function VirtualListFallback({ itemCount, itemSize, height, width, children }: a
 
 // Importação dinâmica para evitar problemas de SSR
 const FixedSizeList = dynamic(
-  async () => {
-    try {
-      const mod = await import('react-window')
-      const Component = mod?.FixedSizeList
-      if (!Component) {
-        console.warn('FixedSizeList não encontrado, usando fallback')
-        return VirtualListFallback
-      }
-      return Component
-    } catch (error) {
-      console.error('Erro ao carregar react-window:', error)
-      return VirtualListFallback
-    }
-  },
+  () =>
+    import('react-window')
+      .then((mod) => {
+        const Component = mod?.FixedSizeList
+        if (!Component) {
+          console.warn('FixedSizeList não encontrado, usando fallback')
+          return VirtualListFallback as any
+        }
+        return Component
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar react-window:', error)
+        return VirtualListFallback as any
+      }),
   { 
     ssr: false,
     loading: () => <div className="p-4 text-center text-slate-600">Carregando lista...</div>

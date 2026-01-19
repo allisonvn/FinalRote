@@ -32,10 +32,22 @@ export class AppError extends Error {
   }
 }
 
-export function logError(error: Error, errorInfo?: Partial<ErrorInfo>) {
+export function logError(error: Error | unknown, errorInfo?: Partial<ErrorInfo>) {
+  // Garantir que temos um Error válido
+  let errorObj: Error
+  if (error instanceof Error) {
+    errorObj = error
+  } else if (typeof error === 'string') {
+    errorObj = new Error(error)
+  } else if (error && typeof error === 'object' && 'message' in error) {
+    errorObj = new Error(String(error.message))
+  } else {
+    errorObj = new Error('Erro desconhecido')
+  }
+
   const errorData: ErrorInfo = {
-    message: error.message,
-    stack: error.stack,
+    message: errorObj.message || 'Erro desconhecido',
+    stack: errorObj.stack,
     timestamp: Date.now(),
     userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
     url: typeof window !== 'undefined' ? window.location.href : undefined,
@@ -45,7 +57,7 @@ export function logError(error: Error, errorInfo?: Partial<ErrorInfo>) {
   // Log to console in development
   if (process.env.NODE_ENV === 'development') {
     console.group('🚨 Error Logged')
-    console.error('Error:', error)
+    console.error('Error:', errorObj)
     // Só logar errorData se tiver informações relevantes
     const logData: Partial<ErrorInfo> = {}
     if (errorData.message) logData.message = errorData.message
