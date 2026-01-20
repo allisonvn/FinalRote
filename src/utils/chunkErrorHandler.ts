@@ -110,7 +110,6 @@ class ChunkErrorHandler {
         return
       }
 
-      console.log(`Tentativa ${currentAttempts + 1} de ${this.maxRetries} para carregar chunk ${chunkInfo.chunkId}`)
       
       // Incrementar contador de tentativas
       this.retryAttempts.set(chunkInfo.chunkId, currentAttempts + 1)
@@ -122,7 +121,6 @@ class ChunkErrorHandler {
       const success = await this.retryChunkLoad(chunkInfo.chunkUrl)
       
       if (success) {
-        console.log(`Chunk ${chunkInfo.chunkId} carregado com sucesso`)
         this.retryAttempts.delete(chunkInfo.chunkId)
       } else {
         console.warn(`Falha ao carregar chunk ${chunkInfo.chunkId} na tentativa ${currentAttempts + 1}`)

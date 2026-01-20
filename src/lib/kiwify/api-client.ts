@@ -72,7 +72,6 @@ export class KiwifyClient {
         }
       }
 
-      console.log(`[KiwifyClient] Subscription ${subscriptionId} canceled successfully`)
       return { success: true }
     } catch (error) {
       console.error('[KiwifyClient] Cancel subscription error:', error)

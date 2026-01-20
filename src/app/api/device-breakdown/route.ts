@@ -14,11 +14,9 @@ export async function GET(request: NextRequest) {
     const range = searchParams.get('range') as '7d'|'30d'|'90d'|'1y' || '7d'
     const experimentId = searchParams.get('experimentId')
 
-    console.log('📱 Buscando device breakdown para range:', range)
     
     const data = await getDeviceBreakdown(range, experimentId || undefined)
     
-    console.log('📱 Device breakdown encontrado:', data.length)
 
     return NextResponse.json(data, { headers: corsHeaders })
   } catch (error) {

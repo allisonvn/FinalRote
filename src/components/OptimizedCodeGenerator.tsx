@@ -13,6 +13,7 @@ interface OptimizedCodeGeneratorProps {
     redirect_url?: string
     css_changes?: string
     js_changes?: string
+    conversion_config?: any
   }>
   baseUrl?: string
   apiKey?: string
@@ -66,16 +67,7 @@ export default function OptimizedCodeGenerator({
     }
   }
 
-  // DEBUG: Log das props recebidas
-  console.log('🔍 OptimizedCodeGenerator Props:', {
-    experimentName,
-    experimentId,
-    experimentType,
-    baseUrl,
-    apiKey: apiKey ? `${apiKey.substring(0, 10)}...` : 'undefined',
-    variants: variants.length,
-    conversionValue
-  })
+  // DEBUG: Log das props recebidas removed
 
   // ✅ VALIDAÇÃO: Garantir que experimentId nunca seja null/undefined
   if (!experimentId || experimentId === 'null' || experimentId === 'undefined') {
@@ -83,7 +75,7 @@ export default function OptimizedCodeGenerator({
   }
 
   // Buscar configuração de conversão das variantes
-  const variantConversionConfig = variants.find(v => v.conversion_config)?.conversion_config
+  const variantConversionConfig = variants.find((v: any) => v.conversion_config)?.conversion_config
   const finalConversionConfig = conversionConfig || variantConversionConfig
   const hasConversionTracking = finalConversionConfig && (finalConversionConfig.url || finalConversionConfig.selector || finalConversionConfig.event)
 
@@ -106,7 +98,7 @@ export default function OptimizedCodeGenerator({
 
     // Versão do SDK
     const sdkVersion = '3.0.2'
-    
+
     // Código de aplicação de mudanças (CSS/JS)
     let applyChangesCode = ''
     if (experimentType === 'element') {
@@ -114,12 +106,12 @@ export default function OptimizedCodeGenerator({
         .filter(v => v.css_changes)
         .map(v => `if(variant.name==="${v.name}"){var s=document.createElement("style");s.textContent=\`${v.css_changes}\`;document.head.appendChild(s)}`)
         .join('')
-      
+
       const jsChanges = variants
         .filter(v => v.js_changes)
         .map(v => `if(variant.name==="${v.name}"){try{eval(\`${v.js_changes}\`)}catch(e){console.error("RotaFinal: JS error",e)}}`)
         .join('')
-      
+
       applyChangesCode = cssChanges + jsChanges
     }
 
@@ -198,30 +190,65 @@ export default function OptimizedCodeGenerator({
     ]
 
     const allAllowedDomains = [...allowedDomains_default, ...customDomains]
-    const utmParamsList = ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid","src","sck","msclkid","ttclid"]
-    
+    const utmParamsList = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "src", "sck", "msclkid", "ttclid"]
+
     // Variável de algoritmo para uso no SDK
     const algorithmVar = experimentType === 'element' ? 'element' : 'redirect'
-    
+
     // SDK Principal Inline Minificado - VERSÃO CORRIGIDA (v3.0.2) COM Rastreamento UTM + Propagação
-    const inlineSDK = '!function(){"use strict";var e="' + experimentId + '",t="' + baseUrl + '",r="' + apiKey + '",n="' + sdkVersion + '",o=' + (debugMode ? 'true' : 'false') + ',a=' + antiFlickerTimeout + ',i="rf_variant_"+e,s="rf_experiment_"+e,l="rotafinal_exp_"+e,c="rf_queue_"+e,u=18e5,d="rf_redirected_"+e,f="rf_conversion_tracked_"+e,p=' + JSON.stringify(experimentUrls) + ',ad=' + JSON.stringify(allAllowedDomains) + ',up=' + JSON.stringify(utmParamsList) + ',algorithm="' + algorithmVar + '",g=function(e,t){if(o||localStorage.getItem("rf_debug")){try{console.log("[RotaFinal v"+n+"]",e,t||"")}catch(_){}}},h=function(){try{var e="__t";localStorage.setItem(e,"1");localStorage.removeItem(e);return true}catch(_){return false}},m=function(e){try{return localStorage.getItem(e)}catch(_){return null}},v=function(e,t){try{localStorage.setItem(e,t)}catch(_){}},w=function(){if(!p||p.length===0)return true;var e=window.location.pathname;for(var t=0;t<p.length;t++){var r=p[t];if(e===r||e.startsWith(r)||e.includes(r))return true}return false},x=function(){if(!h())return null;try{var e=m(i);if(!e)return null;var t=JSON.parse(e);if(Date.now()-t.t>u)return null;return t.v||null}catch(_){return null}},y=function(){if(!h())return null;try{var e=m(s);if(!e)return null;var t=JSON.parse(e);if(Date.now()-t.t>u)return null;return t.e||null}catch(_){return null}},z=function(e){if(!h())return;v(s,JSON.stringify({e:e,t:Date.now()}))},A=function(e,t){if(!h())return;var r={experimentId:e,experiment_id:e,variantId:t.id,variant_id:t.id,variantName:t.name,variant:t.name,visitorId:B(),visitor_id:B(),timestamp:Date.now()};v(l,JSON.stringify(r));g("💾 Assignment data saved",r);var n={url:window.location.href,title:document.title,timestamp:Date.now()};v("rotafinal_origin_"+e,JSON.stringify(n));g("💾 Origin page data saved",n)},C=function(e){if(!e)return false;var t=window.location.href.split("?")[0].split("#")[0],r=e.split("?")[0].split("#")[0];if(r===t)return false;g("⚡ REDIRECT",e);try{sessionStorage.setItem(d,"1")}catch(_){}window.location.replace(e);return true},B=function(){var e="rf_user_id",t=h()?m(e):null;if(!t){t="rf_"+Math.random().toString(36).slice(2,11)+"_"+Date.now().toString(36);if(h())v(e,t)}return t},Qa=function(){try{var e=window.location.search,t=new URLSearchParams(e),n=up,i=false;n.forEach(function(o){if(t.has(o)){var l=t.get(o);if(l){var d=m("rf_"+o);if(!d){localStorage.setItem("rf_"+o,l);i=true}}});if(i){var r=window.location.origin+window.location.pathname+window.location.hash;history.replaceState({},document.title,r)}}catch(_){}},Ra=function(){var e={};try{up.slice(0,5).forEach(function(t){var r=m("rf_"+t);if(r)e[t]=r})}catch(_){e={}}return e},Sa=function(){var e=Ra();up.forEach(function(t){var r=m("rf_"+t);if(r)e[t]=r});return e},Ta=function(){var e=Sa();document.querySelectorAll("form").forEach(function(t){up.forEach(function(n){if(e[n]){var i=t.querySelector("input[name=\\"+n+"\\"]");if(!i){i=document.createElement("input");i.type="hidden";i.name=n;t.appendChild(i)}i.value=e[n]}})})},Ua=function(){var e=Sa();document.querySelectorAll("a").forEach(function(t){try{var r=new URL(t.href),n=r.hostname;var i=ad.some(function(l){return n.includes(l)});if(i){var s=new URLSearchParams(r.search);up.forEach(function(o){if(e[o]){s.set(o.toLowerCase(),e[o])}});t.href=r.origin+r.pathname+"?"+s.toString()}}catch(_){}})};var D=function(){var e=Ra();return{visitor_id:B(),user_agent:navigator.userAgent||"",url:location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight},utm_source:e.utm_source||null,utm_medium:e.utm_medium||null,utm_campaign:e.utm_campaign||null,utm_term:e.utm_term||null,utm_content:e.utm_content||null}};if(!x()){var E=w();if(!E)return;Qa();try{var F=new XMLHttpRequest();F.open("GET",t+"/api/assign-variant?experimentId="+e+"&visitorId="+B(),!1);F.setRequestHeader("Authorization","Bearer "+r);F.setRequestHeader("Content-Type","application/json");F.timeout=5000;F.send(null);if(F.status===200){var G=JSON.parse(F.responseText);if(G&&G.variant){A(e,G.variant);"element"!==algorithm&&C(G.variant.redirect_url);"element"===algorithm&&setTimeout(function(){Ta();Ua()},100)}}}catch(H){g("⚠️ Assign error",H);}}else{var I=x();z(I);"element"===algorithm&&setTimeout(function(){Ta();Ua()},100)}var J=m(d);if(J){var K=m("rotafinal_origin_"+e);if(K){var L=JSON.parse(K);g("📍 Origin",L);try{var M=new XMLHttpRequest();M.open("POST",t+"/api/track-event");M.setRequestHeader("Authorization","Bearer "+r);M.setRequestHeader("Content-Type","application/json");M.timeout=5000;M.send(JSON.stringify({experiment_id:e,experimentId:e,variant_id:I,variantId:I,visitor_id:B(),visitorId:B(),event_type:"page_view",eventType:"page_view",url:L.url,title:L.title,properties:D(),context:D()}));sessionStorage.removeItem(d);localStorage.removeItem("rotafinal_origin_"+e)}catch(N){g("⚠️ Track error",N)}}};window.RotaFinalUTM={getAll:function(){return Ra()},get:function(param){return m("rf_"+param)||null},send:function(eventType,props){var utms=Ra();return fetch(t+"/api/track",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event_type:eventType,visitor_id:B(),properties:Object.assign(utms,props||{}),timestamp:new Date().toISOString()})}).catch(function(){return null})}};g("✅ RotaFinalUTM API exposta")}}();})();'
-    
+    const inlineSDK = `(function(w,d,i,k,b,a,v,u,dm){
+      var h=d.documentElement,t=setTimeout(function(){h.setAttribute("data-rf-ready","true")},1500);
+      var g=function(){var id=localStorage.getItem("rf_uid");if(!id){id="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_uid",id)}return id};
+      var p=function(){var q=new URLSearchParams(w.location.search),utms={};u.forEach(function(p){var v=q.get(p)||localStorage.getItem("rf_"+p);if(v){utms[p]=v;localStorage.setItem("rf_"+p,v)}});return utms};
+      var tk=function(type,name,props,val){
+        fetch(b+"/api/track",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+k},
+          body:JSON.stringify({experiment_id:i,visitor_id:g(),event_type:type,event_name:name,properties:props||{},value:val||0,url:w.location.href,referrer:d.referrer,timestamp:new Date().toISOString()})
+        }).catch(function(){});
+      };
+      var init=function(){
+        var uid=g(),utms=p();
+        fetch(b+"/api/experiments/"+i+"/assign",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+k},
+          body:JSON.stringify({visitor_id:uid,url:w.location.href,referrer:d.referrer,utm_data:utms})
+        }).then(function(r){return r.json()}).then(function(r){
+          if(r&&r.variant){
+            var vn=r.variant.name;h.setAttribute("data-rf-variant",vn);
+            if(r.variant.redirect_url&&a==="redirect"){
+              var url=new URL(r.variant.redirect_url);
+              Object.keys(utms).forEach(function(k){url.searchParams.set(k,utms[k])});
+              w.location.href=url.href;
+            }else{
+              clearTimeout(t);h.setAttribute("data-rf-ready","true");
+              var variant=r.variant;${applyChangesCode}
+            }
+          }
+        }).catch(function(){clearTimeout(t);h.setAttribute("data-rf-ready","true")});
+      };
+      window.rotaFinal={track:tk,p:p};
+      init();
+      var N={setupConversionTracking:function(){},track:tk};
+      ${conversionTrackingCode}
+      if(N.setupConversionTracking)N.setupConversionTracking();
+    })(window,document,'${experimentId}','${apiKey}','${baseUrl}','${algorithmVar}',${JSON.stringify(variants)},${JSON.stringify(utmParamsList)},${JSON.stringify(allAllowedDomains)});`.replace(/\s+/g, ' ');
     // CSS Anti-Flicker
-    const antiFlickerCSS = experimentType === 'redirect' 
+    const antiFlickerCSS = experimentType === 'redirect'
       ? `<style data-rf-antiflicker>html:not([data-rf-ready]){opacity:0!important;visibility:hidden!important}html[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:opacity 150ms ease-in-out!important}</style>`
       : ''
-    
+
     // Código completo
     const fullCode = `${antiFlickerCSS}
 <!-- RotaFinal A/B Test SDK v${sdkVersion} -->
 <script>${inlineSDK}</script>`
-    
+
     return fullCode
   }
-  
+
   const code = generateOptimizedCode()
   const antiFlickerTimeoutMs = antiFlickerTimeout
-  
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(code)
     setCopied(true)
@@ -257,7 +284,7 @@ export default function OptimizedCodeGenerator({
             </>
           )}
         </Button>
-        
+
         <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto">
           <code>{code}</code>
         </pre>

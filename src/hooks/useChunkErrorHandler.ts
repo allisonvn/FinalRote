@@ -26,7 +26,6 @@ export function useChunkErrorHandler(options: ChunkErrorHandlerOptions = {}) {
       
       // Tentar recarregar a página após um delay
       setTimeout(() => {
-        console.log('Tentando recarregar a página devido a ChunkLoadError...')
         window.location.reload()
       }, retryDelay)
     }
@@ -46,7 +45,6 @@ export function useChunkErrorHandler(options: ChunkErrorHandlerOptions = {}) {
       })
       
       if (response.ok) {
-        console.log(`Chunk carregado com sucesso na tentativa ${attempt}`)
         onSuccess?.()
         return true
       }

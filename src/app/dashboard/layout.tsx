@@ -13,17 +13,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true
-    
+
     const checkUser = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
-        
+
         if (error) {
           console.error('Auth error:', error)
           if (mounted) window.location.href = '/auth/signin'
           return
         }
-        
+
         if (!session?.user) {
           if (mounted) window.location.href = '/auth/signin'
           return
@@ -41,9 +41,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
     checkUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: any) => {
       if (!mounted) return
-      
+
       if (!session?.user) {
         window.location.href = '/auth/signin'
       } else {

@@ -20,10 +20,10 @@ interface RealTimeTrendsProps {
   maxDataPoints?: number
 }
 
-export function RealTimeTrends({ 
-  experimentId, 
+export function RealTimeTrends({
+  experimentId,
   refreshInterval = 5,
-  maxDataPoints = 30 
+  maxDataPoints = 30
 }: RealTimeTrendsProps) {
   const [data, setData] = useState<DataPoint[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,7 +41,7 @@ export function RealTimeTrends({
     try {
       // Buscar eventos dos últimos 30 minutos
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-      
+
       const { data: events, error } = await supabase
         .from('events')
         .select('visitor_id, event_type, created_at')
@@ -53,17 +53,17 @@ export function RealTimeTrends({
 
       // Agrupar por minuto
       const minuteData = new Map<string, { visitors: Set<string>, conversions: number }>()
-      
-      events?.forEach(event => {
+
+      events?.forEach((event: any) => {
         const minute = new Date(event.created_at).toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
-        
+
         if (!minuteData.has(minute)) {
           minuteData.set(minute, { visitors: new Set(), conversions: 0 })
         }
-        
+
         const data = minuteData.get(minute)!
         data.visitors.add(event.visitor_id)
-        
+
         if (event.event_type === 'conversion') {
           data.conversions++
         }
@@ -75,8 +75,8 @@ export function RealTimeTrends({
           time,
           visitors: data.visitors.size,
           conversions: data.conversions,
-          conversionRate: data.visitors.size > 0 
-            ? (data.conversions / data.visitors.size) * 100 
+          conversionRate: data.visitors.size > 0
+            ? (data.conversions / data.visitors.size) * 100
             : 0
         }))
         .slice(-maxDataPoints)
@@ -87,10 +87,10 @@ export function RealTimeTrends({
       if (newDataPoints.length > 0) {
         const latest = newDataPoints[newDataPoints.length - 1]
         const previous = newDataPoints[Math.max(0, newDataPoints.length - 6)] // 5 minutos atrás
-        
-        const trend = latest.conversionRate > previous.conversionRate ? 'up' : 
-                     latest.conversionRate < previous.conversionRate ? 'down' : 'stable'
-        
+
+        const trend = latest.conversionRate > previous.conversionRate ? 'up' :
+          latest.conversionRate < previous.conversionRate ? 'down' : 'stable'
+
         setCurrentStats({
           visitors: latest.visitors,
           conversions: latest.conversions,
@@ -205,7 +205,7 @@ export function RealTimeTrends({
     // Desenhar pontos
     data.forEach((point, index) => {
       const x = getX(index)
-      
+
       // Ponto de visitantes
       ctx.fillStyle = '#3b82f6'
       ctx.beginPath()
@@ -233,9 +233,9 @@ export function RealTimeTrends({
     data.forEach((point, index) => {
       if (index % step === 0 || index === data.length - 1) {
         const x = getX(index)
-        const time = new Date(point.time).toLocaleTimeString('pt-BR', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        const time = new Date(point.time).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit'
         })
         ctx.fillText(time, x, height - 10)
       }
@@ -245,9 +245,9 @@ export function RealTimeTrends({
   // Configurar atualização automática
   useEffect(() => {
     loadRealtimeData()
-    
+
     const interval = setInterval(loadRealtimeData, refreshInterval * 1000)
-    
+
     return () => {
       clearInterval(interval)
       if (animationRef.current) {
@@ -262,9 +262,9 @@ export function RealTimeTrends({
       drawChart()
       animationRef.current = requestAnimationFrame(animate)
     }
-    
+
     animate()
-    
+
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
@@ -315,7 +315,7 @@ export function RealTimeTrends({
             </div>
             <div className="text-2xl font-bold">{currentStats.visitors}</div>
           </div>
-          
+
           <div className="text-center">
             <div className="flex items-center justify-center space-x-1 text-muted-foreground mb-1">
               <Activity className="w-4 h-4" />
@@ -325,18 +325,18 @@ export function RealTimeTrends({
               {currentStats.conversionRate.toFixed(1)}%
             </div>
           </div>
-          
+
           <div className="text-center">
             <div className="flex items-center justify-center space-x-1 text-muted-foreground mb-1">
               <TrendingUp className="w-4 h-4" />
               <span className="text-sm">Tendência</span>
             </div>
             <Badge variant={
-              currentStats.trend === 'up' ? 'default' : 
-              currentStats.trend === 'down' ? 'destructive' : 'secondary'
+              currentStats.trend === 'up' ? 'default' :
+                currentStats.trend === 'down' ? 'destructive' : 'secondary'
             }>
-              {currentStats.trend === 'up' ? 'Alta' : 
-               currentStats.trend === 'down' ? 'Baixa' : 'Estável'}
+              {currentStats.trend === 'up' ? 'Alta' :
+                currentStats.trend === 'down' ? 'Baixa' : 'Estável'}
             </Badge>
           </div>
         </div>
@@ -346,13 +346,13 @@ export function RealTimeTrends({
           <canvas
             ref={canvasRef}
             className="w-full h-full"
-            style={{ 
-              width: '100%', 
+            style={{
+              width: '100%',
               height: '100%',
               imageRendering: 'crisp-edges'
             }}
           />
-          
+
           {data.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
               <div className="text-center">

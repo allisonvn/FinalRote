@@ -15,12 +15,12 @@ import Link from 'next/link'
 
 interface Project { id: string; name: string; description?: string; created_at: string }
 
-function rangeToSince(range: '7d'|'30d'|'90d') {
+function rangeToSince(range: '7d' | '30d' | '90d') {
   const days = range === '7d' ? 7 : range === '90d' ? 90 : 30
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 }
 
-async function fetchProjectMetrics(supabase: any, projectIds: string[], range: '7d'|'30d'|'90d') {
+async function fetchProjectMetrics(supabase: any, projectIds: string[], range: '7d' | '30d' | '90d') {
   const metrics: Record<string, { experimentsCount: number; activeExperiments: number; visitors30d: number; revenue30d: number }> = {}
   projectIds.forEach(id => { metrics[id] = { experimentsCount: 0, activeExperiments: 0, visitors30d: 0, revenue30d: 0 } })
 
@@ -31,7 +31,7 @@ async function fetchProjectMetrics(supabase: any, projectIds: string[], range: '
     .in('project_id', projectIds)
   if (!expError && experiments) {
     experiments.forEach((e: any) => {
-      if (!e.project_id) return
+      if (!e.project_id || !metrics[e.project_id]) return
       metrics[e.project_id].experimentsCount += 1
       if (e.status === 'running') metrics[e.project_id].activeExperiments += 1
     })
@@ -52,7 +52,9 @@ async function fetchProjectMetrics(supabase: any, projectIds: string[], range: '
       if (set) set.add(ev.visitor_id)
     })
     setMap.forEach((s, id) => {
-      metrics[id].visitors30d = s.size
+      if (metrics[id]) {
+        metrics[id].visitors30d = s.size
+      }
     })
   }
 
@@ -80,9 +82,9 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
-  const [projectMetrics, setProjectMetrics] = useState<Record<string, { experimentsCount: number; activeExperiments: number; visitors30d: number }>>({})
+  const [projectMetrics, setProjectMetrics] = useState<Record<string, { experimentsCount: number; activeExperiments: number; visitors30d: number; revenue30d: number }>>({})
   const { preferences, updatePreference } = useApp()
-  const [timeRange, setTimeRange] = useState<'7d'|'30d'|'90d'>(preferences.defaultTimeRange || '30d')
+  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>(preferences.defaultTimeRange || '30d')
 
   useEffect(() => {
     const load = async () => {
@@ -173,19 +175,20 @@ export default function ProjectsPage() {
           {filtered.map((p) => {
             const m = projectMetrics[p.id] || { experimentsCount: 0, activeExperiments: 0, visitors30d: 0, revenue30d: 0 }
             return (
-            <ProjectCard
-              key={p.id}
-              name={p.name}
-              description={p.description}
-              createdAt={p.created_at}
-              experimentsCount={m.experimentsCount}
-              activeExperiments={m.activeExperiments}
-              visitors30d={m.visitors30d}
-              totalRevenue30d={m.revenue30d}
-              onOpen={() => (window.location.href = '/dashboard')}
-              onSettings={() => (window.location.href = '/settings')}
-            />
-          )})}
+              <ProjectCard
+                key={p.id}
+                name={p.name}
+                description={p.description}
+                createdAt={p.created_at}
+                experimentsCount={m.experimentsCount}
+                activeExperiments={m.activeExperiments}
+                visitors30d={m.visitors30d}
+                totalRevenue30d={m.revenue30d}
+                onOpen={() => (window.location.href = '/dashboard')}
+                onSettings={() => (window.location.href = '/settings')}
+              />
+            )
+          })}
         </div>
       )}
     </div>

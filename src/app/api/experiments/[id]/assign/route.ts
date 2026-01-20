@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { selectVariant as selectVariantMAB, MABAlgorithms } from '@/lib/mab-algorithms'
+import { logger } from '@/lib/logger'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,17 +21,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔍 [DEBUG] Iniciando POST /api/experiments/[id]/assign')
+    logger.debug('Iniciando POST /api/experiments/[id]/assign')
     const { id } = await params
     const experimentId = id
-    console.log('🔍 [DEBUG] Experiment ID:', experimentId)
-    
+    logger.debug('Experiment ID', { experimentId })
+
     const body = await request.json()
-    console.log('🔍 [DEBUG] Request body:', body)
+    logger.debug('Request body', { body })
     const { visitor_id: visitorId, user_agent: userAgent, url, referrer, viewport, timestamp } = body
 
     if (!visitorId) {
-      console.log('❌ [ERROR] visitor_id is required')
+      logger.error('visitor_id is required')
       return NextResponse.json({ error: 'visitor_id is required' }, { 
         status: 400,
         headers: corsHeaders 
@@ -48,23 +49,23 @@ export async function POST(
       .single() as any
 
     if (experimentError || !experiment) {
-      console.log('❌ [ERROR] Experiment not found:', experimentError)
-      return NextResponse.json({ error: 'Experiment not found' }, { 
+      logger.error('Experiment not found', { experimentError })
+      return NextResponse.json({ error: 'Experiment not found' }, {
         status: 404,
-        headers: corsHeaders 
+        headers: corsHeaders
       })
     }
 
     if ((experiment as any).status !== 'running') {
-      console.log('❌ [ERROR] Experiment is not running. Status:', (experiment as any).status)
-      return NextResponse.json({ error: 'Experiment is not running' }, { 
+      logger.error('Experiment is not running', { status: (experiment as any).status })
+      return NextResponse.json({ error: 'Experiment is not running' }, {
         status: 400,
-        headers: corsHeaders 
+        headers: corsHeaders
       })
     }
 
     const algorithmType = experiment.algorithm || 'uniform'
-    console.log('✅ [DEBUG] Experiment found:', experiment.name, 'Status:', experiment.status, 'Algorithm:', algorithmType)
+    logger.debug('Experiment found', { name: experiment.name, status: experiment.status, algorithm: algorithmType })
 
     // 2. Verificar se já existe uma atribuição para este visitante
     const { data: existingAssignment, error: assignmentError } = await supabase
@@ -90,10 +91,10 @@ export async function POST(
       .single()
 
     if (existingAssignment && existingAssignment.variant) {
-      const variantData = Array.isArray(existingAssignment.variant) 
-        ? existingAssignment.variant[0] 
+      const variantData = Array.isArray(existingAssignment.variant)
+        ? existingAssignment.variant[0]
         : existingAssignment.variant
-      console.log('✅ [DEBUG] Returning existing assignment:', variantData?.name)
+      logger.debug('Returning existing assignment', { variantName: variantData?.name })
       
       // Selecionar URL específica se tem múltiplas páginas
       const finalUrl = selectPageForVariant(variantData, visitorId)
@@ -116,7 +117,7 @@ export async function POST(
       })
     }
 
-    console.log('🔍 [DEBUG] No existing assignment found, creating new one')
+    logger.debug('No existing assignment found, creating new one')
 
     // 3. Buscar todas as variantes ativas do experimento
     const { data: variants, error: variantsError } = await supabase
@@ -127,14 +128,14 @@ export async function POST(
       .order('created_at', { ascending: true })
 
     if (variantsError || !variants || variants.length === 0) {
-      console.log('❌ [ERROR] No active variants found:', variantsError)
-      return NextResponse.json({ error: 'No active variants found' }, { 
+      logger.error('No active variants found', { variantsError })
+      return NextResponse.json({ error: 'No active variants found' }, {
         status: 400,
-        headers: corsHeaders 
+        headers: corsHeaders
       })
     }
 
-    console.log('✅ [DEBUG] Found', variants.length, 'active variants')
+    logger.debug('Found active variants', { count: variants.length })
 
     // 4. Buscar estatísticas das variantes para algoritmos MAB
     const statsMap = new Map<string, { visitors: number; conversions: number; revenue: number }>()
@@ -144,7 +145,7 @@ export async function POST(
       .eq('experiment_id', experimentId)
 
     if (statsError) {
-      console.log('⚠️ [WARNING] Error fetching variant stats:', statsError.message)
+      logger.warn('Error fetching variant stats', { message: statsError.message })
     }
 
     if (variantStats && variantStats.length > 0) {
@@ -155,9 +156,9 @@ export async function POST(
           revenue: stat.revenue || 0
         })
       })
-      console.log('✅ [DEBUG] Loaded stats for', variantStats.length, 'variants')
+      logger.debug('Loaded variant stats', { count: variantStats.length })
     } else {
-      console.log('⚠️ [WARNING] No variant stats found - using zero values')
+      logger.warn('No variant stats found - using zero values')
     }
 
     // 5. Selecionar variante usando algoritmo apropriado
@@ -170,7 +171,7 @@ export async function POST(
     const useMAB = algorithmType !== 'uniform' && totalVisitors >= 100 // Mínimo de 100 visitantes para MAB
 
     if (useMAB) {
-      console.log('🧠 [DEBUG] Using MAB algorithm:', algorithmType, 'Total visitors:', totalVisitors)
+      logger.debug('Using MAB algorithm', { algorithmType, totalVisitors })
 
       // Preparar dados para algoritmo MAB
       const variantStatsArray = variants.map(v => {
@@ -212,10 +213,12 @@ export async function POST(
           ? scores.map(s => s / totalScore)
           : variants.map(() => 1 / variants.length)
 
-        console.log('📊 [DEBUG] MAB Probabilidades:', normalizedProbabilities.map((p, i) => ({
-          variant: variants[i]?.name || `variant_${i}`,
-          probability: (p * 100).toFixed(2) + '%'
-        })))
+        logger.debug('MAB Probabilities', {
+          probabilities: normalizedProbabilities.map((p, i) => ({
+            variant: variants[i]?.name || `variant_${i}`,
+            probability: (p * 100).toFixed(2) + '%'
+          }))
+        })
 
         // Usar seed determinístico do usuário para selecionar variante
         // Isso garante que o mesmo usuário sempre vê a mesma variante
@@ -237,9 +240,11 @@ export async function POST(
         selectedVariant = variants[selectedIndex]
         algorithmUsed = algorithmType + '_deterministic'
 
-        console.log('✅ [DEBUG] MAB selected variant:', selectedVariant.name,
-                    'probability:', (normalizedProbabilities[selectedIndex]! * 100).toFixed(2) + '%',
-                    'user_seed:', userSeed.toFixed(4))
+        logger.debug('MAB selected variant', {
+          variantName: selectedVariant.name,
+          probability: (normalizedProbabilities[selectedIndex]! * 100).toFixed(2) + '%',
+          userSeed: userSeed.toFixed(4)
+        })
       } else {
         // Fallback se MAB não encontrou variante
         selectedVariant = selectVariantByHash(visitorId, experimentId, variants)
@@ -247,20 +252,20 @@ export async function POST(
       }
     } else {
       // Usar distribuição uniforme baseada em hash (A/B clássico)
-      console.log('🎲 [DEBUG] Using hash-based distribution (classic A/B)')
+      logger.debug('Using hash-based distribution (classic A/B)')
       selectedVariant = selectVariantByHash(visitorId, experimentId, variants)
       algorithmUsed = 'uniform_hash'
     }
-    
+
     if (!selectedVariant) {
-      console.log('❌ [ERROR] Failed to select variant')
-      return NextResponse.json({ error: 'Failed to select variant' }, { 
+      logger.error('Failed to select variant')
+      return NextResponse.json({ error: 'Failed to select variant' }, {
         status: 500,
-        headers: corsHeaders 
+        headers: corsHeaders
       })
     }
-    
-    console.log('✅ [DEBUG] Selected variant:', selectedVariant.name, 'Algorithm:', algorithmUsed)
+
+    logger.debug('Selected variant', { variantName: selectedVariant.name, algorithm: algorithmUsed })
 
     // 5. Criar atribuição no banco de dados
     const { data: newAssignment, error: insertError } = await supabase
@@ -275,11 +280,11 @@ export async function POST(
       .single()
 
     if (insertError) {
-      console.error('⚠️ [WARNING] Error creating assignment:', insertError)
+      logger.warn('Error creating assignment', { error: insertError })
       // Não falhar a requisição se houver erro ao salvar assignment
       // O visitante ainda receberá a variante
     } else {
-      console.log('✅ [DEBUG] Assignment created successfully')
+      logger.debug('Assignment created successfully')
     }
 
     // 6. Registrar evento de atribuição
@@ -301,27 +306,27 @@ export async function POST(
         },
         created_at: new Date().toISOString()
       })
-      console.log('✅ [DEBUG] Event logged successfully')
+      logger.debug('Event logged successfully')
     } catch (eventError) {
-      console.error('⚠️ [WARNING] Error logging event:', eventError)
+      logger.warn('Error logging event', { error: eventError })
       // Não falhar a requisição se houver erro ao registrar evento
     }
 
     // 7. Atualizar estatísticas da variante
     try {
-      console.log('📊 [DEBUG] Incrementing visitor count for variant:', selectedVariant.name)
+      logger.debug('Incrementing visitor count', { variantName: selectedVariant.name })
       const { error: rpcError } = await supabase.rpc('increment_variant_visitors', {
         p_variant_id: selectedVariant.id,
         p_experiment_id: experimentId
       })
 
       if (rpcError) {
-        console.error('❌ [ERROR] Failed to increment visitor count:', rpcError.message)
+        logger.error('Failed to increment visitor count', { message: rpcError.message })
       } else {
-        console.log('✅ [DEBUG] Visitor count incremented successfully')
+        logger.debug('Visitor count incremented successfully')
       }
     } catch (statsUpdateError) {
-      console.error('⚠️ [WARNING] Error updating variant stats:', statsUpdateError)
+      logger.warn('Error updating variant stats', { error: statsUpdateError })
     }
 
     // 8. Selecionar URL específica se variante tem múltiplas páginas
@@ -348,7 +353,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('❌ [ERROR] Assignment error:', error)
+    logger.error('Assignment error', error instanceof Error ? error : { error })
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers: corsHeaders }
@@ -378,23 +383,19 @@ function selectVariantByHash(
   // Gerar hash determinístico
   const hash = hashCode(visitorId + experimentId)
   const percentage = Math.abs(hash % 100)
-  
-  console.log('🔍 [DEBUG] Hash:', hash, 'Percentage:', percentage)
-  
+
   // Ordenar variantes por criação (controle primeiro) e distribuir tráfego
   let cumulative = 0
-  
+
   for (const variant of variants) {
     const trafficPerc = parseFloat(String(variant.traffic_percentage || '0'))
     cumulative += trafficPerc
-    
-    console.log('🔍 [DEBUG] Variant:', variant.name, 'Traffic:', trafficPerc, 'Cumulative:', cumulative)
-    
+
     if (percentage < cumulative) {
       return variant
     }
   }
-  
+
   // Fallback: retornar primeira variante (controle)
   return variants[0]
 }
@@ -444,7 +445,6 @@ function selectPageForVariant(
   if (mode === 'random') {
     const hash = hashCode(visitorId + 'page_selection')
     const index = hash % pages.length
-    console.log('🎲 [DEBUG] Random page selection - Index:', index, 'of', pages.length)
     return pages[index].url
   }
 
@@ -453,15 +453,14 @@ function selectPageForVariant(
     const totalWeight = pages.reduce((sum: number, p: any) => sum + (p.weight || 1), 0)
     const hash = hashCode(visitorId + 'page_selection')
     let random = (hash % 10000) / 10000 * totalWeight // 0 a totalWeight
-    
+
     for (const page of pages) {
       random -= (page.weight || 1)
       if (random <= 0) {
-        console.log('⚖️ [DEBUG] Weighted page selection:', page.url, 'Weight:', page.weight)
         return page.url
       }
     }
-    
+
     // Fallback
     return pages[0].url
   }
@@ -470,11 +469,9 @@ function selectPageForVariant(
   if (mode === 'sequential') {
     const hash = hashCode(visitorId + 'page_selection')
     const index = hash % pages.length
-    console.log('📊 [DEBUG] Sequential page selection - Index:', index)
     return pages[index].url
   }
 
   // Fallback padrão
-  console.log('⚠️ [WARNING] Unknown selection mode:', mode, '- using first page')
   return pages[0].url
 }

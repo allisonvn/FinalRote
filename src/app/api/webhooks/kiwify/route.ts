@@ -82,8 +82,6 @@ export async function POST(request: NextRequest) {
         const payload: KiwifyWebhookPayload = JSON.parse(rawBody)
         const { event, data, timestamp } = payload
 
-        console.log(`[Kiwify Webhook] 📥 Evento recebido: ${event}`)
-        console.log(`[Kiwify Webhook] 📧 Cliente: ${data.customer?.email}`)
 
         // Criar cliente Supabase com service role
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -132,13 +130,11 @@ export async function POST(request: NextRequest) {
                 break
 
             default:
-                console.log(`[Kiwify Webhook] ⚠️ Evento não tratado: ${event}`)
                 result = { success: true, message: `Evento ${event} recebido mas não processado` }
         }
 
         // Log do resultado
         const duration = Date.now() - startTime
-        console.log(`[Kiwify Webhook] ✅ Processado em ${duration}ms:`, result)
 
         // Registrar webhook no banco para auditoria
         try {
@@ -296,7 +292,6 @@ async function handlePurchaseApproved(
             },
             userId
         })
-        console.log(`[Kiwify] ✉️ Email de boas-vindas enviado para ${customer.email}`)
     } catch (emailError) {
         console.error('[Kiwify] ⚠️ Erro ao enviar email:', emailError)
     }
@@ -518,7 +513,6 @@ async function handlePaymentPending(
     const { customer, order } = data
     const paymentMethod = eventType === 'boleto_gerado' ? 'boleto' : 'pix'
 
-    console.log(`[Kiwify] 📄 ${paymentMethod.toUpperCase()} gerado para ${customer.email}`)
 
     // Opcionalmente, enviar email com instruções de pagamento
     // await sendEmail({ ... })
@@ -536,7 +530,6 @@ async function handleAbandonedCart(
 ) {
     const { customer, product, order } = data
 
-    console.log(`[Kiwify] 🛒 Carrinho abandonado: ${customer.email}`)
 
     // Opcionalmente, enviar email de recuperação
     // await sendEmail({
@@ -558,7 +551,6 @@ async function handlePurchaseDeclined(
 ) {
     const { customer } = data
 
-    console.log(`[Kiwify] ❌ Compra recusada: ${customer.email}`)
 
     return {
         success: true,

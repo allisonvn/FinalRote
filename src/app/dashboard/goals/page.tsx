@@ -47,7 +47,7 @@ export default function GoalsPage() {
   )
   const [experiments, setExperiments] = useState<Array<{ id: string; name: string }>>([])
   const { preferences, updatePreference } = useApp()
-  const [timeRange, setTimeRange] = useState<'7d'|'30d'|'90d'>(preferences.defaultTimeRange || '30d')
+  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>(preferences.defaultTimeRange || '30d')
 
   useEffect(() => {
     const load = async () => {
@@ -67,7 +67,7 @@ export default function GoalsPage() {
         if (!dbGoals || dbGoals.length === 0) { setGoals([]); return }
 
         // Buscar status dos experimentos relacionados
-        const expIds = Array.from(new Set(dbGoals.map(g => g.experiment_id)))
+        const expIds = Array.from(new Set(dbGoals.map((g: any) => g.experiment_id)))
         const { data: exps } = await supabase
           .from('experiments')
           .select('id, status')
@@ -101,7 +101,7 @@ export default function GoalsPage() {
           const progress = target && target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
           const expStat = expStatus.get(g.experiment_id) || 'running'
           const status: GoalStatus = current >= (target || Infinity) ? 'completed' : (expStat === 'paused' ? 'paused' : 'active')
-          const priority: 'low'|'medium'|'high' = progress < 40 ? 'high' : progress < 75 ? 'medium' : 'low'
+          const priority: 'low' | 'medium' | 'high' = progress < 40 ? 'high' : progress < 75 ? 'medium' : 'low'
           return { ...g, status, progress, target, current, priority }
         })
 
@@ -148,7 +148,7 @@ export default function GoalsPage() {
     })
   }, [goals, status, query])
 
-  const StatusPill = ({ value, label, tone }: { value: 'all' | GoalStatus; label: string; tone?: 'success'|'warning'|'info' }) => (
+  const StatusPill = ({ value, label, tone }: { value: 'all' | GoalStatus; label: string; tone?: 'success' | 'warning' | 'info' }) => (
     <button
       onClick={() => setStatus(value)}
       className={cn(
@@ -227,7 +227,7 @@ export default function GoalsPage() {
                   <CardTitle className="text-base">{g.name}</CardTitle>
                   <Badge className={cn('text-xs',
                     g.status === 'completed' ? 'bg-success text-success-foreground' :
-                    g.status === 'paused' ? 'bg-warning text-warning-foreground' : 'bg-primary text-primary-foreground'
+                      g.status === 'paused' ? 'bg-warning text-warning-foreground' : 'bg-primary text-primary-foreground'
                   )}>
                     {g.status === 'completed' ? 'Concluída' : g.status === 'paused' ? 'Pausada' : 'Ativa'}
                   </Badge>

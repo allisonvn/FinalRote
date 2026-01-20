@@ -105,7 +105,6 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
         }
       )
       .subscribe((status) => {
-        console.log('🔔 Status da subscription:', status)
         setIsConnected(status === 'SUBSCRIBED')
       })
 
@@ -180,7 +179,6 @@ export function useExperimentRealtime(experimentId: string) {
           filter: `experiment_id=eq.${experimentId}`
         },
         (payload) => {
-          console.log(`👥 Nova atribuição no experimento ${experimentId}:`, payload.new)
 
           setVisitors(prev => prev + 1)
           setRecentActivity(prev => [{
@@ -200,7 +198,6 @@ export function useExperimentRealtime(experimentId: string) {
         },
         (payload) => {
           const event = payload.new as any
-          console.log(`📊 Novo evento no experimento ${experimentId}:`, event)
 
           if (event.event_type === 'conversion') {
             setConversions(prev => prev + 1)

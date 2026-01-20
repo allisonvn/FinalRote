@@ -718,7 +718,6 @@ class RotaFinal {
    */
   private log(...args: any[]): void {
     if (this.config.debug) {
-      console.log('[RotaFinal]', ...args)
     }
   }
 

@@ -54,7 +54,6 @@ export default function ExperimentDetailsPage() {
       
       // Se o ID for "new", redirecionar para o dashboard
       if (experimentId === 'new') {
-        console.log('Redirecionando para o dashboard para criar novo experimento')
         router.push('/dashboard')
         return
       }

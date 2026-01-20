@@ -10,12 +10,10 @@ if (typeof window !== 'undefined') {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       if (process.env.NODE_ENV === 'development') {
-        console.log('ChunkErrorHandler inicializado')
       }
     })
   } else {
     if (process.env.NODE_ENV === 'development') {
-      console.log('ChunkErrorHandler inicializado')
     }
   }
 
@@ -41,7 +39,6 @@ if (typeof window !== 'undefined') {
           // Tentar recarregar a página após um delay
           setTimeout(() => {
             if (process.env.NODE_ENV === 'development') {
-              console.log('Recarregando página devido a ChunkLoadError...')
             }
             window.location.reload()
           }, 1000)
@@ -86,7 +83,6 @@ if (typeof window !== 'undefined') {
         if (response.status === 400 || response.status === 404) {
           setTimeout(() => {
             if (process.env.NODE_ENV === 'development') {
-              console.log('Recarregando página devido a erro de chunk...')
             }
             window.location.reload()
           }, 1000)

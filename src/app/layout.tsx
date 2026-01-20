@@ -25,7 +25,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                console.log('Robust ChunkErrorHandler inicializado');
                 
                 // Interceptar erros globais
                 const handleGlobalError = (event) => {
@@ -42,7 +41,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     
                     // Recarregar página imediatamente para chunks 404
                     if (error.message?.includes('404 (Not Found)') || error.message?.includes('ERR_ABORTED')) {
-                      console.log('Chunk 404 detectado, recarregando página...');
                       setTimeout(() => {
                         window.location.reload();
                       }, 500);
@@ -51,7 +49,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     
                     // Para outros tipos de ChunkLoadError, tentar recarregar após delay
                     setTimeout(() => {
-                      console.log('Recarregando página devido a ChunkLoadError...');
                       window.location.reload();
                     }, 2000);
                   }
@@ -72,7 +69,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     
                     // Recarregar página imediatamente para chunks 404
                     if (error.message?.includes('404 (Not Found)') || error.message?.includes('ERR_ABORTED')) {
-                      console.log('Chunk 404 detectado em promise, recarregando página...');
                       setTimeout(() => {
                         window.location.reload();
                       }, 500);
@@ -81,7 +77,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     
                     // Para outros tipos de ChunkLoadError, tentar recarregar após delay
                     setTimeout(() => {
-                      console.log('Recarregando página devido a ChunkLoadError em promise...');
                       window.location.reload();
                     }, 2000);
                   }
@@ -100,7 +95,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                       
                       // Recarregar página imediatamente para chunks 404
                       setTimeout(() => {
-                        console.log('Recarregando página devido a chunk 404...');
                         window.location.reload();
                       }, 500);
                     }
@@ -119,7 +113,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                       
                       // Recarregar página após delay
                       setTimeout(() => {
-                        console.log('Recarregando página devido a ChunkLoadError em fetch...');
                         window.location.reload();
                       }, 1000);
                     }
@@ -147,7 +140,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                         
                         // Recarregar página após delay
                         setTimeout(() => {
-                          console.log('Recarregando página devido a ChunkLoadError em webpack...');
                           window.location.reload();
                         }, 1000);
                       }

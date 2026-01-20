@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          appointment_date: string
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          patient_id: string | null
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_date: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          patient_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_date?: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          patient_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignments: {
         Row: {
           assigned_at: string
@@ -56,6 +100,71 @@ export type Database = {
             columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      atestados: {
+        Row: {
+          cid: string | null
+          created_at: string | null
+          cro: string
+          data_atendimento: string
+          data_fim_afastamento: string | null
+          data_inicio_afastamento: string | null
+          horario_fim: string | null
+          horario_inicio: string | null
+          id: string
+          numero_dias: number | null
+          observacoes: string | null
+          patient_id: string
+          procedimento: string
+          profissional: string
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          cid?: string | null
+          created_at?: string | null
+          cro: string
+          data_atendimento: string
+          data_fim_afastamento?: string | null
+          data_inicio_afastamento?: string | null
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          numero_dias?: number | null
+          observacoes?: string | null
+          patient_id: string
+          procedimento: string
+          profissional: string
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          cid?: string | null
+          created_at?: string | null
+          cro?: string
+          data_atendimento?: string
+          data_fim_afastamento?: string | null
+          data_inicio_afastamento?: string | null
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          numero_dias?: number | null
+          observacoes?: string | null
+          patient_id?: string
+          procedimento?: string
+          profissional?: string
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atestados_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
         ]
@@ -176,24 +285,10 @@ export type Database = {
           event_type: string | null
           experiment_id: string | null
           id: string
-          project_id: string
           utm_data: Json | null
           value: number | null
           variant_id: string | null
           visitor_id: string
-          utm_source: string | null
-          utm_medium: string | null
-          utm_campaign: string | null
-          utm_term: string | null
-          utm_content: string | null
-          device_type: string | null
-          browser: string | null
-          country: string | null
-          os: string | null
-          city: string | null
-          session_id: string | null
-          referrer: string | null
-          properties: Json | null
         }
         Insert: {
           created_at?: string
@@ -202,24 +297,10 @@ export type Database = {
           event_type?: string | null
           experiment_id?: string | null
           id?: string
-          project_id: string
           utm_data?: Json | null
           value?: number | null
           variant_id?: string | null
           visitor_id: string
-          utm_source?: string | null
-          utm_medium?: string | null
-          utm_campaign?: string | null
-          utm_term?: string | null
-          utm_content?: string | null
-          device_type?: string | null
-          browser?: string | null
-          country?: string | null
-          os?: string | null
-          city?: string | null
-          session_id?: string | null
-          referrer?: string | null
-          properties?: Json | null
         }
         Update: {
           created_at?: string
@@ -228,24 +309,10 @@ export type Database = {
           event_type?: string | null
           experiment_id?: string | null
           id?: string
-          project_id?: string
           utm_data?: Json | null
           value?: number | null
           variant_id?: string | null
           visitor_id?: string
-          utm_source?: string | null
-          utm_medium?: string | null
-          utm_campaign?: string | null
-          utm_term?: string | null
-          utm_content?: string | null
-          device_type?: string | null
-          browser?: string | null
-          country?: string | null
-          os?: string | null
-          city?: string | null
-          session_id?: string | null
-          referrer?: string | null
-          properties?: Json | null
         }
         Relationships: [
           {
@@ -269,53 +336,70 @@ export type Database = {
             referencedRelation: "variants"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "events_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
         ]
       }
       experiments: {
         Row: {
+          algorithm: string
+          api_key: string | null
+          conversion_type: string | null
+          conversion_url: string | null
+          conversion_value: number | null
           created_at: string
           description: string | null
+          duration_days: number | null
           ended_at: string | null
           id: string
+          key: string | null
           name: string
           project_id: string
           started_at: string | null
           status: Database["public"]["Enums"]["experiment_status"] | null
+          target_url: string | null
           traffic_allocation: number | null
           type: Database["public"]["Enums"]["experiment_type"]
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          algorithm?: string
+          api_key?: string | null
+          conversion_type?: string | null
+          conversion_url?: string | null
+          conversion_value?: number | null
           created_at?: string
           description?: string | null
+          duration_days?: number | null
           ended_at?: string | null
           id?: string
+          key?: string | null
           name: string
           project_id: string
           started_at?: string | null
           status?: Database["public"]["Enums"]["experiment_status"] | null
+          target_url?: string | null
           traffic_allocation?: number | null
           type?: Database["public"]["Enums"]["experiment_type"]
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          algorithm?: string
+          api_key?: string | null
+          conversion_type?: string | null
+          conversion_url?: string | null
+          conversion_value?: number | null
           created_at?: string
           description?: string | null
+          duration_days?: number | null
           ended_at?: string | null
           id?: string
+          key?: string | null
           name?: string
           project_id?: string
           started_at?: string | null
           status?: Database["public"]["Enums"]["experiment_status"] | null
+          target_url?: string | null
           traffic_allocation?: number | null
           type?: Database["public"]["Enums"]["experiment_type"]
           updated_at?: string
@@ -334,6 +418,107 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_categories: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      financial_transactions: {
+        Row: {
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string
+          due_date: string
+          fee_amount: number | null
+          id: string
+          metadata: Json | null
+          notes: string | null
+          paid_date: string | null
+          patient_id: string | null
+          payment_method: string | null
+          status: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          due_date: string
+          fee_amount?: number | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          paid_date?: string | null
+          patient_id?: string | null
+          payment_method?: string | null
+          status?: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          due_date?: string
+          fee_amount?: number | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          paid_date?: string | null
+          patient_id?: string | null
+          payment_method?: string | null
+          status?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "financial_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -385,6 +570,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      medicamentos: {
+        Row: {
+          apresentacoes: string[] | null
+          categoria: string
+          controlado: boolean | null
+          created_at: string | null
+          dosagem_adulto: string | null
+          dosagem_crianca: string | null
+          efeitos_adversos: string | null
+          frequencia: string | null
+          id: string
+          indicacoes: string | null
+          interacoes_medicamentosas: string | null
+          nome: string
+          observacoes: string | null
+          tipo_receita: string | null
+          updated_at: string | null
+          via: string | null
+        }
+        Insert: {
+          apresentacoes?: string[] | null
+          categoria: string
+          controlado?: boolean | null
+          created_at?: string | null
+          dosagem_adulto?: string | null
+          dosagem_crianca?: string | null
+          efeitos_adversos?: string | null
+          frequencia?: string | null
+          id?: string
+          indicacoes?: string | null
+          interacoes_medicamentosas?: string | null
+          nome: string
+          observacoes?: string | null
+          tipo_receita?: string | null
+          updated_at?: string | null
+          via?: string | null
+        }
+        Update: {
+          apresentacoes?: string[] | null
+          categoria?: string
+          controlado?: boolean | null
+          created_at?: string | null
+          dosagem_adulto?: string | null
+          dosagem_crianca?: string | null
+          efeitos_adversos?: string | null
+          frequencia?: string | null
+          id?: string
+          indicacoes?: string | null
+          interacoes_medicamentosas?: string | null
+          nome?: string
+          observacoes?: string | null
+          tipo_receita?: string | null
+          updated_at?: string | null
+          via?: string | null
+        }
+        Relationships: []
       }
       metrics_snapshots: {
         Row: {
@@ -509,13 +751,7 @@ export type Database = {
           metadata: Json
           name: string
           plan: string | null
-          plan_slug: string | null
           slug: string
-          subscription_status: string | null
-          subscription_end: string | null
-          is_blocked: boolean | null
-          blocked_reason: string | null
-          blocked_at: string | null
         }
         Insert: {
           created_at?: string
@@ -525,13 +761,7 @@ export type Database = {
           metadata?: Json
           name: string
           plan?: string | null
-          plan_slug?: string | null
           slug: string
-          subscription_status?: string | null
-          subscription_end?: string | null
-          is_blocked?: boolean | null
-          blocked_reason?: string | null
-          blocked_at?: string | null
         }
         Update: {
           created_at?: string
@@ -541,13 +771,7 @@ export type Database = {
           metadata?: Json
           name?: string
           plan?: string | null
-          plan_slug?: string | null
           slug?: string
-          subscription_status?: string | null
-          subscription_end?: string | null
-          is_blocked?: boolean | null
-          blocked_reason?: string | null
-          blocked_at?: string | null
         }
         Relationships: [
           {
@@ -559,44 +783,70 @@ export type Database = {
           },
         ]
       }
-      plans: {
+      patients: {
         Row: {
+          address: Json | null
+          birth_date: string | null
+          cpf: string | null
+          created_at: string | null
+          email: string | null
           id: string
-          slug: string
-          kiwify_product_id: string
-          created_at: string
           name: string
-          description: string | null
-          price: number | null
-          interval: string | null
-          features: Json | null
-          is_active: boolean
+          phone: string | null
+          updated_at: string | null
         }
         Insert: {
+          address?: Json | null
+          birth_date?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
           id?: string
-          slug: string
-          kiwify_product_id: string
-          created_at?: string
           name: string
-          description?: string | null
-          price?: number | null
-          interval?: string | null
-          features?: Json | null
-          is_active?: boolean
+          phone?: string | null
+          updated_at?: string | null
         }
         Update: {
+          address?: Json | null
+          birth_date?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
           id?: string
-          slug?: string
-          kiwify_product_id?: string
-          created_at?: string
           name?: string
-          description?: string | null
-          price?: number | null
-          interval?: string | null
-          features?: Json | null
-          is_active?: boolean
+          phone?: string | null
+          updated_at?: string | null
         }
         Relationships: []
+      }
+      project_settings: {
+        Row: {
+          allowed_domains_custom: string[] | null
+          created_at: string | null
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          allowed_domains_custom?: string[] | null
+          created_at?: string | null
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          allowed_domains_custom?: string[] | null
+          created_at?: string | null
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_settings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_statuses: {
         Row: {
@@ -615,6 +865,8 @@ export type Database = {
       }
       projects: {
         Row: {
+          allowed_origins: string[] | null
+          api_key: string | null
           archived_at: string | null
           created_at: string
           created_by: string | null
@@ -623,12 +875,16 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          public_key: string | null
+          secret_key: string | null
           start_date: string | null
           status: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          allowed_origins?: string[] | null
+          api_key?: string | null
           archived_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -637,12 +893,16 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          public_key?: string | null
+          secret_key?: string | null
           start_date?: string | null
           status?: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          allowed_origins?: string[] | null
+          api_key?: string | null
           archived_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -651,6 +911,8 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          public_key?: string | null
+          secret_key?: string | null
           start_date?: string | null
           status?: string
           updated_at?: string
@@ -687,6 +949,59 @@ export type Database = {
           },
         ]
       }
+      receituarios: {
+        Row: {
+          created_at: string | null
+          cro: string
+          data: string
+          id: string
+          idade_paciente: string | null
+          medicamentos: Json
+          observacoes: string | null
+          paciente: string
+          patient_id: string | null
+          peso_paciente: string | null
+          profissional: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          cro: string
+          data: string
+          id?: string
+          idade_paciente?: string | null
+          medicamentos?: Json
+          observacoes?: string | null
+          paciente: string
+          patient_id?: string | null
+          peso_paciente?: string | null
+          profissional: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          cro?: string
+          data?: string
+          id?: string
+          idade_paciente?: string | null
+          medicamentos?: Json
+          observacoes?: string | null
+          paciente?: string
+          patient_id?: string | null
+          peso_paciente?: string | null
+          profissional?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receituarios_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roles: {
         Row: {
           description: string
@@ -701,158 +1016,6 @@ export type Database = {
           name?: string
         }
         Relationships: []
-      }
-      subscriptions: {
-        Row: {
-          id: string
-          user_id: string
-          org_id: string
-          plan_id: string
-          kiwify_subscription_id: string
-          kiwify_customer_id: string
-          kiwify_order_id: string
-          status: string
-          billing_cycle: string
-          current_period_start: string
-          current_period_end: string
-          price_amount: number | null
-          last_payment_at: string | null
-          next_payment_at: string | null
-          created_at: string
-          updated_at: string
-          payment_failed_count: number | null
-          canceled_at: string | null
-          cancel_reason: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          org_id: string
-          plan_id: string
-          kiwify_subscription_id: string
-          kiwify_customer_id: string
-          kiwify_order_id: string
-          status: string
-          billing_cycle: string
-          current_period_start: string
-          current_period_end: string
-          price_amount?: number | null
-          last_payment_at?: string | null
-          next_payment_at?: string | null
-          created_at?: string
-          updated_at?: string
-          payment_failed_count?: number | null
-          canceled_at?: string | null
-          cancel_reason?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          org_id?: string
-          plan_id?: string
-          kiwify_subscription_id?: string
-          kiwify_customer_id?: string
-          kiwify_order_id?: string
-          status?: string
-          billing_cycle?: string
-          current_period_start?: string
-          current_period_end?: string
-          price_amount?: number | null
-          last_payment_at?: string | null
-          next_payment_at?: string | null
-          created_at?: string
-          updated_at?: string
-          payment_failed_count?: number | null
-          canceled_at?: string | null
-          cancel_reason?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subscriptions_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscriptions_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscriptions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      subscription_logs: {
-        Row: {
-          id: number
-          subscription_id: string
-          user_id: string
-          org_id: string | null
-          event_type: string
-          event_source: string
-          old_status: string | null
-          new_status: string
-          new_plan_id: string | null
-          metadata: Json | null
-          created_at: string
-        }
-        Insert: {
-          id?: number
-          subscription_id: string
-          user_id: string
-          org_id?: string | null
-          event_type: string
-          event_source: string
-          old_status?: string | null
-          new_status: string
-          new_plan_id?: string | null
-          metadata?: Json | null
-          created_at?: string
-        }
-        Update: {
-          id?: number
-          subscription_id?: string
-          user_id?: string
-          org_id?: string | null
-          event_type?: string
-          event_source?: string
-          old_status?: string | null
-          new_status?: string
-          new_plan_id?: string | null
-          metadata?: Json | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subscription_logs_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscription_logs_subscription_id_fkey"
-            columns: ["subscription_id"]
-            isOneToOne: false
-            referencedRelation: "subscriptions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscription_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       task_comments: {
         Row: {
@@ -1081,6 +1244,64 @@ export type Database = {
           },
         ]
       }
+      variant_stats: {
+        Row: {
+          conversions: number
+          created_at: string | null
+          experiment_id: string
+          id: string
+          last_updated: string | null
+          revenue: number
+          updated_at: string | null
+          variant_id: string
+          visitors: number
+        }
+        Insert: {
+          conversions?: number
+          created_at?: string | null
+          experiment_id: string
+          id?: string
+          last_updated?: string | null
+          revenue?: number
+          updated_at?: string | null
+          variant_id: string
+          visitors?: number
+        }
+        Update: {
+          conversions?: number
+          created_at?: string | null
+          experiment_id?: string
+          id?: string
+          last_updated?: string | null
+          revenue?: number
+          updated_at?: string | null
+          variant_id?: string
+          visitors?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_stats_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiment_stats"
+            referencedColumns: ["experiment_id"]
+          },
+          {
+            foreignKeyName: "variant_stats_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variant_stats_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       variants: {
         Row: {
           changes: Json | null
@@ -1095,6 +1316,7 @@ export type Database = {
           is_active: boolean | null
           is_control: boolean | null
           js_changes: string | null
+          key: string | null
           name: string
           redirect_url: string | null
           traffic_percentage: number | null
@@ -1114,6 +1336,7 @@ export type Database = {
           is_active?: boolean | null
           is_control?: boolean | null
           js_changes?: string | null
+          key?: string | null
           name: string
           redirect_url?: string | null
           traffic_percentage?: number | null
@@ -1133,6 +1356,7 @@ export type Database = {
           is_active?: boolean | null
           is_control?: boolean | null
           js_changes?: string | null
+          key?: string | null
           name?: string
           redirect_url?: string | null
           traffic_percentage?: number | null
@@ -1166,15 +1390,31 @@ export type Database = {
       visitor_sessions: {
         Row: {
           browser: string | null
+          browser_name: string | null
+          browser_version: string | null
+          conversions: number | null
           country_code: string | null
           created_at: string
           device_type: string | null
           ended_at: string | null
           events_count: number | null
+          fbclid: string | null
+          gclid: string | null
           id: string
+          ip_address: string | null
+          last_activity_at: string | null
+          msclkid: string | null
           os: string | null
+          os_name: string | null
+          os_version: string | null
+          page_views: number | null
+          project_id: string | null
+          referrer: string | null
+          screen_resolution: string | null
           session_id: string | null
           started_at: string
+          ttclid: string | null
+          user_agent: string | null
           utm_campaign: string | null
           utm_content: string | null
           utm_medium: string | null
@@ -1184,15 +1424,31 @@ export type Database = {
         }
         Insert: {
           browser?: string | null
+          browser_name?: string | null
+          browser_version?: string | null
+          conversions?: number | null
           country_code?: string | null
           created_at?: string
           device_type?: string | null
           ended_at?: string | null
           events_count?: number | null
+          fbclid?: string | null
+          gclid?: string | null
           id?: string
+          ip_address?: string | null
+          last_activity_at?: string | null
+          msclkid?: string | null
           os?: string | null
+          os_name?: string | null
+          os_version?: string | null
+          page_views?: number | null
+          project_id?: string | null
+          referrer?: string | null
+          screen_resolution?: string | null
           session_id?: string | null
           started_at?: string
+          ttclid?: string | null
+          user_agent?: string | null
           utm_campaign?: string | null
           utm_content?: string | null
           utm_medium?: string | null
@@ -1202,15 +1458,31 @@ export type Database = {
         }
         Update: {
           browser?: string | null
+          browser_name?: string | null
+          browser_version?: string | null
+          conversions?: number | null
           country_code?: string | null
           created_at?: string
           device_type?: string | null
           ended_at?: string | null
           events_count?: number | null
+          fbclid?: string | null
+          gclid?: string | null
           id?: string
+          ip_address?: string | null
+          last_activity_at?: string | null
+          msclkid?: string | null
           os?: string | null
+          os_name?: string | null
+          os_version?: string | null
+          page_views?: number | null
+          project_id?: string | null
+          referrer?: string | null
+          screen_resolution?: string | null
           session_id?: string | null
           started_at?: string
+          ttclid?: string | null
+          user_agent?: string | null
           utm_campaign?: string | null
           utm_content?: string | null
           utm_medium?: string | null
@@ -1218,7 +1490,15 @@ export type Database = {
           utm_term?: string | null
           visitor_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "visitor_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1252,81 +1532,131 @@ export type Database = {
       }
       calculate_significance: {
         Args: {
-          control_conversions: number
-          control_visitors: number
-          variant_conversions: number
-          variant_visitors: number
+          p_control_conversions: number
+          p_control_visitors: number
+          p_variant_conversions: number
+          p_variant_visitors: number
         }
         Returns: {
-          confidence_level: number
           is_significant: boolean
           p_value: number
+          uplift: number
         }[]
       }
-      citext: {
-        Args: { "": boolean } | { "": string } | { "": unknown }
-        Returns: string
-      }
-      citext_hash: {
-        Args: { "": string }
-        Returns: number
-      }
-      citextin: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      citextout: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      citextrecv: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      citextsend: {
-        Args: { "": string }
-        Returns: string
-      }
+      cleanup_test_data: { Args: never; Returns: number }
       create_organization: {
         Args: { name: string; slug: string }
         Returns: string
       }
-      current_org_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
+      current_org_id: { Args: never; Returns: string }
+      current_user_id: { Args: never; Returns: string }
+      ensure_project_settings: { Args: { p_project_id: string }; Returns: Json }
+      get_daily_conversions: {
+        Args: { p_days?: number; p_experiment_id: string }
+        Returns: {
+          conversions: number
+          date: string
+          revenue: number
+          variant_id: string
+          variant_name: string
+        }[]
       }
-      current_user_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
+      get_experiment_metrics:
+        | {
+            Args: { exp_id: string; from_date?: string; to_date?: string }
+            Returns: {
+              conversion_rate: number
+              conversions: number
+              variant_id: string
+              variant_name: string
+              visitors: number
+            }[]
+          }
+        | { Args: { p_experiment_id: string }; Returns: Json }
+        | {
+            Args: { p_experiment_key: string }
+            Returns: {
+              conversion_rate: number
+              conversions: number
+              variant_name: string
+              visitors: number
+            }[]
+          }
+      get_experiment_stats:
+        | {
+            Args: { experiment_uuid?: string }
+            Returns: {
+              conversion_rate: number
+              conversions: number
+              experiment_id: string
+              experiment_name: string
+              is_control: boolean
+              revenue: number
+              status: string
+              total_conversions: number
+              total_visitors: number
+              variant_id: string
+              variant_name: string
+              visitors: number
+            }[]
+          }
+        | {
+            Args: { experiment_uuid?: string; p_experiment_id?: string }
+            Returns: {
+              conversion_rate: number
+              conversions: number
+              experiment_id: string
+              experiment_name: string
+              is_control: boolean
+              revenue: number
+              status: string
+              total_conversions: number
+              total_visitors: number
+              variant_id: string
+              variant_name: string
+              visitors: number
+            }[]
+          }
+      get_experiment_stats_simple: {
+        Args: { p_experiment_id: string }
+        Returns: Json
       }
-      get_experiment_metrics: {
-        Args:
-        | { exp_id: string; from_date?: string; to_date?: string }
-        | { p_experiment_key: string }
+      increment_variant_conversions: {
+        Args: {
+          p_experiment_id: string
+          p_revenue?: number
+          p_variant_id: string
+        }
+        Returns: undefined
+      }
+      increment_variant_visitors: {
+        Args: { p_experiment_id: string; p_variant_id: string }
+        Returns: undefined
+      }
+      populate_visitor_sessions: { Args: never; Returns: undefined }
+      refresh_experiment_metrics: {
+        Args: { exp_id: string }
         Returns: {
           conversion_rate: number
           conversions: number
+          experiment_id: string
+          revenue: number
+          variant_id: string
           variant_name: string
           visitors: number
         }[]
       }
-      get_experiment_stats: {
-        Args: { experiment_uuid?: string }
+      switch_organization: { Args: { new_org_id: string }; Returns: undefined }
+      test_conversion_tracking: {
+        Args: { p_experiment_id: string; p_test_url?: string }
         Returns: {
-          experiment_id: string
+          conversion_registered: boolean
+          conversion_url: string
           experiment_name: string
-          status: string
-          total_conversions: number
-          total_visitors: number
+          match_found: boolean
+          test_url: string
+          variants_found: number
         }[]
-      }
-      populate_visitor_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      switch_organization: {
-        Args: { new_org_id: string }
-        Returns: undefined
       }
       track_event: {
         Args: {
@@ -1345,11 +1675,11 @@ export type Database = {
     }
     Enums: {
       experiment_status:
-      | "draft"
-      | "running"
-      | "paused"
-      | "completed"
-      | "archived"
+        | "draft"
+        | "running"
+        | "paused"
+        | "completed"
+        | "archived"
       experiment_type: "redirect" | "element" | "split_url" | "mab"
     }
     CompositeTypes: {
@@ -1364,116 +1694,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   public: {

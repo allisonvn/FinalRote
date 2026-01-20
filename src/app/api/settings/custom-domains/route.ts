@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     // Primeiro, tenta selecionar os domínios usando maybeSingle() para evitar erro quando não há registro
     let { data, error } = await supabase
-      .from('project_settings')
+      .from('project_settings' as any)
       .select('allowed_domains_custom')
       .eq('project_id', projectId)
       .maybeSingle()
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Se não houver erro, retornar os domínios (ou array vazio se não houver)
-    const domains = data?.allowed_domains_custom || []
+    const domains = (data as any)?.allowed_domains_custom || []
 
     // Garantir que domains é um array válido
     const validDomains = Array.isArray(domains) ? domains : []
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { error } = await supabase
-      .from('project_settings')
+      .from('project_settings' as any)
       .upsert(
         { project_id: projectId, allowed_domains_custom: domains },
         { onConflict: 'project_id' }

@@ -147,7 +147,6 @@ export async function POST(request: NextRequest) {
 
     // Se for conversão, atualizar variant_stats
     if (data.event_type === 'conversion') {
-      console.log('📊 [CONVERSION] Iniciando registro de conversão', {
         experiment: experimentId,
         visitor: data.visitor_id,
         variant_name: data.variant,
@@ -161,7 +160,6 @@ export async function POST(request: NextRequest) {
         
         // ✅ CORREÇÃO: Usar variant_id se disponível, caso contrário buscar por nome (fallback)
         if (!variantId && data.variant) {
-          console.log('⚠️ [WARNING] variant_id não fornecido, buscando por nome (fallback):', data.variant)
           const { data: variant, error: variantError } = await supabase
             .from('variants')
             .select('id')
@@ -177,12 +175,10 @@ export async function POST(request: NextRequest) {
             })
           } else if (variant) {
             variantId = variant.id
-            console.log('✅ [SUCCESS] Variante encontrada pelo nome:', variantId)
           }
         }
 
         if (variantId) {
-          console.log('📈 [CONVERSION] Chamando increment_variant_conversions', {
             variant_id: variantId,
             experiment_id: experimentId,
             revenue: eventData.value || 0
@@ -205,7 +201,6 @@ export async function POST(request: NextRequest) {
             })
             
             // Tentar atualizar manualmente se RPC falhar
-            console.log('🔄 [FALLBACK] Tentando atualização manual de variant_stats')
             const { error: manualError } = await supabase
               .from('variant_stats')
               .upsert({
@@ -223,10 +218,8 @@ export async function POST(request: NextRequest) {
             if (manualError) {
               console.error('❌ [ERROR] Falha no fallback manual:', manualError)
             } else {
-              console.log('✅ [SUCCESS] Fallback manual executado com sucesso')
             }
           } else {
-            console.log('✅ [CONVERSION] Estatísticas atualizadas com sucesso:', {
               variant_id: variantId,
               rpc_result: rpcResult
             })

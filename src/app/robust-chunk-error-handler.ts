@@ -4,7 +4,6 @@
 // Intercepta especificamente o erro 404 em chunks do Next.js
 
 if (typeof window !== 'undefined') {
-  console.log('Robust ChunkErrorHandler inicializado')
 
   // Interceptar erros globais
   const handleGlobalError = (event: ErrorEvent) => {
@@ -21,7 +20,6 @@ if (typeof window !== 'undefined') {
       
       // Recarregar página imediatamente para chunks 404
       if (error.message?.includes('404 (Not Found)') || error.message?.includes('ERR_ABORTED')) {
-        console.log('Chunk 404 detectado, recarregando página...')
         setTimeout(() => {
           window.location.reload()
         }, 500)
@@ -30,7 +28,6 @@ if (typeof window !== 'undefined') {
       
       // Para outros tipos de ChunkLoadError, tentar recarregar após delay
       setTimeout(() => {
-        console.log('Recarregando página devido a ChunkLoadError...')
         window.location.reload()
       }, 2000)
     }
@@ -51,7 +48,6 @@ if (typeof window !== 'undefined') {
       
       // Recarregar página imediatamente para chunks 404
       if (error.message?.includes('404 (Not Found)') || error.message?.includes('ERR_ABORTED')) {
-        console.log('Chunk 404 detectado em promise, recarregando página...')
         setTimeout(() => {
           window.location.reload()
         }, 500)
@@ -60,7 +56,6 @@ if (typeof window !== 'undefined') {
       
       // Para outros tipos de ChunkLoadError, tentar recarregar após delay
       setTimeout(() => {
-        console.log('Recarregando página devido a ChunkLoadError em promise...')
         window.location.reload()
       }, 2000)
     }
@@ -79,7 +74,6 @@ if (typeof window !== 'undefined') {
         
         // Recarregar página imediatamente para chunks 404
         setTimeout(() => {
-          console.log('Recarregando página devido a chunk 404...')
           window.location.reload()
         }, 500)
       }
@@ -98,7 +92,6 @@ if (typeof window !== 'undefined') {
         
         // Recarregar página após delay
         setTimeout(() => {
-          console.log('Recarregando página devido a ChunkLoadError em fetch...')
           window.location.reload()
         }, 1000)
       }
@@ -126,7 +119,6 @@ if (typeof window !== 'undefined') {
           
           // Recarregar página após delay
           setTimeout(() => {
-            console.log('Recarregando página devido a ChunkLoadError em webpack...')
             window.location.reload()
           }, 1000)
         }

@@ -59,11 +59,11 @@ export function EventTimeline({ events, onEventClick }: EventTimelineProps) {
     events: sessionEvents.sort((a, b) =>
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     ),
-    startTime: sessionEvents[0]?.created_at,
-    visitor: sessionEvents[0]?.visitor_id,
+    startTime: sessionEvents[0]?.created_at || new Date().toISOString(),
+    visitor: sessionEvents[0]?.visitor_id || 'anonymous',
     device: sessionEvents[0]?.device_type,
     hasConversion: sessionEvents.some(e => e.event_type === 'conversion')
-  })).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+  })).sort((a, b) => new Date(b.startTime || '').getTime() - new Date(a.startTime || '').getTime())
 
   const totalPages = Math.ceil(allSessions.length / sessionsPerPage)
   const startIndex = (currentPage - 1) * sessionsPerPage

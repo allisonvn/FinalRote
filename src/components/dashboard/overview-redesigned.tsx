@@ -79,8 +79,7 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
 
   const loadStats = async () => {
     try {
-      console.log('📊 Carregando métricas da Overview com dados reais...')
-      
+
       // Buscar dados reais direto de assignments e events
       const now = new Date()
       const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90
@@ -112,23 +111,16 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
         .lt('created_at', currentStart.toISOString())
 
       // Calcular totais do período atual
-      const currentVisitors = new Set(currentAssignments?.map(a => a.visitor_id) || []).size
-      const currentConversionsCount = currentEvents?.filter(e => e.event_type === 'conversion').length || 0
-      const currentRevenue = currentEvents?.filter(e => e.event_type === 'conversion').reduce((sum, e) => sum + (e.value || 0), 0) || 0
+      const currentVisitors = new Set((currentAssignments as any[])?.map((a: any) => a.visitor_id) || []).size
+      const currentConversionsCount = (currentEvents as any[])?.filter((e: any) => e.event_type === 'conversion').length || 0
+      const currentRevenue = (currentEvents as any[])?.filter((e: any) => e.event_type === 'conversion').reduce((sum: number, e: any) => sum + (e.value || 0), 0) || 0
 
       // Calcular totais do período anterior
-      const previousVisitors = new Set(previousAssignments?.map(a => a.visitor_id) || []).size
-      const previousConversionsCount = previousEvents?.filter(e => e.event_type === 'conversion').length || 0
-      const previousRevenue = previousEvents?.filter(e => e.event_type === 'conversion').reduce((sum, e) => sum + (e.value || 0), 0) || 0
+      const previousVisitors = new Set((previousAssignments as any[])?.map((a: any) => a.visitor_id) || []).size
+      const previousConversionsCount = (previousEvents as any[])?.filter((e: any) => e.event_type === 'conversion').length || 0
+      const previousRevenue = (previousEvents as any[])?.filter((e: any) => e.event_type === 'conversion').reduce((sum: number, e: any) => sum + (e.value || 0), 0) || 0
 
-      console.log('📊 Métricas calculadas Overview:', {
-        currentVisitors,
-        currentConversionsCount,
-        currentRevenue,
-        previousVisitors,
-        previousConversionsCount,
-        previousRevenue
-      })
+      // Debug logging removed
 
       // Calcular mudanças percentuais
       const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0
@@ -182,14 +174,12 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
       }
 
       if (!experimentsData || experimentsData.length === 0) {
-        console.log('Nenhum experimento encontrado')
         return
       }
 
-      console.log(`📊 Encontrados ${experimentsData.length} experimentos`)
 
       const experimentsWithStats = await Promise.all(
-        experimentsData.map(async (exp) => {
+        experimentsData.map(async (exp: any) => {
           const { data: variants } = await supabase
             .from('variants')
             .select('id, name, is_control')
@@ -197,30 +187,30 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
 
           if (!variants || variants.length < 2) return null
 
-          const control = variants.find(v => v.is_control)
-          const testVariants = variants.filter(v => !v.is_control)
+          const control = variants.find((v: any) => v.is_control)
+          const testVariants = variants.filter((v: any) => !v.is_control)
 
           // Buscar dados agregados de variant_stats
           const [controlStats, ...testStats] = await Promise.all([
             supabase.from('variant_stats').select('visitors, conversions, revenue').eq('variant_id', control?.id).maybeSingle(),
-            ...testVariants.map(v => supabase.from('variant_stats').select('visitors, conversions, revenue').eq('variant_id', v.id).maybeSingle())
+            ...testVariants.map((v: any) => supabase.from('variant_stats').select('visitors, conversions, revenue').eq('variant_id', v.id).maybeSingle())
           ])
 
           let controlData = controlStats.data || { visitors: 0, conversions: 0, revenue: 0 }
-          
+
           // Se variant_stats não tiver dados, buscar direto de assignments e conversions
           if (controlData.visitors === 0 && controlData.conversions === 0) {
             const { data: assignments } = await supabase
               .from('assignments')
               .select('id')
               .eq('variant_id', control?.id)
-            
+
             const { data: conversions_data } = await supabase
               .from('events')
               .select('id, value as conversion_value')
               .eq('variant_id', control?.id)
               .eq('event_type', 'conversion')
-            
+
             const { data: experimentData } = await supabase
               .from('experiments')
               .select('conversion_value')
@@ -230,7 +220,7 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
             controlData = {
               visitors: assignments?.length || 0,
               conversions: conversions_data?.length || 0,
-              revenue: conversions_data ? (conversions_data.reduce((sum, c) => sum + (Number(c.conversion_value) || 0), 0) || (conversions_data.length * Number(experimentData?.conversion_value || 0))) : 0
+              revenue: conversions_data ? (conversions_data.reduce((sum: number, c: any) => sum + (Number(c.conversion_value) || 0), 0) || (conversions_data.length * Number(experimentData?.conversion_value || 0))) : 0
             }
           }
 
@@ -238,10 +228,10 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
           let bestIndex = 0
           let bestRate = 0
           let bestTestData = { visitors: 0, conversions: 0, revenue: 0 }
-          
-          await Promise.all(testStats.map(async (stat, index) => {
+
+          await Promise.all(testStats.map(async (stat: any, index: number) => {
             let data = stat.data || { visitors: 0, conversions: 0, revenue: 0 }
-            
+
             // Se variant_stats não tiver dados, buscar direto
             if (data.visitors === 0 && data.conversions === 0) {
               const variant = testVariants[index]
@@ -249,13 +239,13 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
                 .from('assignments')
                 .select('id')
                 .eq('variant_id', variant.id)
-              
+
               const { data: conversions_data } = await supabase
                 .from('events')
                 .select('id, value as conversion_value')
                 .eq('variant_id', variant.id)
                 .eq('event_type', 'conversion')
-              
+
               const { data: experimentData } = await supabase
                 .from('experiments')
                 .select('conversion_value')
@@ -265,10 +255,10 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
               data = {
                 visitors: assignments?.length || 0,
                 conversions: conversions_data?.length || 0,
-                revenue: conversions_data ? (conversions_data.reduce((sum, c) => sum + (Number(c.conversion_value) || 0), 0) || (conversions_data.length * Number(experimentData?.conversion_value || 0))) : 0
+                revenue: conversions_data ? (conversions_data.reduce((sum: number, c: any) => sum + (Number(c.conversion_value) || 0), 0) || (conversions_data.length * Number(experimentData?.conversion_value || 0))) : 0
               }
             }
-            
+
             const currRate = data.visitors > 0 ? (data.conversions / data.visitors) : 0
             if (currRate > bestRate) {
               bestRate = currRate
@@ -281,7 +271,7 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
           const testRate = bestTestData.visitors > 0 ? (bestTestData.conversions / bestTestData.visitors) * 100 : 0
           const uplift = controlRate > 0 ? ((testRate - controlRate) / controlRate) * 100 : 0
           const totalVisitors = controlData.visitors + bestTestData.visitors
-          
+
           // ✅ Usar análise estatística real com p-value
           const analysis = analyzeExperiment(
             controlData.visitors,
@@ -290,7 +280,7 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
             bestTestData.conversions,
             0.95 // confidence_level padrão
           )
-          
+
           const daysRunning = Math.floor((Date.now() - new Date(exp.created_at).getTime()) / (1000 * 60 * 60 * 24))
 
           // Calcular tamanho mínimo de amostra para confiança
@@ -328,8 +318,8 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
       )
 
       const validExperiments = experimentsWithStats.filter(Boolean) as ExperimentCard[]
-      const winners = validExperiments.filter(e => e.isWinner).length
-      const losers = validExperiments.filter(e => !e.isWinner && e.uplift < -5).length
+      const winners = validExperiments.filter((e: any) => e.isWinner).length
+      const losers = validExperiments.filter((e: any) => !e.isWinner && e.uplift < -5).length
 
       setStats(prev => prev ? { ...prev, winners, losers } : null)
       setExperiments(validExperiments)
@@ -361,7 +351,7 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
       router.push('/dashboard')
     }
   }
-  
+
   const handleViewExperiment = async (id: string) => {
     try {
       // Buscar experimento completo do banco
@@ -584,26 +574,26 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
                     <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm">
                       <Calendar className="w-5 h-5 text-blue-300" />
                     </div>
-                  <SelectValue />
+                    <SelectValue />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900/98 backdrop-blur-2xl border-slate-700 shadow-2xl rounded-2xl overflow-hidden">
                   <SelectItem value="7d" className="text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:to-purple-500/20 focus:bg-blue-500/20 cursor-pointer py-3 transition-all">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                    Últimos 7 dias
+                      Últimos 7 dias
                     </div>
                   </SelectItem>
                   <SelectItem value="30d" className="text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:to-purple-500/20 focus:bg-blue-500/20 cursor-pointer py-3 transition-all">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                    Últimos 30 dias
+                      Últimos 30 dias
                     </div>
                   </SelectItem>
                   <SelectItem value="90d" className="text-white hover:bg-gradient-to-r hover:from-blue-500/20 hover:to-purple-500/20 focus:bg-blue-500/20 cursor-pointer py-3 transition-all">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                    Últimos 90 dias
+                      Últimos 90 dias
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -748,9 +738,8 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
                     onClick={() => handleViewExperiment(exp.id)}
                     className="group relative overflow-hidden backdrop-blur-xl bg-white/95 border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
                   >
-                    <div className={`absolute inset-0 opacity-5 bg-gradient-to-r ${
-                      exp.isWinner ? 'from-emerald-500 to-green-500' : exp.uplift < -5 ? 'from-red-500 to-rose-500' : 'from-blue-500 to-purple-500'
-                    }`} />
+                    <div className={`absolute inset-0 opacity-5 bg-gradient-to-r ${exp.isWinner ? 'from-emerald-500 to-green-500' : exp.uplift < -5 ? 'from-red-500 to-rose-500' : 'from-blue-500 to-purple-500'
+                      }`} />
 
                     <div className="relative p-8 sm:p-10">
                       <div className="flex flex-col lg:flex-row lg:items-start gap-8 mb-8">
@@ -784,9 +773,8 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
 
                         {/* Mostrar UPLIFT apenas quando tiver dados suficientes */}
                         {exp.hasEnoughData && (
-                          <div className={`px-10 py-6 rounded-3xl shadow-xl relative ${
-                            exp.uplift > 0 ? 'bg-gradient-to-br from-emerald-50 to-green-100' : 'bg-gradient-to-br from-red-50 to-rose-100'
-                          }`}>
+                          <div className={`px-10 py-6 rounded-3xl shadow-xl relative ${exp.uplift > 0 ? 'bg-gradient-to-br from-emerald-50 to-green-100' : 'bg-gradient-to-br from-red-50 to-rose-100'
+                            }`}>
                             <p className="text-xs font-bold text-slate-600 mb-1 text-center">UPLIFT</p>
                             <p className={`text-6xl font-black text-center ${exp.uplift > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                               {exp.uplift > 0 ? '+' : ''}{exp.uplift.toFixed(1)}%
@@ -824,15 +812,13 @@ export function OverviewRedesigned({ onOpenNewExperiment }: OverviewRedesignedPr
                           </div>
                         </div>
 
-                        <div className={`p-7 rounded-3xl border-2 shadow-lg ${
-                          exp.uplift > 0
-                            ? 'bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-300'
-                            : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-300'
-                        }`}>
+                        <div className={`p-7 rounded-3xl border-2 shadow-lg ${exp.uplift > 0
+                          ? 'bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-300'
+                          : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-300'
+                          }`}>
                           <div className="flex items-center gap-2 mb-4">
-                            <Badge className={`border-0 text-white font-bold shadow-lg ${
-                              exp.uplift > 0 ? 'bg-gradient-to-r from-emerald-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-rose-600'
-                            }`}>
+                            <Badge className={`border-0 text-white font-bold shadow-lg ${exp.uplift > 0 ? 'bg-gradient-to-r from-emerald-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-rose-600'
+                              }`}>
                               {exp.uplift > 0 ? 'Vencedor' : 'Perdedor'}
                             </Badge>
                             <span className="text-sm font-bold text-slate-700">{exp.winner.name}</span>

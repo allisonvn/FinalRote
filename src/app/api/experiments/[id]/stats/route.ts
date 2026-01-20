@@ -38,7 +38,7 @@ export async function GET(
 
     // 2. Buscar estatísticas das variantes
     const { data: variantStats, error: statsError } = await supabase
-      .from('variant_stats')
+      .from('variant_stats' as any)
       .select(`
         variant_id,
         visitors,
@@ -96,7 +96,7 @@ export async function GET(
         id: variant.id,
         name: variant.name,
         is_control: variant.is_control,
-        traffic_percentage: parseFloat(variant.traffic_percentage || '0'),
+        traffic_percentage: parseFloat(String(variant.traffic_percentage || '0')),
         redirect_url: variant.redirect_url,
         visitors: stats.visitors,
         conversions: stats.conversions,
@@ -117,13 +117,6 @@ export async function GET(
 
     // 6. Identificar vencedor (maior taxa de conversão com mínimo de dados)
     const minVisitors = 50 // Mínimo de visitantes para considerar significativo
-    const eligibleVariants = variantsWithStats.filter(v => v.visitors >= minVisitors)
-    const winner = eligibleVariants.length > 0
-      ? eligibleVariants.reduce((best, current) =>
-          current.conversion_rate > best.conversion_rate ? current : best
-        )
-      : null
-
     // 7. Calcular uplift (melhoria em relação ao controle)
     const control = variantsWithStats.find(v => v.is_control)
     const variantsWithUplift = variantsWithStats.map(variant => {
@@ -138,6 +131,15 @@ export async function GET(
       }
     })
 
+    // Recalculate winner from variantsWithUplift to include uplift property
+    const eligibleVariants = variantsWithUplift.filter(v => v.visitors >= minVisitors)
+    const winner: any = eligibleVariants.length > 0
+      ? eligibleVariants.reduce((best, current) =>
+        current.conversion_rate > best.conversion_rate ? current : best
+      )
+      : null
+
+
     // 8. Buscar eventos recentes (últimos 10)
     const { data: recentEvents } = await supabase
       .from('events')
@@ -147,22 +149,27 @@ export async function GET(
       .limit(10)
 
     // 9. Buscar conversões por dia (últimos 7 dias)
-    const { data: dailyConversions } = await supabase
-      .rpc('get_daily_conversions', {
-        p_experiment_id: experimentId,
-        p_days: 7
-      })
-      .then(res => res.data)
-      .catch(() => null)
+    let dailyConversions: any[] = []
+    try {
+      const { data } = await supabase
+        .rpc('get_daily_conversions' as any, {
+          p_experiment_id: experimentId,
+          p_days: 7
+        })
+      dailyConversions = data || []
+    } catch (e) {
+      console.warn('Failed to fetch daily conversions', e)
+    }
 
     // Resposta completa
+    const exp: any = experiment
     return NextResponse.json({
       experiment: {
-        id: experiment.id,
-        name: experiment.name,
-        status: experiment.status,
-        algorithm: experiment.algorithm,
-        created_at: experiment.created_at
+        id: exp.id,
+        name: exp.name,
+        status: exp.status,
+        algorithm: exp.algorithm,
+        created_at: exp.created_at
       },
       summary: {
         total_visitors: totalVisitors,
@@ -195,4 +202,3 @@ export async function GET(
     )
   }
 }
-

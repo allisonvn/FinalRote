@@ -57,6 +57,8 @@ import {
 import { cn } from '@/lib/utils'
 import { useApp } from '@/providers/app-provider'
 
+import { ExperimentMetrics, RevenueData, DashboardStats } from '@/lib/analytics'
+
 interface Experiment {
   id: string
   name: string
@@ -109,10 +111,10 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
   ]
 
   // Dados de performance baseados apenas em dados reais
-  const [performanceData, setPerformanceData] = useState<any[]>([])
-  const [experimentMetrics, setExperimentMetrics] = useState<any[]>([])
-  const [deviceData, setDeviceData] = useState<any[]>([])
-  const [funnelData, setFunnelData] = useState<any[]>([])
+  const [performanceData, setPerformanceData] = useState<{ date: string; control_rate: number; variant_a_rate: number; variant_b_rate: number }[]>([])
+  const [experimentMetrics, setExperimentMetrics] = useState<ExperimentMetrics[]>([])
+  const [deviceData, setDeviceData] = useState<{ device: string; visitors: number }[]>([])
+  const [funnelData, setFunnelData] = useState<{ stage: string; events: number; visitors: number }[]>([])
 
   // Carregar dados de performance
   useEffect(() => {
@@ -135,7 +137,7 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
   }, [preferences.defaultTimeRange])
 
   // Dados de receita - baseados apenas em métricas reais 
-  const [revenueData, setRevenueData] = useState<any[]>([])
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([])
 
   // Carregar dados reais de receita
   useEffect(() => {
@@ -157,7 +159,7 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
 
   // Carregar métricas reais de experimentos e device breakdown
   // Estado para métricas do período anterior
-  const [previousMetrics, setPreviousMetrics] = useState<any>({ visitors: 0, conversions: 0, conversionRate: 0 })
+  const [previousMetrics, setPreviousMetrics] = useState<{ visitors: number; conversions: number; conversionRate: number }>({ visitors: 0, conversions: 0, conversionRate: 0 })
 
   useEffect(() => {
     const loadMore = async () => {
@@ -183,8 +185,8 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
     loadMore()
   }, [timeRange, selectedExperiment, refreshTrigger])
 
-  const filteredMetrics = selectedExperiment === 'all' ? experimentMetrics : experimentMetrics.filter((m: any) => m.id === selectedExperiment)
-  const significanceData = filteredMetrics.slice(0, 4).map((exp: any) => ({
+  const filteredMetrics = selectedExperiment === 'all' ? experimentMetrics : experimentMetrics.filter((m) => m.id === selectedExperiment)
+  const significanceData = filteredMetrics.slice(0, 4).map((exp) => ({
     experiment: exp.name.length > 12 ? exp.name.substring(0, 12) + '...' : exp.name,
     significance: exp.significance,
     sample_size: exp.visitors
@@ -232,23 +234,23 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
   }
 
   // Filtragem
-  const displayedMetrics = filteredMetrics.filter((m: any) =>
+  const displayedMetrics = filteredMetrics.filter((m) =>
     !filterSearch || m.name.toLowerCase().includes(filterSearch.toLowerCase())
   )
 
   // Calcular média de improvement atual
   const avgImprovement = displayedMetrics.length > 0 ?
-    (displayedMetrics.reduce((acc: number, exp: any) => acc + (exp.improvement || 0), 0) / displayedMetrics.length) : 0
+    (displayedMetrics.reduce((acc, exp) => acc + (exp.improvement || 0), 0) / displayedMetrics.length) : 0
 
   // Calcular trends reais para Receita e Visitantes
   const totalVisitors = displayedMetrics.length > 0 ?
-    displayedMetrics.reduce((acc: number, exp: any) => acc + (exp.visitors || 0), 0) : 0
+    displayedMetrics.reduce((acc, exp) => acc + (exp.visitors || 0), 0) : 0
 
   const visitorGrowth = previousMetrics.visitors > 0 ?
     ((totalVisitors - previousMetrics.visitors) / previousMetrics.visitors) * 100 : 0
 
   const totalRevenueExtra = revenueData.length > 0 ?
-    revenueData.reduce((sum: number, r: any) => sum + Math.max(0, (r.variants || 0) - (r.control || 0)), 0) : 0
+    revenueData.reduce((sum, r) => sum + Math.max(0, (r.variants || 0) - (r.control || 0)), 0) : 0
 
   // Como não temos receita anterior exata na API ainda, usamos visitors como proxy ou mantemos 0 se não houver dados
   const revenueGrowth = 0 // Implementar endpoint de revenue real para comparação temporal futura
@@ -259,9 +261,9 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
 
   // Gerar insights automáticos
   const topPerformer = experimentMetrics.length > 0 ?
-    [...experimentMetrics].sort((a: any, b: any) => (b.improvement || 0) - (a.improvement || 0))[0] : null
+    [...experimentMetrics].sort((a, b) => (b.improvement || 0) - (a.improvement || 0))[0] : null
 
-  const needsAttention = experimentMetrics.filter((exp: any) =>
+  const needsAttention = experimentMetrics.filter((exp) =>
     exp.status === 'running' && exp.significance < 85
   )
 
@@ -428,7 +430,7 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
                     <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1">Significância</p>
                     <p className="text-3xl font-black text-blue-600 dark:text-blue-400">
                       {filteredMetrics.length > 0 ?
-                        (filteredMetrics.reduce((acc: number, exp: any) => acc + (exp.significance || 0), 0) / filteredMetrics.length).toFixed(1)
+                        (filteredMetrics.reduce((acc, exp) => acc + (exp.significance || 0), 0) / filteredMetrics.length).toFixed(1)
                         : '0.0'}%
                     </p>
                     <p className="text-xs text-blue-600/70 dark:text-blue-400/70 font-semibold mt-1">confiança</p>
@@ -450,7 +452,7 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
                     <p className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider mb-1">Receita Extra</p>
                     <p className="text-3xl font-black text-purple-600 dark:text-purple-400">
                       R${revenueData.length > 0 ?
-                        (revenueData.reduce((sum: number, r: any) => sum + Math.max(0, (r.variants || 0) - (r.control || 0)), 0) / 1000).toFixed(0)
+                        (revenueData.reduce((sum, r) => sum + Math.max(0, (r.variants || 0) - (r.control || 0)), 0) / 1000).toFixed(0)
                         : '0'}k
                     </p>
                     <p className="text-xs text-purple-600/70 dark:text-purple-400/70 font-semibold mt-1">este período</p>
@@ -472,7 +474,7 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
                     <p className="text-xs font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider mb-1">Visitantes</p>
                     <p className="text-3xl font-black text-orange-600 dark:text-orange-400">
                       {filteredMetrics.length > 0 ?
-                        (filteredMetrics.reduce((acc: number, exp: any) => acc + (exp.visitors || 0), 0) / 1000).toFixed(1) + 'k'
+                        (filteredMetrics.reduce((acc, exp) => acc + (exp.visitors || 0), 0) / 1000).toFixed(1) + 'k'
                         : '0.0k'}
                     </p>
                     <p className="text-xs text-orange-600/70 dark:text-orange-400/70 font-semibold mt-1">testados</p>
@@ -713,7 +715,7 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
                   </tr>
                 </thead>
                 <tbody>
-                  {displayedMetrics.map((exp: any, index: number) => (
+                  {displayedMetrics.map((exp, index) => (
                     <tr key={index} className="border-b border-slate-100 dark:border-gray-800 hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-teal-50/50 dark:hover:from-emerald-950/20 dark:hover:to-teal-950/20 transition-all duration-300">
                       <td className="py-5 px-4">
                         <div className="flex items-center gap-3">
@@ -760,9 +762,9 @@ export function ChartsSection({ className, experiments = [], stats, realtime }: 
               <div className="flex justify-end mt-6 pt-6 border-t-2 border-slate-200 dark:border-gray-800">
                 <Button size="lg" className="h-12 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105" onClick={() => {
                   try {
-                    const rows = experimentMetrics.map((e: any) => ({ name: e.name, status: e.status, conversionRate: e.conversionRate, improvement: e.improvement, significance: e.significance, visitors: e.visitors, conversions: e.conversions }))
+                    const rows = experimentMetrics.map((e) => ({ name: e.name, status: e.status, conversionRate: e.conversionRate, improvement: e.improvement, significance: e.significance, visitors: e.visitors, conversions: e.conversions }))
                     const header = 'name,status,conversionRate,improvement,significance,visitors,conversions\n'
-                    const csv = header + rows.map((r: any) => [r.name, r.status, r.conversionRate, r.improvement, r.significance, r.visitors, r.conversions].join(',')).join('\n')
+                    const csv = header + rows.map((r) => [r.name, r.status, r.conversionRate, r.improvement, r.significance, r.visitors, r.conversions].join(',')).join('\n')
                     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
                     const url = URL.createObjectURL(blob)
                     const a = document.createElement('a')

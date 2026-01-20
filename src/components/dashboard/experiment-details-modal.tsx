@@ -51,12 +51,9 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
   // Função otimizada para buscar todos os dados necessários
   const loadExperimentData = async () => {
     if (!experiment?.id) {
-      console.log('❌ Experiment ID não fornecido')
       return
     }
 
-    console.log('📊 Carregando dados do experimento:', experiment.id)
-    console.log('📋 Dados recebidos do experimento:', experiment)
 
     try {
       setLoading(true)
@@ -124,19 +121,13 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
             : totalRevenue
         }
 
-        console.log('💰 Receita total calculada:', {
-          conversoes: allConversions?.length || 0,
-          totalRevenue,
-          conversion_value_experimento: experiment.conversion_value,
-          receita_final: totalMetrics.revenue
-        })
+        // Debug logging removed
       }
 
       totalMetrics.conversionRate = totalMetrics.visitors > 0
         ? (totalMetrics.conversions / totalMetrics.visitors) * 100
         : 0
 
-      console.log('📈 Métricas totais:', totalMetrics)
       setMetrics(totalMetrics)
 
       // Buscar stats individuais para cada variante
@@ -177,7 +168,6 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
               revenue = conversions * Number(experiment.conversion_value)
             }
 
-            console.log(`💰 Variante ${variant.name}: ${conversions} conversões, receita = R$ ${revenue.toFixed(2)}`)
           }
 
           return {
@@ -190,8 +180,6 @@ export function ExperimentDetailsModal({ experiment, isOpen, onClose }: Experime
         })
       )
 
-      console.log('🎯 Variantes encontradas:', variantsWithStats.length)
-      console.log('📊 Dados das variantes:', variantsWithStats)
       setVariants(variantsWithStats)
 
       // Setar API key se disponível

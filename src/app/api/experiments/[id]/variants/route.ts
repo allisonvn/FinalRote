@@ -59,13 +59,13 @@ export async function POST(
     ]
 
     // Processar cada variante para suportar múltiplas URLs
-    const processedVariants = variantsToCreate.map(variant => {
+    const processedVariants = variantsToCreate.map((variant: any) => {
       let changesData = variant.changes || {}
-      
+
       // Se múltiplas URLs foram fornecidas, armazenar no campo changes
       if (variant.urls && Array.isArray(variant.urls) && variant.urls.length > 1) {
         const validUrls = variant.urls.filter((url: string) => url && url.trim())
-        
+
         changesData = {
           ...changesData,
           multipage: true,
@@ -79,14 +79,14 @@ export async function POST(
           total_pages: validUrls.length,
           selection_mode: variant.selection_mode || 'random' // random, weighted, sequential
         }
-        
+
         // Usar primeira URL como redirect_url principal
         variant.redirect_url = validUrls[0]
       } else if (variant.urls && variant.urls.length === 1) {
         // Uma única URL
         variant.redirect_url = variant.urls[0]
       }
-      
+
       return {
         name: variant.name,
         description: variant.description,
@@ -100,13 +100,12 @@ export async function POST(
     })
 
     // Adicionar experiment_id a cada variante
-    const variantsWithExpId = processedVariants.map(variant => ({
+    const variantsWithExpId = processedVariants.map((variant: any) => ({
       ...variant,
       experiment_id: experimentId,
       user_id: user.id
     }))
 
-    console.log('Criando variantes para experimento:', experimentId, variantsWithExpId)
 
     // Inserir variantes
     const { data: newVariants, error: variantsError } = await (supabase as any)

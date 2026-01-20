@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function DashboardSimple() {
-  console.log('Dashboard Simple: Component rendering')
   
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -13,14 +12,11 @@ export default function DashboardSimple() {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        console.log('Dashboard Simple: Checking user...')
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session?.user) {
-          console.log('Dashboard Simple: User found:', session.user.id)
           setUser(session.user)
         } else {
-          console.log('Dashboard Simple: No user found')
         }
       } catch (error) {
         console.error('Dashboard Simple: Error:', error)

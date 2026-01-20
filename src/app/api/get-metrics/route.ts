@@ -13,11 +13,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const range = searchParams.get('range') as '7d'|'30d'|'90d'|'1y' || '30d'
 
-    console.log('📊 Buscando métricas para range:', range)
     
     const metrics = await getExperimentMetrics(range)
     
-    console.log('📊 Métricas encontradas:', metrics.length)
 
     return NextResponse.json(metrics, { headers: corsHeaders })
   } catch (error) {

@@ -222,13 +222,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
 
       // Log da query antes de executar (apenas em desenvolvimento)
       if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Executando query events:', {
-          projectId,
-          filters: {
-            eventType: filters.eventType,
-            search: filters.search,
-          }
-        })
+        // Debug logging removed
       }
 
       // Apply apenas filtros básicos que não dependem de colunas que podem não existir
@@ -282,7 +276,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
 
           // Reaplicar todos os filtros (básicos + adicionais)
           let finalQuery = expandedQuery
-          
+
           if (filters.search) {
             finalQuery = finalQuery.or(`event_name.ilike.%${filters.search}%,visitor_id.ilike.%${filters.search}%`)
           }
@@ -330,32 +324,29 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           }
 
           const { data: expandedData, error: expandedError, count: expandedCount } = await finalQuery
-          
+
           if (!expandedError && expandedData) {
             // Usar dados expandidos se disponível
             data = expandedData
             count = expandedCount
-            console.log('✅ Query expandida bem-sucedida com todas as colunas')
           } else {
             // Se a query expandida falhar, usar dados básicos
-            console.log('⚠️ Query expandida falhou, usando dados básicos')
           }
         } catch (expandErr) {
           // Se houver erro ao expandir, usar dados básicos
-          console.log('⚠️ Erro ao expandir query, usando dados básicos:', expandErr)
         }
       }
 
       // Se houver erro sobre colunas não encontradas, tentar novamente com colunas básicas
       const isColumnError = fetchError && (
-        fetchError.message?.includes('project_id') || 
-        fetchError.message?.includes('utm_source') || 
+        fetchError.message?.includes('project_id') ||
+        fetchError.message?.includes('utm_source') ||
         fetchError.message?.includes('utm_medium') ||
         fetchError.message?.includes('utm_campaign') ||
         fetchError.message?.includes('device_type') ||
         fetchError.message?.includes('browser') ||
         fetchError.message?.includes('country') ||
-        fetchError.message?.includes('does not exist') || 
+        fetchError.message?.includes('does not exist') ||
         fetchError.code === '42703'
       )
 
@@ -457,11 +448,11 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
       } else if (fetchError) {
         // Usar serializeError para garantir que temos informações úteis
         const serializedError = serializeError(fetchError)
-        
+
         // Determinar mensagem de erro
-        const errorMessage = serializedError?.message || 
-                            (fetchError as any)?.message ||
-                            'Erro ao buscar eventos do banco de dados'
+        const errorMessage = serializedError?.message ||
+          (fetchError as any)?.message ||
+          'Erro ao buscar eventos do banco de dados'
 
         // Log detalhado do erro (apenas em desenvolvimento)
         if (process.env.NODE_ENV === 'development') {
@@ -528,15 +519,15 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
     } catch (err) {
       // Usar serializeError para garantir que sempre temos informações úteis
       const serializedError = serializeError(err)
-      
+
       // Log do erro apenas em desenvolvimento
       if (process.env.NODE_ENV === 'development') {
         console.error('🔴 Erro capturado no fetchEvents:', serializedError)
       }
-      
+
       // Extrair informações do erro serializado com fallbacks robustos
       let errorMessage = 'Erro desconhecido ao carregar eventos'
-      
+
       if (serializedError?.message) {
         errorMessage = serializedError.message
       } else if (err instanceof Error && err.message) {
@@ -553,7 +544,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           errorMessage = errObj.message || errObj.error || errObj.msg || errorMessage
         }
       }
-      
+
       const errorCode = serializedError?.code || (err as any)?.code || undefined
       const errorDetails = serializedError?.details || (err as any)?.details || undefined
       const errorHint = serializedError?.hint || (err as any)?.hint || undefined
@@ -580,12 +571,12 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
       if (errorHint !== undefined && errorHint !== null) errorLog.hint = errorHint
       if (errorStatus !== undefined && errorStatus !== null) errorLog.status = errorStatus
       if (errorStatusCode !== undefined && errorStatusCode !== null) errorLog.statusCode = errorStatusCode
-      
+
       if (err?.constructor?.name) errorLog.errorConstructor = err.constructor.name
       if (serializedError && serializedError !== null && typeof serializedError === 'object' && Object.keys(serializedError).length > 0) {
         errorLog.serializedError = serializedError
       }
-      
+
       // Garantir que temos pelo menos algumas informações básicas
       if (!errorLog.message || errorLog.message === 'Erro desconhecido') {
         errorLog.message = `Erro do tipo ${typeof err} capturado em ${new Date().toISOString()}`
@@ -812,7 +803,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           }
         })
 
-        const firstErrorResult = errors[0].result?.error
+        const firstErrorResult = errors[0]?.result?.error
         const serializedFirstError = serializeError(firstErrorResult)
         const firstErrorMessage =
           serializedFirstError?.message ||
@@ -958,7 +949,7 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           schema: 'public',
           table: 'events'
         },
-        (payload) => {
+        (payload: any) => {
           const newEvent = payload.new as Event
 
           // Check if event matches current filters

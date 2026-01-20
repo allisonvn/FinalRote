@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         cancel_at_period_end: true,
         cancel_reason: 'user_requested',
         updated_at: new Date().toISOString(),
-      })
+      } as any)
       .eq('id', subscription.id);
 
     if (updateError) {
@@ -80,16 +80,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Log do evento
-    await supabase.from('subscription_logs').insert({
-      subscription_id: subscription.id,
-      user_id: authUser.id,
-      event_type: 'cancel_requested',
-      event_source: 'user',
-      metadata: {
+    // 6. Log do evento (usando insert genérico para evitar erro de tipagem)
+    try {
+      await supabase.from('subscription_logs').insert({
+        subscription_id: subscription.id,
+        user_id: authUser.id,
         org_id: user.default_org_id,
-      },
-    });
+        event_type: 'cancel_requested',
+        event_source: 'user',
+        new_status: 'pending_cancellation',
+        metadata: {
+          org_id: user.default_org_id,
+        },
+      } as any);
+    } catch (logError) {
+      console.warn('[Subscription] Erro ao registrar log:', logError);
+    }
 
     // 7. Cancelar também na Kiwify via API
     if (subscription.kiwify_subscription_id) {
@@ -102,18 +108,23 @@ export async function POST(request: NextRequest) {
         if (!result.success) {
           console.error('[Subscription] Falha ao cancelar na Kiwify:', result.error);
           // Não falha a operação local, mas loga o erro
-          await supabase.from('subscription_logs').insert({
-            subscription_id: subscription.id,
-            user_id: authUser.id,
-            event_type: 'kiwify_cancel_failed',
-            event_source: 'system',
-            metadata: {
-              error: result.error,
-              kiwify_subscription_id: subscription.kiwify_subscription_id,
-            },
-          });
+          try {
+            await supabase.from('subscription_logs').insert({
+              subscription_id: subscription.id,
+              user_id: authUser.id,
+              org_id: user.default_org_id,
+              event_type: 'kiwify_cancel_failed',
+              event_source: 'system',
+              new_status: 'error',
+              metadata: {
+                error: result.error,
+                kiwify_subscription_id: subscription.kiwify_subscription_id,
+              },
+            } as any);
+          } catch (logError) {
+            console.warn('[Subscription] Erro ao registrar log de falha:', logError);
+          }
         } else {
-          console.log('[Subscription] Assinatura cancelada na Kiwify com sucesso');
         }
       } catch (kiwifyError) {
         console.error('[Subscription] Erro ao comunicar com Kiwify:', kiwifyError);

@@ -52,15 +52,16 @@ export async function GET(
     }
 
     // Retornar apenas os dados necessários (público e seguro)
+    const exp: any = experiment
     return NextResponse.json({
       success: true,
       experiment: {
-        id: experiment.id,
-        name: experiment.name,
-        conversion_value: experiment.conversion_value || 0,
-        conversion_url: experiment.conversion_url,
-        conversion_type: experiment.conversion_type || 'page_view',
-        status: experiment.status
+        id: exp.id,
+        name: exp.name,
+        conversion_value: exp.conversion_value || 0,
+        conversion_url: exp.conversion_url,
+        conversion_type: exp.conversion_type || 'page_view',
+        status: exp.status
       }
     }, {
       headers: corsHeaders

@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
     const conversionValue = data.conversion_value ? Math.max(Number(data.conversion_value) || 0, 0) : 0
     const conversionType = data.conversion_type || 'page_view'
 
-    console.log('Tentando inserir experimento via SQL direto:', {
       experimentName,
       projectId,
       description,
@@ -98,7 +97,6 @@ export async function POST(request: NextRequest) {
 
     // Criar variantes padrão para o experimento
     if (experimentResult && experimentResult.id) {
-      console.log('Criando variantes padrão para experimento:', experimentResult.id)
       
       // Verificar se já existem variantes para este experimento
       const { data: existingVariants } = await userClient
@@ -107,7 +105,6 @@ export async function POST(request: NextRequest) {
         .eq('experiment_id', experimentResult.id)
       
       if (existingVariants && existingVariants.length > 0) {
-        console.log('Variantes já existem para este experimento, pulando criação')
       } else {
         const defaultVariants = [
           {
@@ -154,7 +151,6 @@ export async function POST(request: NextRequest) {
             console.error('Erro ao criar variantes:', variantsError.message)
             // Não falhamos a criação do experimento por causa das variantes
           } else {
-            console.log('✅ Variantes criadas:', variants)
             experiment.variants = variants
           }
         } catch (variantErr) {

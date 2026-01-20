@@ -14,11 +14,9 @@ export async function GET(request: NextRequest) {
     const range = searchParams.get('range') as '7d'|'30d'|'90d'|'1y' || '30d'
     const experimentId = searchParams.get('experimentId')
 
-    console.log('💰 Buscando dados de receita para range:', range, 'experimentId:', experimentId)
     
     const data = await getRevenueData(range, experimentId || undefined)
     
-    console.log('💰 Dados de receita encontrados:', data.length)
 
     return NextResponse.json(data, { headers: corsHeaders })
   } catch (error) {

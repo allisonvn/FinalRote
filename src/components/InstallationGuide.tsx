@@ -66,7 +66,6 @@ html[data-rf-ready]{opacity:1!important;visibility:visible!important;transition:
         return;
       }
       
-      console.log('RotaFinal: Variant assigned:', variant);
       // Seu código aqui
       
     } catch (error) {

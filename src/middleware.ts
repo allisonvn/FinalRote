@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { checkSubscription } from '@/lib/auth/subscription-check'
 
+// Lista de emails de administradores do sistema
+const ADMIN_EMAILS = [
+  'admin@rotafinal.com',
+  'suporte@rotafinal.com',
+  'eu@allison.com.br',
+]
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
@@ -16,6 +23,7 @@ export async function middleware(request: NextRequest) {
     },
   })
   const isAuthRoute = pathname.startsWith('/auth')
+  const isAdminRoute = pathname.startsWith('/root-panel') || pathname.startsWith('/api/admin')
   const isProtectedRoute = ['/dashboard', '/experiments', '/analytics', '/settings', '/billing', '/blocked'].some(route =>
     pathname.startsWith(route)
   )
@@ -25,8 +33,8 @@ export async function middleware(request: NextRequest) {
     response.headers.set('X-RF-Ready', 'true')
   }
 
-  // Se não for rota protegida nem rota de auth, não precisamos de Supabase aqui
-  if (!isProtectedRoute && !isAuthRoute) {
+  // Se não for rota protegida nem rota de auth nem rota admin, não precisamos de Supabase aqui
+  if (!isProtectedRoute && !isAuthRoute && !isAdminRoute) {
     return response
   }
 
@@ -40,8 +48,8 @@ export async function middleware(request: NextRequest) {
   )
 
   if (!supabaseConfigured) {
-    // Sem Supabase configurado: permite telas de auth carregarem e bloqueia rotas protegidas
-    if (isProtectedRoute) {
+    // Sem Supabase configurado: permite telas de auth carregarem e bloqueia rotas protegidas/admin
+    if (isProtectedRoute || isAdminRoute) {
       const redirectUrl = new URL('/auth/signin', request.url)
       redirectUrl.searchParams.set('redirectTo', pathname)
       return NextResponse.redirect(redirectUrl)
@@ -68,6 +76,39 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Verificação de rotas admin
+  if (isAdminRoute) {
+    if (!user) {
+      const redirectUrl = new URL('/auth/signin', request.url)
+      redirectUrl.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    // Verificar se é admin pelo email ou metadata
+    const userEmail = user.email || ''
+    const userMetadata = user.user_metadata || {}
+    const isSystemAdmin = ADMIN_EMAILS.includes(userEmail) || userMetadata.is_super_admin === true
+
+    // Se não é admin por email/metadata, verificar tabela (será feito no layout/API)
+    // Aqui fazemos apenas uma verificação básica para performance
+    if (!isSystemAdmin) {
+      // Tentar verificar na tabela system_admins
+      const { data: adminCheck } = await supabase
+        .from('system_admins')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!adminCheck) {
+        // Não é admin, redirecionar para dashboard
+        return NextResponse.redirect(new URL('/dashboard?error=access_denied', request.url))
+      }
+    }
+
+    // É admin, permitir acesso
+    return response
+  }
 
   if (isProtectedRoute && !user) {
     const redirectUrl = new URL('/auth/signin', request.url)

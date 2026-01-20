@@ -107,7 +107,6 @@ export async function POST(request: NextRequest) {
           });
 
           if (emailResult.success) {
-            console.log(`[Webhook] Email de pagamento atrasado enviado para ${user.email}`);
           } else {
             console.error(`[Webhook] Falha ao enviar email: ${emailResult.error}`);
           }

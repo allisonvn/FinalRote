@@ -77,10 +77,11 @@ export async function GET(
 
     // Verificar se o usuário tem acesso ao experimento
     // Verificação direta: user_id do experimento ou acesso via projeto
+    const exp1: any = experiment
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('id, created_by, org_id')
-      .eq('id', experiment.project_id)
+      .eq('id', exp1.project_id)
       .single()
 
     if (projectError || !project) {
@@ -99,8 +100,9 @@ export async function GET(
       .single()
 
     // Verificar acesso: user_id direto, created_by do projeto, ou membro da organização
-    const hasAccess = 
-      experiment.user_id === user.id ||
+    const exp: any = experiment
+    const hasAccess =
+      exp.user_id === user.id ||
       project.created_by === user.id ||
       (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
 
@@ -179,9 +181,9 @@ export async function PATCH(
       .single()
 
     // Verificar se o usuário tem acesso ao experimento
-    const hasAccess = experiment.user_id === user.id || 
-                     experiment.projects?.created_by === user.id ||
-                     (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
+    const hasAccess = experiment.user_id === user.id ||
+      experiment.projects?.created_by === user.id ||
+      (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -192,17 +194,17 @@ export async function PATCH(
 
     // Preparar dados de atualização com lógica de started_at e ended_at
     const updateData: any = { ...data }
-    
+
     // Se está mudando o status para 'running' e o experimento não estava rodando
     if (data.status === 'running' && experiment.status !== 'running') {
       updateData.started_at = new Date().toISOString()
     }
-    
+
     // Se está pausando ou completando um experimento que estava rodando
     if ((data.status === 'paused' || data.status === 'completed') && experiment.status === 'running') {
       updateData.ended_at = new Date().toISOString()
     }
-    
+
     // Sempre atualizar updated_at
     updateData.updated_at = new Date().toISOString()
 
@@ -286,9 +288,9 @@ export async function DELETE(
       .single()
 
     // Verificar se o usuário tem acesso ao experimento
-    const hasAccess = experiment.user_id === user.id || 
-                     experiment.projects?.created_by === user.id ||
-                     (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
+    const hasAccess = experiment.user_id === user.id ||
+      experiment.projects?.created_by === user.id ||
+      (orgMember && ['owner', 'admin', 'member'].includes(orgMember.role))
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -307,7 +309,7 @@ export async function DELETE(
     ]
 
     for (const t of tables) {
-      const { error } = await supabase.from(t.name).delete().eq(t.col, experimentId)
+      const { error } = await supabase.from(t.name as any).delete().eq(t.col, experimentId)
       if (error) {
         console.error(`Erro ao deletar ${t.name}:`, error)
         return NextResponse.json(

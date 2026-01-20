@@ -197,7 +197,6 @@ export class AntiFlicker {
    */
   private log(...args: any[]): void {
     if (this.config.debug) {
-      console.log('[RF Anti-Flicker]', ...args)
     }
   }
 
@@ -239,5 +238,4 @@ export function showElements(): void {
 // Auto-inicializar se script inline foi usado
 if (typeof window !== 'undefined' && (window as any).rfAntiFlicker) {
   // Já foi inicializado via script inline
-  console.log('[RF Anti-Flicker] Detectado script inline, usando implementação existente')
 }

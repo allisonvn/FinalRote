@@ -62,7 +62,6 @@ export default class ChunkErrorBoundary extends Component<Props, State> {
     const { retryCount } = this.state
     
     if (retryCount < this.maxRetries) {
-      console.log(`Tentativa ${retryCount + 1} de ${this.maxRetries} para resolver ChunkLoadError`)
       
       setTimeout(() => {
         this.setState(prevState => ({

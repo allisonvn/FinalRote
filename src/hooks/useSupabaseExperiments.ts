@@ -205,7 +205,6 @@ export function useSupabaseExperiments() {
     conversion_selector?: string
   }) => {
     try {
-      console.log('🚀 Iniciando criação de experimento:', data.name)
       
       // Verificar autenticação ANTES de fazer qualquer operação
       const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -215,7 +214,6 @@ export function useSupabaseExperiments() {
         throw new Error('Você precisa estar autenticado para criar um experimento')
       }
       
-      console.log('✅ Usuário autenticado:', user.id)
 
       // Gerar API key única para o experimento
       const generateApiKey = () => {
@@ -228,7 +226,6 @@ export function useSupabaseExperiments() {
       const experimentApiKey = generateApiKey()
 
       // Inserir experimento COM API key, target_url, conversão e tipo
-      console.log('📝 Criando experimento no banco de dados...')
       const { data: newExp, error: insertError } = await supabase
         .from('experiments')
         .insert({
@@ -253,7 +250,6 @@ export function useSupabaseExperiments() {
         throw insertError
       }
       
-      console.log('✅ Experimento criado com sucesso:', newExp.id)
 
       // Preparar configuração de conversão para todas as variantes
       const conversionConfig = data.conversion_type ? {
@@ -296,8 +292,6 @@ export function useSupabaseExperiments() {
       ]
 
       // ✅ GARANTIA 100%: Criar variantes COM retry e validação
-      console.log('📝 Criando variantes do experimento...')
-      console.log('📋 Variantes a serem criadas:', variants.length)
       
       let createdVariants = null
       let variantsError = null
@@ -307,7 +301,6 @@ export function useSupabaseExperiments() {
       // Tentar criar variantes com retry automático
       while (retryCount < maxRetries && !createdVariants) {
         if (retryCount > 0) {
-          console.log(`🔄 Tentativa ${retryCount + 1} de ${maxRetries}...`)
           // Aguardar um pouco antes de tentar novamente
           await new Promise(resolve => setTimeout(resolve, 500 * retryCount))
         }
@@ -334,7 +327,6 @@ export function useSupabaseExperiments() {
           retryCount++
         } else {
           createdVariants = result.data
-          console.log('✅ Variantes criadas com sucesso na tentativa', retryCount + 1)
         }
       }
 
@@ -349,7 +341,6 @@ export function useSupabaseExperiments() {
           : `Falha ao criar variantes: ${variantsError.message}`
         
         // Limpar o experimento criado
-        console.log('🗑️ Revertendo criação do experimento...')
         await supabase.from('experiments').delete().eq('id', newExp.id)
         
         throw new Error(errorMessage)
@@ -366,7 +357,6 @@ export function useSupabaseExperiments() {
           .eq('experiment_id', newExp.id)
         
         if (checkVariants && checkVariants.length > 0) {
-          console.log('✅ Variantes encontradas na verificação:', checkVariants.length)
           // As variantes existem, apenas não foram retornadas pelo insert
           createdVariants = checkVariants
         } else {
@@ -377,8 +367,6 @@ export function useSupabaseExperiments() {
         }
       }
 
-      console.log('✅ Processo de criação de variantes concluído com sucesso!')
-      console.log('📊 Total de variantes criadas:', createdVariants.length)
 
       // Recarregar experimentos
       await loadExperiments()

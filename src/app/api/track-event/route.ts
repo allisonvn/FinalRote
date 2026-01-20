@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { logger } from '@/lib/logger'
 
 // CORS headers para todas as respostas
 const corsHeaders = {
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`📊 [BATCH] Processing ${events.length} events`)
+    logger.info('Processing batch events', { count: events.length })
 
     const supabase = createServiceClient()
     const results: any[] = []
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!experimentId) {
-          console.warn('❌ [WARNING] No experiment_id found for event:', event.event_name)
+          logger.warn('No experiment_id found for event', { eventName: event.event_name })
           results.push({ success: false, error: 'No experiment_id' })
           continue
         }
@@ -83,16 +84,16 @@ export async function POST(request: NextRequest) {
           .insert(eventData)
 
         if (insertError) {
-          console.error('❌ [ERROR] Failed to insert event:', insertError)
+          logger.error('Failed to insert event', { error: insertError })
           results.push({ success: false, error: insertError.message })
           continue
         }
 
-        console.log(`✅ [SUCCESS] Event inserted: ${event.event_type}`)
+        logger.debug('Event inserted', { eventType: event.event_type })
 
         // Se for conversão, atualizar variant_stats
         if (event.event_type === 'conversion' && event.variant_id) {
-          console.log(`📈 [CONVERSION] Updating stats for variant: ${event.variant_id}`)
+          logger.debug('Updating conversion stats', { variantId: event.variant_id })
 
           const { error: rpcError } = await supabase.rpc('increment_variant_conversions', {
             p_variant_id: event.variant_id,
@@ -101,21 +102,21 @@ export async function POST(request: NextRequest) {
           })
 
           if (rpcError) {
-            console.error('❌ [ERROR] Failed to increment conversions:', rpcError)
+            logger.error('Failed to increment conversions', { error: rpcError })
           } else {
-            console.log('✅ [SUCCESS] Conversion stats updated')
+            logger.debug('Conversion stats updated')
           }
         }
 
         results.push({ success: true })
       } catch (eventError) {
-        console.error('❌ [ERROR] Error processing event:', eventError)
+        logger.error('Error processing event', { error: eventError })
         results.push({ success: false, error: eventError instanceof Error ? eventError.message : 'Unknown error' })
       }
     }
 
     const successCount = results.filter(r => r.success).length
-    console.log(`📊 [BATCH] Processed ${successCount}/${events.length} events successfully`)
+    logger.info('Batch processing complete', { successful: successCount, total: events.length })
 
     return NextResponse.json(
       {
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
       { status: 200, headers: corsHeaders }
     )
   } catch (error) {
-    console.error('❌ [ERROR] Batch processing error:', error)
+    logger.error('Batch processing error', error instanceof Error ? error : { error })
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers: corsHeaders }

@@ -64,7 +64,7 @@ export function ConversionMetrics({ experimentId, className }: ConversionMetrics
 
         const statsMap = new Map<string, { visitors: number; conversions: number; revenue: number }>()
         if (stats) {
-          stats.forEach(stat => {
+          stats.forEach((stat: any) => {
             statsMap.set(stat.variant_id, {
               visitors: stat.visitors || 0,
               conversions: stat.conversions || 0,
@@ -74,7 +74,7 @@ export function ConversionMetrics({ experimentId, className }: ConversionMetrics
         }
 
         // Calculate metrics for each variant
-        const metricsData: ConversionData[] = variants.map(variant => {
+        const metricsData: ConversionData[] = variants.map((variant: any) => {
           const stat = statsMap.get(variant.id) || { visitors: 0, conversions: 0, revenue: 0 }
           const conversionRate = stat.visitors > 0 ? (stat.conversions / stat.visitors) * 100 : 0
 
@@ -248,8 +248,8 @@ export function ConversionMetrics({ experimentId, className }: ConversionMetrics
             <div className={cn(
               "absolute bottom-0 left-0 right-0 h-1",
               variant.isControl ? "bg-gradient-to-r from-primary/40 to-primary" :
-              variant.uplift && variant.uplift > 0 ? "bg-gradient-to-r from-success/40 to-success" :
-              "bg-gradient-to-r from-muted/40 to-muted"
+                variant.uplift && variant.uplift > 0 ? "bg-gradient-to-r from-success/40 to-success" :
+                  "bg-gradient-to-r from-muted/40 to-muted"
             )} />
           </Card>
         ))}

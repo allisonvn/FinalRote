@@ -1,5 +1,42 @@
 import { createClient } from './supabase/client'
 import { analyzeExperiment } from '@/lib/statistics'
+import { SupabaseClient } from '@supabase/supabase-js'
+
+interface DatabaseExperiment {
+  id: string
+  name: string
+  status: string
+  created_at: string
+  total_visitors?: number
+  total_conversions?: number
+}
+
+interface DatabaseEvent {
+  visitor_id: string
+  event_type: string
+  experiment_id: string
+  created_at: string
+  value?: number
+}
+
+interface DatabaseAssignment {
+  experiment_id: string
+  visitor_id: string
+  variant_id: string
+  variants: {
+    is_control: boolean
+  }
+}
+
+interface VisitorSession {
+  device_type: string
+  visitor_id: string
+  started_at: string
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+}
+
 
 export async function getExperimentStatsFromRPC(experimentId?: string) {
   const supabase = createClient()
@@ -74,7 +111,7 @@ export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30
   try {
     const supabase = createClient()
     // Tentar buscar da view materializada primeiro, se falhar, usar tabela experiments
-    let experiments = null
+    let experiments: DatabaseExperiment[] | null = null
     let expError = null
 
     try {
@@ -84,22 +121,24 @@ export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30
           .from('experiments')
           .select('id, name, status, created_at')
           .order('created_at', { ascending: false }),
-        new Promise((_, reject) =>
+        new Promise<{ data: null; error: Error }>((_, reject) =>
           setTimeout(() => reject(new Error('Timeout')), 5000)
         )
-      ]) as any
+      ]) as { data: DatabaseExperiment[] | null; error: any }
 
       experiments = result.data?.map((exp: any) => ({
-        experiment_id: exp.id,
-        experiment_name: exp.name,
+        id: exp.id,
+        name: exp.name,
         status: exp.status,
+        created_at: exp.created_at,
         total_visitors: 0,
         total_conversions: 0
       })) || []
       expError = result.error
-    } catch (viewError: any) {
+    } catch (viewError: unknown) {
       if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ Erro ao buscar experimentos:', viewError?.message || viewError)
+        const msg = viewError instanceof Error ? viewError.message : String(viewError)
+        console.warn('⚠️ Erro ao buscar experimentos:', msg)
       }
       experiments = []
       expError = viewError
@@ -115,8 +154,8 @@ export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30
     try {
       const result = await Promise.race([
         supabase.from('events').select('visitor_id', { count: 'exact' }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-      ]) as any
+        new Promise<{ data: null; error: Error }>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+      ]) as { data: any[] | null; error: any }
       events = result.data
       eventsError = result.error
     } catch (error: any) {
@@ -162,7 +201,7 @@ export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30
 
     // Calcular métricas baseadas nos dados reais ou simuladas quando não há dados
     const experimentsData = experiments || []
-    const activeExperiments = experimentsData.filter((exp: any) => exp.status === 'running').length
+    const activeExperiments = experimentsData.filter((exp: DatabaseExperiment) => exp.status === 'running').length
 
     // Se não há dados reais, usar valores baseados na estrutura real mas simulados
     const hasRealData = experimentsData.length > 0 || (events && events.length > 0)
@@ -181,10 +220,10 @@ export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30
     }
 
     // Calcular com dados reais
-    const totalVisitors = experimentsData.reduce((sum: number, exp: any) => sum + (exp.total_visitors || 0), 0) ||
-      (uniqueVisitors ? new Set(uniqueVisitors.map((v: any) => v.visitor_id)).size : 0)
+    const totalVisitors = experimentsData.reduce((sum: number, exp: DatabaseExperiment) => sum + (exp.total_visitors || 0), 0) ||
+      (uniqueVisitors ? new Set(uniqueVisitors.map((v: { visitor_id: string }) => v.visitor_id)).size : 0)
 
-    const totalConversions = experimentsData.reduce((sum: number, exp: any) => sum + (exp.total_conversions || 0), 0) ||
+    const totalConversions = experimentsData.reduce((sum: number, exp: DatabaseExperiment) => sum + (exp.total_conversions || 0), 0) ||
       (conversions?.length || 0)
 
     const conversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0
@@ -239,7 +278,7 @@ export async function getExperimentMetrics(range: '24h' | '7d' | '30d' | '90d' |
     }
 
     // Buscar estatísticas de cada experimento
-    const metrics = await Promise.all(experiments.map(async (exp: any) => {
+    const metrics = await Promise.all(experiments.map(async (exp: { id: string; name: string; status: string; created_at: string }) => {
       // SEMPRE buscar de assignments e events para garantir dados reais
       // Log removido para reduzir ruído no console
 
@@ -250,7 +289,6 @@ export async function getExperimentMetrics(range: '24h' | '7d' | '30d' | '90d' |
         .eq('experiment_id', exp.id)
 
       if (!variants || variants.length === 0) {
-        console.log(`⚠️ Sem variantes para experimento ${exp.name}`)
         return {
           id: exp.id,
           name: exp.name,
@@ -279,10 +317,7 @@ export async function getExperimentMetrics(range: '24h' | '7d' | '30d' | '90d' |
 
         // Log removido para reduzir ruído no console
         if (process.env.NODE_ENV === 'development') {
-          console.log(`📊 Dados encontrados para ${exp.name}:`, {
-            assignments: assignments?.length || 0,
-            events: events?.length || 0
-          })
+          // Log removido
         }
 
         if (assignments && assignments.length > 0) {
@@ -380,7 +415,10 @@ export async function getDeviceBreakdown(range: '24h' | '7d' | '30d' | '90d' | '
           .select('visitor_id')
           .eq('experiment_id', experimentId)
           .gte('created_at', since)
-        visitorSet = new Set<string>([...(ass?.map((a: any) => a.visitor_id) || []), ...(evs?.map((e: any) => e.visitor_id) || [])])
+          .select('visitor_id')
+          .eq('experiment_id', experimentId)
+          .gte('created_at', since)
+        visitorSet = new Set<string>([...(ass?.map((a: { visitor_id: string }) => a.visitor_id) || []), ...(evs?.map((e: { visitor_id: string }) => e.visitor_id) || [])])
       } catch (e) {
         console.error('Erro ao coletar visitantes do experimento:', e)
       }
@@ -400,7 +438,7 @@ export async function getDeviceBreakdown(range: '24h' | '7d' | '30d' | '90d' | '
     if (error || !sessions) return []
 
     const map = new Map<string, Set<string>>()
-    sessions.forEach((s: any) => {
+    sessions.forEach((s: VisitorSession) => {
       const key = s.device_type || 'desktop'
       if (!map.has(key)) map.set(key, new Set())
       map.get(key)!.add(s.visitor_id)
@@ -1000,6 +1038,61 @@ export async function getAudienceSegments(range: '7d' | '30d' | '60d' | '90d' | 
   } catch (error) {
     console.error('Erro ao processar segmentos de audiência:', error)
     return []
+  }
+}
+
+export async function getPreviousPeriodMetrics(range: '24h' | '30d' | '7d' | '90d' | '1y' = '30d', experimentId?: string) {
+  try {
+    const supabase = createClient()
+
+    // Calcular datas do período anterior
+    const days = range === '24h' ? 1 : range === '7d' ? 7 : range === '90d' ? 90 : range === '1y' ? 365 : 30
+    const endDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000)
+
+    // Buscar visitantes do período anterior
+    let q = supabase
+      .from('events')
+      .select('visitor_id', { count: 'exact', head: true })
+      .gte('created_at', startDate.toISOString())
+      .lt('created_at', endDate.toISOString())
+
+    if (experimentId) {
+      q = q.eq('experiment_id', experimentId)
+    }
+
+    const { count: visitors, error } = await q
+
+    if (error) throw error
+
+    // Buscar conversões do período anterior
+    let qConv = supabase
+      .from('events')
+      .select('visitor_id', { count: 'exact', head: true })
+      .gte('created_at', startDate.toISOString())
+      .lt('created_at', endDate.toISOString())
+      .eq('event_type', 'conversion')
+
+    if (experimentId) {
+      qConv = qConv.eq('experiment_id', experimentId)
+    }
+
+    const { count: conversions, error: convError } = await qConv
+
+    if (convError) throw convError
+
+    const visitorCount = visitors || 0
+    const conversionCount = conversions || 0
+
+    return {
+      visitors: visitorCount,
+      conversions: conversionCount,
+      conversionRate: visitorCount > 0 ? (conversionCount / visitorCount) * 100 : 0
+    }
+
+  } catch (error) {
+    console.error('Erro ao buscar métricas do período anterior:', error)
+    return { visitors: 0, conversions: 0, conversionRate: 0 }
   }
 }
 

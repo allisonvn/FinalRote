@@ -61,7 +61,6 @@ export function ExperimentMetrics({
 
       // Se não houver dados, retornar métricas vazias
       if (!data || data.length === 0) {
-        console.log('⚠️ Nenhuma métrica encontrada para o experimento:', experimentId)
         setMetrics({
           variants: [],
           summary: {

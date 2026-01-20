@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { PremiumExperimentModal } from '@/components/dashboard/premium-experiment-modal'
 import { PremiumExperimentsTab } from '@/components/dashboard/premium-experiments-tab'
 import { KpiCard } from '@/components/dashboard/kpi-card'
+import { enhanceInstallCode, generateInstallCodeForExperiment, getUniqueSelector, type Experiment, type Variant } from '@/lib/experiment-utils'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { ChartsSection } from '@/components/dashboard/charts-section'
 import { createClient } from '@/lib/supabase/client'
@@ -39,7 +40,7 @@ const ErrorFallback = ({ message }: { message: string }) => (
   <div className="p-4 text-red-500">{message}</div>
 )
 
-const EventTrendsChart = lazy(() => 
+const EventTrendsChart = lazy(() =>
   import('@/components/dashboard/event-trends-chart').then(mod => {
     if (!mod.default && !mod.EventTrendsChart) {
       throw new Error('EventTrendsChart não encontrado no módulo')
@@ -48,7 +49,7 @@ const EventTrendsChart = lazy(() =>
   })
 )
 
-const UTMAnalysisTable = lazy(() => 
+const UTMAnalysisTable = lazy(() =>
   import('@/components/dashboard/utm-analysis-table').then(mod => {
     if (!mod.default && !mod.UTMAnalysisTable) {
       throw new Error('UTMAnalysisTable não encontrado no módulo')
@@ -63,26 +64,7 @@ import {
   TableSkeleton
 } from '@/components/dashboard/loading-skeletons'
 
-interface Variant { id: string; name: string; key: string; is_control: boolean; url?: string; redirect_url?: string; description?: string; config?: any; weight?: number }
-interface Experiment {
-  id: string
-  name: string
-  status: 'draft' | 'running' | 'paused' | 'completed'
-  created_at: string
-  variants?: Variant[]
-  // Configurações estendidas
-  description?: string
-  algorithm?: 'uniform' | 'thompson_sampling' | 'ucb1'
-  target_url?: string
-  goal_type?: 'page_view' | 'click' | 'form_submit' | 'custom'
-  goal_value?: string
-  duration_days?: number
-  traffic_allocation?: number
-  test_type?: 'split_url' | 'visual' | 'feature_flag'
-  tags?: string[]
-  min_sample_size?: number
-  project_id?: string
-}
+// Experiment definitions now imported from @/lib/experiment-utils
 interface Stats {
   activeExperiments: number;
   totalVisitors: number;
@@ -241,7 +223,6 @@ export default function Dashboard() {
       try {
         const { data: sessionData } = await supabase.auth.getSession()
         if (!sessionData.session?.user) {
-          console.log('⚠️ Usuário não autenticado para carregar projetos')
           return
         }
 
@@ -630,11 +611,9 @@ export default function Dashboard() {
 
       console.error('Erro ao carregar dados:', errorMessage, error)
       // Em caso de erro, mostrar lista vazia
-      console.log('❌ Erro ao carregar experimentos, mostrando lista vazia')
       setExperiments([])
 
       // ✅ Estatísticas agora são gerenciadas pelo hook em tempo real
-      console.log('📈 Hook em tempo real carregará as estatísticas automaticamente')
     } finally {
       setLoading(false)
       setInitialLoad(false) // Garantir que o carregamento inicial seja marcado como completo
@@ -643,9 +622,7 @@ export default function Dashboard() {
 
   const handleSignOut = async () => {
     try {
-      console.log('🚪 Fazendo logout...')
       await supabase.auth.signOut()
-      console.log('✅ Logout realizado com sucesso')
       window.location.href = '/auth/signin'
     } catch (error) {
       console.error('Erro ao fazer logout:', error)
@@ -695,70 +672,6 @@ export default function Dashboard() {
     } catch {
       toast.error('Não foi possível copiar o código')
     }
-  }
-
-  // Aplica melhorias ao snippet: anti-flicker e ajustes de robustez
-  const enhanceInstallCode = (code: string) => {
-    try {
-      let out = code
-      // Anti-flicker: adiciona estilo e aplica classe no começo do script
-      out = out.replace('\n<script>(function(){', '\n<style id="rf-af">html.rf-af{opacity:0!important}</style>\n<script>(function(){try{document.documentElement.classList.add("rf-af")}catch(e){};setTimeout(function(){try{document.documentElement.classList.remove("rf-af")}catch(e){}},1500);')
-      // Após aplicar regras, apenas remove anti-flicker antes do primeiro track
-      out = out.replace('applyRules(variant);\n    window.rotaFinal.track', 'applyRules(variant);\n    try{document.documentElement.classList.remove("rf-af")}catch(e){}\n    window.rotaFinal.track')
-      return out
-    } catch {
-      return code
-    }
-  }
-
-  // Gera o código que deve estar na página para um experimento específico
-  const generateInstallCodeForExperiment = (exp: Experiment) => {
-    // ✅ CORREÇÃO: Verificar se exp.id existe antes de usar
-    if (!exp.id) {
-      console.error('❌ Experiment ID is missing:', exp)
-      return `<!-- ❌ ERRO: Experimento sem ID válido -->`
-    }
-
-    const experimentId = exp.id // ✅ CORREÇÃO: Usar ID direto, não exp_${exp.id}
-    const apiKey = (exp as any).api_key || '' // ✅ CORREÇÃO: Incluir API key
-    const name = exp.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const variants = (exp.variants || []).map((v: any) => ({
-      name: v.name,
-      key: v.name.toLowerCase(),
-      url: v.config?.redirect_url ?? v.redirect_url ?? null,
-      isControl: v.is_control,
-      traffic_percentage: v.traffic_percentage || 50,
-      description: v.description ?? null
-    }))
-    const goal = (exp as any).goal_value || (exp as any).goal_type || 'conversion'
-    const goalType = (exp as any).goal_type || 'page_view'
-    const targetUrl = (exp as any).target_url || ''
-    const algorithm = exp.algorithm || 'thompson_sampling'
-    const inferredMethod = variants.some(v => !!v.url) ? 'split_url' : 'visual'
-    const method = (exp as any).test_type || inferredMethod
-
-    // Build goal handler melhorado
-    const goalHandler = (() => {
-      if (goalType === 'click' && exp.goal_value) {
-        return `document.addEventListener('click',function(e){if(e.target.matches('${exp.goal_value}')||e.target.closest('${exp.goal_value}')){window.rotaFinal.track('${goal}',{variant:variant,selector:'${exp.goal_value}',value:1})}});`
-      }
-      if (goalType === 'form_submit' && exp.goal_value) {
-        return `var f=document.querySelector('${exp.goal_value}');if(f){f.addEventListener('submit',function(e){window.rotaFinal.track('${goal}',{variant:variant,form:'${exp.goal_value}',value:1})})}`
-      }
-      if (goalType === 'page_view' && exp.goal_value) {
-        return `if(location.pathname==='${exp.goal_value}'||location.href.indexOf('${exp.goal_value}')>-1){window.rotaFinal.track('${goal}',{variant:variant,page:'${exp.goal_value}',value:1})}`
-      }
-      return `window.rotaFinal.track('page_view',{variant:variant,experiment_start:true,value:1});`
-    })()
-
-    // ✅ CORREÇÃO: Código base com API key e cachedVariant corrigido
-    const baseCode = `!function(){"use strict";var experimentId="${experimentId}",apiKey="${apiKey}",baseUrl="${window.location.origin}",getUserId=function(){var userId=localStorage.getItem("rf_user_id");if(!userId){userId="rf_"+Math.random().toString(36).substr(2,9)+"_"+Date.now().toString(36);localStorage.setItem("rf_user_id",userId)}return userId},isBot=function(){return/bot|crawler|spider|crawling/i.test(navigator.userAgent)},apiCall=function(url,options){var headers={"Content-Type":"application/json","X-RF-Version":"2.0.0"};if(apiKey){headers["Authorization"]="Bearer "+apiKey}return fetch(url,Object.assign({headers:headers},options)).then(function(response){if(!response.ok)throw new Error("HTTP "+response.status+": "+response.statusText);return response.json()})},experiment={cachedVariant:null,fetchVariant:function(){var self=this;if(this.cachedVariant)return Promise.resolve(this.cachedVariant);return apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})})},applyVariant:function(variant){if(!variant)return;this.cachedVariant=variant;document.documentElement.setAttribute("data-rf-experiment",experimentId);document.documentElement.setAttribute("data-rf-variant",variant.name||"control");document.documentElement.setAttribute("data-rf-user",getUserId());if(variant.redirect_url)window.location.href=variant.redirect_url}},tracking={eventQueue:[],track:function(eventName,properties){var eventData={experiment_id:experimentId,visitor_id:getUserId(),event_type:eventName,properties:properties,timestamp:new Date().toISOString(),url:window.location.href,referrer:document.referrer,user_agent:navigator.userAgent,variant:experiment.cachedVariant&&experiment.cachedVariant.name||null};apiCall(baseUrl+"/api/track",{method:"POST",body:JSON.stringify(eventData)}).catch(function(){tracking.eventQueue.push(eventData)})},flushQueue:function(){if(this.eventQueue.length===0)return;var events=this.eventQueue;this.eventQueue=[];apiCall(baseUrl+"/api/track/batch",{method:"POST",body:JSON.stringify({events:events})}).catch(function(){tracking.eventQueue=events})},trackPageview:function(){this.track("page_view",{title:document.title,path:window.location.pathname,search:window.location.search})},setupClickTracking:function(){document.addEventListener("click",function(event){var element=event.target.closest("[data-rf-track]");if(element){var eventName=element.getAttribute("data-rf-track")||"click";var attributes={};Array.from(element.attributes).forEach(function(attr){if(attr.name.startsWith("data-rf-")&&attr.name!=="data-rf-track"){attributes[attr.name.replace("data-rf-","")]=attr.value}});var clickData={element:element.tagName.toLowerCase(),text:(element.textContent||"").trim().substr(0,100)};Object.assign(clickData,attributes);tracking.track(eventName,clickData)}})}},init=function(){if(isBot())return;apiCall(baseUrl+"/api/experiments/"+experimentId+"/assign",{method:"POST",body:JSON.stringify({visitor_id:getUserId(),user_agent:navigator.userAgent,url:window.location.href,referrer:document.referrer,timestamp:new Date().toISOString(),viewport:{width:window.innerWidth,height:window.innerHeight}})}).then(function(response){if(response&&response.variant){experiment.cachedVariant=response.variant;experiment.applyVariant(response.variant)}}).catch(function(error){console.error("RotaFinal: Error loading variant",error)}).finally(function(){document.documentElement.setAttribute("data-rf-ready","true");var style=document.querySelector("style[data-rf-antiflicker]");if(style)setTimeout(function(){style.remove()},100)})};window.RotaFinal={track:function(eventName,properties){return tracking.track(eventName,properties)},convert:function(value,properties){return this.track("conversion",Object.assign({value:value},properties))},getVariant:function(){return experiment.cachedVariant},getUserId:getUserId,reload:function(){experiment.cachedVariant=null;init()},setDebug:function(enabled){}};window.addEventListener("beforeunload",function(){tracking.flushQueue()});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init)}else{init()}}();`
-
-    return `<!-- 🚀 Rota Final - Experimento: ${name} -->
-<!-- ID: ${experimentId} | API Key: ${apiKey ? '✅ Configurada' : '❌ Ausente'} -->
-<script>
-${baseCode}
-</script>`
   }
 
   const copyExperimentCode = async (exp: Experiment) => {
@@ -1186,14 +1099,7 @@ ${baseCode}
         projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Projeto Principal
       }
 
-      console.log('🚀 Criando experimento com nova lógica...')
-      console.log('📋 Dados do formulário:', {
-        name: experimentForm.name,
-        targetUrl: experimentForm.targetUrl,
-        variants: experimentForm.variants,
-        conversionUrl: experimentForm.conversionUrl,
-        conversionValue: experimentForm.conversionValue
-      })
+      // Log removed
 
       // ============================
       // NOVA LÓGICA: Usar hook useSupabaseExperiments
@@ -1211,7 +1117,6 @@ ${baseCode}
         conversion_selector: experimentForm.conversionSelector?.trim()
       }
 
-      console.log('📤 Chamando createExperiment via hook...')
       const newExperiment = await createExperiment(experimentData)
 
       if (!newExperiment) {
@@ -1220,12 +1125,10 @@ ${baseCode}
         return
       }
 
-      console.log('✅ Experimento criado:', newExperiment)
 
       // ============================
       // ATUALIZAR VARIANTES COM AS URLs CONFIGURADAS
       // ============================
-      console.log('📝 Atualizando variantes com URLs configuradas...')
 
       // Buscar as variantes criadas automaticamente pelo hook
       const { data: createdVariants, error: variantsError } = await supabase
@@ -1241,7 +1144,6 @@ ${baseCode}
         console.error('❌ Nenhuma variante foi encontrada após criar o experimento!')
         toast.error('Erro: O experimento foi criado mas não tem variantes. Por favor, contate o suporte.')
       } else {
-        console.log('📋 Variantes encontradas:', createdVariants)
 
         // Atualizar cada variante com os dados do formulário
         let updatedCount = 0
@@ -1259,7 +1161,6 @@ ${baseCode}
               : formVariant.url?.trim() // ✅ Outras variantes usam suas próprias URLs
           }
 
-          console.log(`📝 Atualizando variante ${dbVariant.id}:`, updateData)
 
           const { error: updateError } = await supabase
             .from('variants')
@@ -1270,12 +1171,10 @@ ${baseCode}
             console.error(`❌ Erro ao atualizar variante ${dbVariant.id}:`, updateError)
             toast.error(`Erro ao atualizar variante "${formVariant.name}"`)
           } else {
-            console.log(`✅ Variante ${dbVariant.id} atualizada com sucesso`)
             updatedCount++
           }
         }
 
-        console.log(`✅ ${updatedCount} de ${createdVariants.length} variantes atualizadas com sucesso`)
       }
 
       toast.success(`✅ Experimento "${newExperiment.name}" criado com sucesso!`)
@@ -1285,7 +1184,6 @@ ${baseCode}
       // Recarregar lista de experimentos
       await loadExperiments()
 
-      console.log('🎉 Experimento criado e salvo no Supabase!')
 
     } catch (error) {
       console.error('❌ Erro geral ao criar experimento:', error)
@@ -1297,7 +1195,6 @@ ${baseCode}
 
   // Função para inserir variantes (será implementada depois)
   const handleCreateVariants = async (experimentId: string) => {
-    console.log('Variantes serão implementadas em versão futura')
     return
   }
 
@@ -1318,13 +1215,7 @@ ${baseCode}
         projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Default project
       }
 
-      console.log('🔍 Project validation:', {
-        projectFilter,
-        availableProjects: projects.map(p => ({ id: p.id, name: p.name })),
-        selectedProjectId: projectId,
-        projectIdType: typeof projectId,
-        projectIdLength: projectId.length
-      })
+      // Log removed
 
       // Utility to generate slug
       const toKey = (text: string) =>
@@ -1351,23 +1242,9 @@ ${baseCode}
         // confidence_level usa valor padrão do banco (0.95)
       }
 
-      console.log('📋 Creating experiment with ALL FIELDS from modal:', experimentData)
 
       // Validate data types
-      console.log('🔍 Data validation:', {
-        name_type: typeof experimentData.name,
-        name_length: experimentData.name.length,
-        traffic_allocation_type: typeof experimentData.traffic_allocation,
-        traffic_allocation_value: experimentData.traffic_allocation,
-        algorithm_type: typeof experimentData.algorithm,
-        algorithm_value: experimentData.algorithm,
-        type: experimentData.type,
-        target_url: experimentData.target_url,
-        conversion_url: experimentData.conversion_url,
-        conversion_value: experimentData.conversion_value,
-        conversion_type: experimentData.conversion_type,
-        duration_days: experimentData.duration_days  // ✅ Validar duração
-      })
+      // Log removed
 
       // Create experiment via API (server handles validation and schema) - ENVIANDO TODOS OS CAMPOS
       const apiResponse = await fetch('/api/experiments', {
@@ -1398,11 +1275,9 @@ ${baseCode}
       }
 
       const experiment = apiResult.experiment
-      console.log('✅ Experiment created:', experiment.id)
 
       // Deletar variantes padrão criadas pela API e criar as variantes do modal
       if (formData.variants && formData.variants.length > 0) {
-        console.log('🔄 Deleting default variants and creating custom variants from modal...')
 
         // Deletar variantes padrão
         const { error: deleteError } = await supabase
@@ -1443,22 +1318,13 @@ ${baseCode}
                 active: page.active !== false
               }))
             }
-            console.log(`📄 Variante "${variant.name}" configurada com ${variant.pages.length} páginas (modo: ${variant.selectionMode})`)
           } else {
             // Modo página única (tradicional)
             changes = {}
           }
 
           // Log para debug
-          console.log(`📝 Criando variante ${index}:`, {
-            name: variant.name,
-            isControl: variant.isControl,
-            variantUrl: variant.url,
-            targetUrl: formData.targetUrl,
-            finalRedirectUrl: redirectUrl,
-            multipage: variant.multipage,
-            pagesCount: variant.pages?.length || 0
-          })
+          // Log removed
 
           // Validação: para split_url, todas as variantes não-controle devem ter URL OU múltiplas páginas
           if (formData.testType === 'split_url' && !variant.isControl) {
@@ -1490,7 +1356,6 @@ ${baseCode}
           console.error('❌ Error creating variants:', variantsError)
           toast.error('Erro ao criar variantes')
         } else {
-          console.log('✅ Custom variants created:', createdVariants?.length)
         }
       }
 
@@ -1512,7 +1377,6 @@ ${baseCode}
           console.error('Goal creation error:', goalError)
           // Goal é opcional
         } else {
-          console.log('✅ Goal created for experiment:', experiment.id)
         }
       }
 
@@ -1549,7 +1413,6 @@ ${baseCode}
   // ✅ Stats são atualizadas automaticamente pelo hook em tempo real
   const updateStatsFromExperiments = (next: Experiment[]) => {
     // Não precisa mais atualizar stats manualmente
-    console.log('📊 Stats atualizadas automaticamente pelo hook')
   }
 
   const startExperiment = async (id: string) => {
@@ -1794,15 +1657,64 @@ ${baseCode}
     try {
       setSaving(true)
 
-      // TODO: Implementar criação real do experimento no Supabase
-      console.log('Criando experimento:', newForm.name.trim())
+      // Get project ID from filter or use first available project
+      let projectId = projectFilter !== 'all' ? String(projectFilter) : (projects[0]?.id || null)
+      if (!projectId) {
+        projectId = 'b302fac6-3255-4923-833b-5e71a11d5bfe' // Default project
+      }
 
-      // Por enquanto, apenas fechar o modal
+      // Create experiment via API
+      const apiResponse = await fetch('/api/experiments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newForm.name.trim(),
+          project_id: projectId,
+          description: null,
+          type: 'element',
+          traffic_allocation: 100,
+          algorithm: 'thompson_sampling',
+          status: 'draft'
+        }),
+        credentials: 'include'
+      })
+
+      const apiResult = await apiResponse.json()
+      if (!apiResponse.ok) {
+        throw new Error(apiResult?.error || 'Falha ao criar experimento')
+      }
+
+      const experiment = apiResult.experiment
+
+      // Create variants based on user selection
+      const variantCount = newForm.variants
+      const weightPerVariant = Math.floor(100 / variantCount)
+
+      for (let i = 0; i < variantCount; i++) {
+        const isControl = i === 0
+        const variantName = isControl ? 'Controle' : `Variante ${String.fromCharCode(65 + i)}`
+        const weight = i === variantCount - 1
+          ? 100 - (weightPerVariant * (variantCount - 1))
+          : weightPerVariant
+
+        await supabase.from('variants').insert({
+          experiment_id: experiment.id,
+          name: variantName,
+          is_control: isControl,
+          weight: weight,
+          config: {}
+        })
+      }
+
       setShowNew(false)
-      toast.success('Funcionalidade em desenvolvimento - experimento não foi criado')
-    } catch (err: any) {
-      console.error(err)
-      toast.error(err?.message || 'Erro ao criar experimento')
+      setNewForm({ name: '', variants: 2 })
+      toast.success('Experimento criado com sucesso!')
+
+      // Refresh experiments list
+      await loadExperiments()
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao criar experimento'
+      toast.error(errorMessage)
     } finally {
       setSaving(false)
     }
@@ -2222,16 +2134,16 @@ ${baseCode}
 
       const timeSeriesData = days.map(day => {
         const dayStr = `${day.getDate().toString().padStart(2, '0')}/${(day.getMonth() + 1).toString().padStart(2, '0')}`
-        const dayEvents = events.filter(e => {
+        const dayEvents = events.filter((e: any) => {
           const eventDate = new Date(e.created_at)
           return eventDate.toDateString() === day.toDateString()
         })
 
         return {
           date: dayStr,
-          page_views: dayEvents.filter(e => e.event_type === 'page_view' || e.event_type === 'pageview').length,
-          clicks: dayEvents.filter(e => e.event_type === 'click').length,
-          conversions: dayEvents.filter(e => e.event_type === 'conversion').length,
+          page_views: dayEvents.filter((e: any) => e.event_type === 'page_view' || e.event_type === 'pageview').length,
+          clicks: dayEvents.filter((e: any) => e.event_type === 'click').length,
+          conversions: dayEvents.filter((e: any) => e.event_type === 'conversion').length,
           total: dayEvents.length
         }
       })
@@ -4258,7 +4170,6 @@ ${baseCode}
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
-                  <span>Monitore via <strong>console.log</strong> ou analytics</span>
                 </li>
               </ul>
             </div>

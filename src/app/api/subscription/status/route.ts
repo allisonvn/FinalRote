@@ -33,22 +33,74 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Buscar dados completos da subscription via view
-    const { data: subscriptionData, error } = await supabase
-      .from('organization_subscription_view')
-      .select('*')
+    // 3. Buscar dados da subscription diretamente da tabela subscriptions
+    const { data: subscription, error: subscriptionError } = await supabase
+      .from('subscriptions')
+      .select(`
+        id,
+        status,
+        billing_cycle,
+        current_period_start,
+        current_period_end,
+        price_amount,
+        last_payment_at,
+        next_payment_at,
+        canceled_at,
+        cancel_reason,
+        created_at,
+        updated_at,
+        plan:plans (
+          id,
+          name,
+          slug,
+          description,
+          price,
+          interval,
+          features
+        )
+      `)
       .eq('org_id', user.default_org_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
-    if (error) {
-      return NextResponse.json(
-        { error: 'Failed to fetch subscription' },
-        { status: 500 }
-      );
+    // 4. Buscar dados da organização
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('id, name, slug, is_active, is_blocked, blocked_reason')
+      .eq('id', user.default_org_id)
+      .single();
+
+    // Construir resposta consolidada
+    const subscriptionData = subscription ? {
+      id: subscription.id,
+      status: subscription.status,
+      billing_cycle: subscription.billing_cycle,
+      current_period_start: subscription.current_period_start,
+      current_period_end: subscription.current_period_end,
+      price_amount: subscription.price_amount,
+      last_payment_at: subscription.last_payment_at,
+      next_payment_at: subscription.next_payment_at,
+      canceled_at: subscription.canceled_at,
+      cancel_reason: subscription.cancel_reason,
+      plan: subscription.plan,
+      organization: organization,
+    } : null;
+
+    // Se não há subscription, retornar dados básicos
+    if (!subscriptionData) {
+      return NextResponse.json({
+        subscription: null,
+        organization: organization,
+        has_subscription: false,
+        message: 'No active subscription found'
+      });
     }
 
     return NextResponse.json({
       subscription: subscriptionData,
+      organization: organization,
+      has_subscription: true,
     });
   } catch (error) {
     console.error('Error fetching subscription status:', error);
