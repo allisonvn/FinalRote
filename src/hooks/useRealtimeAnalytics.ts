@@ -37,15 +37,12 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
       const newStats = await getDashboardStats(timeRange)
       setStats(newStats)
       setLastUpdate(new Date())
-
-      console.log('📊 Analytics stats refreshed:', newStats)
       
       // Carregar metrics em background (não bloqueante)
       setTimeout(async () => {
         try {
           const newMetrics = await getExperimentMetrics(timeRange)
           setMetrics(newMetrics)
-          console.log('📈 Analytics metrics loaded:', newMetrics.length)
         } catch (error) {
           console.error('Erro ao carregar metrics:', error)
         }
@@ -61,7 +58,6 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
     refreshData()
 
     // Configurar subscriptions para atualizações em tempo real
-    console.log('🔄 Configurando subscriptions em tempo real...')
 
     // Subscription para novos eventos
     const eventsChannel = supabase
@@ -74,7 +70,6 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
           table: 'events'
         },
         (payload) => {
-          console.log('📈 Novo evento recebido:', payload.new)
           const newEvent = payload.new as RealtimeEvent
 
           // Adicionar à lista de eventos recentes (máximo 50)
@@ -85,7 +80,6 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
 
           // Recarregar stats quando há conversão
           if (newEvent.event_type === 'conversion') {
-            console.log('💰 Conversão detectada - atualizando stats')
             setTimeout(refreshData, 1000) // Delay para DB processar
           }
         }
@@ -98,7 +92,6 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
           table: 'assignments'
         },
         (payload) => {
-          console.log('🎯 Nova atribuição recebida:', payload.new)
           const newAssignment = payload.new as RealtimeAssignment
 
           // Adicionar à lista de atribuições recentes (máximo 50)
@@ -121,7 +114,6 @@ export function useRealtimeAnalytics(timeRange: '7d'|'30d'|'90d'|'1y' = '30d') {
 
     // Cleanup
     return () => {
-      console.log('🔌 Desconectando subscriptions...')
       supabase.removeChannel(eventsChannel)
       clearInterval(intervalId)
       setIsConnected(false)

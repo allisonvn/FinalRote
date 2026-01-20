@@ -9,6 +9,7 @@ import {
   validateKiwifyWebhook,
   processKiwifyWebhook,
 } from '@/lib/kiwify/webhooks-integrated';
+import { sendEmail } from '@/lib/resend/client';
 import type { KiwifyWebhookPayload } from '@/types/kiwify';
 
 export async function POST(request: NextRequest) {
@@ -74,8 +75,37 @@ export async function POST(request: NextRequest) {
 
     // 7. Se processou com sucesso, enviar email de boas-vindas
     if (result.success && result.userId) {
-      // TODO: Integrar com Resend para enviar email
-      console.log('Email de boas-vindas deve ser enviado para:', result.userId);
+      try {
+        // Buscar dados do usuário para o email
+        const { data: user } = await supabase
+          .from('users')
+          .select('email, full_name')
+          .eq('id', result.userId)
+          .single();
+
+        if (user?.email) {
+          const emailResult = await sendEmail({
+            to: user.email,
+            template: 'welcome',
+            data: {
+              name: user.full_name || user.email.split('@')[0],
+              appName: 'Rota Final',
+              planName: (webhook as any).product?.name || 'Pro',
+              dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.rotafinal.com'}/dashboard`
+            },
+            userId: result.userId
+          });
+
+          if (emailResult.success) {
+            console.log(`[Webhook] Email de boas-vindas enviado para ${user.email}`);
+          } else {
+            console.error(`[Webhook] Falha ao enviar email: ${emailResult.error}`);
+          }
+        }
+      } catch (emailError) {
+        // Log mas não falha o webhook
+        console.error('[Webhook] Erro ao enviar email de boas-vindas:', emailError);
+      }
     }
 
     // 8. Retornar resposta

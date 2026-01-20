@@ -10,34 +10,27 @@ import { SavedFiltersManager } from '@/components/dashboard/saved-filters-manage
 import { useEvents } from '@/hooks/useEvents'
 
 // 🚀 Lazy load componentes pesados para melhor performance e code splitting
-// 🚀 Lazy load componentes pesados para melhor performance e code splitting
-const EventTrendsChart = lazy(() =>
-  import('@/components/dashboard/event-trends-chart')
-    .then(mod => {
-      if (!mod || !mod.EventTrendsChart) {
-        console.error('❌ Falha ao carregar EventTrendsChart (Events Page):', mod)
-        return { default: () => <div className="p-4 text-red-500">Erro ao carregar gráfico</div> }
-      }
-      return { default: mod.EventTrendsChart }
-    })
-    .catch(err => {
-      console.error('❌ Erro no import do EventTrendsChart (Events Page):', err)
-      return { default: () => <div className="p-4 text-red-500">Erro de carregamento</div> }
-    })
+// Componente de fallback para erros de carregamento
+const ErrorFallback = ({ message }: { message: string }) => (
+  <div className="p-4 text-red-500">{message}</div>
 )
-const UTMAnalysisTable = lazy(() =>
-  import('@/components/dashboard/utm-analysis-table')
-    .then(mod => {
-      if (!mod || !mod.UTMAnalysisTable) {
-        console.error('❌ Falha ao carregar UTMAnalysisTable (Events Page):', mod)
-        return { default: () => <div className="p-4 text-red-500">Erro ao carregar tabela</div> }
-      }
-      return { default: mod.UTMAnalysisTable }
-    })
-    .catch(err => {
-      console.error('❌ Erro no import da UTMAnalysisTable (Events Page):', err)
-      return { default: () => <div className="p-4 text-red-500">Erro de carregamento</div> }
-    })
+
+const EventTrendsChart = lazy(() => 
+  import('@/components/dashboard/event-trends-chart').then(mod => {
+    if (!mod.default && !mod.EventTrendsChart) {
+      throw new Error('EventTrendsChart não encontrado no módulo')
+    }
+    return { default: mod.default || mod.EventTrendsChart }
+  })
+)
+
+const UTMAnalysisTable = lazy(() => 
+  import('@/components/dashboard/utm-analysis-table').then(mod => {
+    if (!mod.default && !mod.UTMAnalysisTable) {
+      throw new Error('UTMAnalysisTable não encontrado no módulo')
+    }
+    return { default: mod.default || mod.UTMAnalysisTable }
+  })
 )
 
 // Import skeleton components para loading states

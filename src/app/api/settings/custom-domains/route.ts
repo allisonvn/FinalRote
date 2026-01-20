@@ -36,7 +36,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServiceClient()
+    let supabase
+    try {
+      supabase = createServiceClient()
+    } catch (clientError: any) {
+      console.error('❌ Erro ao criar service client:', clientError)
+      return NextResponse.json(
+        {
+          error: 'Erro ao conectar com o banco de dados',
+          details: clientError?.message || 'Falha ao criar cliente Supabase'
+        },
+        { status: 500, headers: corsHeaders }
+      )
+    }
 
     // Primeiro, tenta selecionar os domínios usando maybeSingle() para evitar erro quando não há registro
     let { data, error } = await supabase
@@ -127,7 +139,19 @@ export async function POST(request: NextRequest) {
       }, { status: 500, headers: corsHeaders })
     }
 
-    const supabase = createServiceClient()
+    let supabase
+    try {
+      supabase = createServiceClient()
+    } catch (clientError: any) {
+      console.error('❌ Erro ao criar service client:', clientError)
+      return NextResponse.json(
+        {
+          error: 'Erro ao conectar com o banco de dados',
+          details: clientError?.message || 'Falha ao criar cliente Supabase'
+        },
+        { status: 500, headers: corsHeaders }
+      )
+    }
 
     const { error } = await supabase
       .from('project_settings')

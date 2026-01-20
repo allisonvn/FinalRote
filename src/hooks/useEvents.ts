@@ -209,44 +209,29 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
       setLoading(true)
       setError(null)
 
-      // Build query - excluir project_id do select para evitar erro de coluna não encontrada
-      // O Supabase REST API pode não estar sincronizado com as mudanças no schema
+      // Build query - Começar com colunas básicas que sempre existem
+      // NÃO incluir project_id pois pode não estar acessível via REST API mesmo existindo no banco
+      // O RLS já filtra eventos baseado no project_id do usuário autenticado
+      // Tentar primeiro com colunas essenciais, depois expandir se necessário
+      // Remover 'properties' da query inicial pois pode não estar acessível via REST API
       let query = supabase
         .from('events')
-        .select('id, event_type, event_name, visitor_id, experiment_id, variant_id, event_data, utm_data, value, created_at, utm_source, utm_medium, utm_campaign, device_type, browser, country, properties, session_id, referrer, os, city, utm_term, utm_content', { count: 'exact' })
+        .select('id, event_type, event_name, visitor_id, experiment_id, variant_id, event_data, utm_data, value, created_at', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(pageNumber * pageSize, (pageNumber + 1) * pageSize - 1)
 
-      // Filter by project_id if provided - mas apenas se o backend suportar
-      // Para contornar o erro, não filtramos por project_id direto
-      // TODO: Remover este comentário quando o schema do Supabase for totalmente sincronizado
-      if (projectId) {
-        // Validar que projectId não está vazio e é um UUID válido antes de aplicar filtro
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId);
-
-        if (typeof projectId === 'string' && projectId.trim() !== '' && isUuid) {
-          // ⚠️ Supabase REST API pode não ter project_id sincronizado ainda
-          // Tentaremos apenas se o schema estiver pronto
-          try {
-            query = query.eq('project_id', projectId)
-          } catch (e) {
-            console.warn('⚠️ Project ID filter not available yet, continuing without filter:', e);
+      // Log da query antes de executar (apenas em desenvolvimento)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Executando query events:', {
+          projectId,
+          filters: {
+            eventType: filters.eventType,
+            search: filters.search,
           }
-        } else {
-          console.warn('⚠️ Invalid or placeholder projectId ignored in events query:', projectId);
-        }
+        })
       }
 
-      // Log da query antes de executar
-      console.log('🔍 Executando query events:', {
-        projectId,
-        filters: {
-          eventType: filters.eventType,
-          search: filters.search,
-        }
-      })
-
-      // Apply filters
+      // Apply apenas filtros básicos que não dependem de colunas que podem não existir
       if (filters.search) {
         query = query.or(`event_name.ilike.%${filters.search}%,visitor_id.ilike.%${filters.search}%`)
       }
@@ -273,32 +258,6 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         query = query.lte('created_at', endOfDay.toISOString())
       }
 
-      // Filtros de device/browser/country - agora usam colunas diretas (migration 20260119000000)
-      if (filters.device) {
-        query = query.ilike('device_type', `%${filters.device}%`)
-      }
-
-      if (filters.browser) {
-        query = query.ilike('browser', `%${filters.browser}%`)
-      }
-
-      if (filters.country) {
-        query = query.ilike('country', `%${filters.country}%`)
-      }
-
-      // Filtros UTM - usam colunas diretas (migration 20260119000000)
-      if (filters.utmSource) {
-        query = query.ilike('utm_source', `%${filters.utmSource}%`)
-      }
-
-      if (filters.utmMedium) {
-        query = query.ilike('utm_medium', `%${filters.utmMedium}%`)
-      }
-
-      if (filters.utmCampaign) {
-        query = query.ilike('utm_campaign', `%${filters.utmCampaign}%`)
-      }
-
       if (filters.minValue !== undefined) {
         query = query.gte('value', filters.minValue)
       }
@@ -307,15 +266,109 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         query = query.lte('value', filters.maxValue)
       }
 
+      // NOTA: Filtros de device/browser/country/utm serão aplicados apenas na query expandida
+      // se as colunas estiverem disponíveis
+
       let { data, error: fetchError, count } = await query
 
-      // Se houver erro sobre project_id, tentar novamente sem filtro
-      if (fetchError && (fetchError.message?.includes('project_id') || fetchError.code === '42703')) {
-        console.warn('⚠️ project_id coluna não acessível, tentando query sem filtro...');
+      // Se a query básica funcionou, tentar expandir com colunas adicionais
+      if (!fetchError && data) {
+        try {
+          const expandedQuery = supabase
+            .from('events')
+            .select('id, event_type, event_name, visitor_id, experiment_id, variant_id, event_data, utm_data, value, created_at, utm_source, utm_medium, utm_campaign, device_type, browser, country, session_id, referrer, os, city, utm_term, utm_content', { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range(pageNumber * pageSize, (pageNumber + 1) * pageSize - 1)
 
+          // Reaplicar todos os filtros (básicos + adicionais)
+          let finalQuery = expandedQuery
+          
+          if (filters.search) {
+            finalQuery = finalQuery.or(`event_name.ilike.%${filters.search}%,visitor_id.ilike.%${filters.search}%`)
+          }
+          if (filters.eventType !== 'all') {
+            finalQuery = finalQuery.eq('event_type', filters.eventType)
+          }
+          if (filters.experimentId !== 'all') {
+            finalQuery = finalQuery.eq('experiment_id', filters.experimentId)
+          }
+          if (filters.visitorId) {
+            finalQuery = finalQuery.eq('visitor_id', filters.visitorId)
+          }
+          if (filters.dateFrom) {
+            finalQuery = finalQuery.gte('created_at', filters.dateFrom.toISOString())
+          }
+          if (filters.dateTo) {
+            const endOfDay = new Date(filters.dateTo)
+            endOfDay.setHours(23, 59, 59, 999)
+            finalQuery = finalQuery.lte('created_at', endOfDay.toISOString())
+          }
+          // Filtros adicionais que dependem de colunas que podem não estar acessíveis
+          if (filters.device) {
+            finalQuery = finalQuery.ilike('device_type', `%${filters.device}%`)
+          }
+          if (filters.browser) {
+            finalQuery = finalQuery.ilike('browser', `%${filters.browser}%`)
+          }
+          if (filters.country) {
+            finalQuery = finalQuery.ilike('country', `%${filters.country}%`)
+          }
+          if (filters.utmSource) {
+            finalQuery = finalQuery.ilike('utm_source', `%${filters.utmSource}%`)
+          }
+          if (filters.utmMedium) {
+            finalQuery = finalQuery.ilike('utm_medium', `%${filters.utmMedium}%`)
+          }
+          if (filters.utmCampaign) {
+            finalQuery = finalQuery.ilike('utm_campaign', `%${filters.utmCampaign}%`)
+          }
+          if (filters.minValue !== undefined) {
+            finalQuery = finalQuery.gte('value', filters.minValue)
+          }
+          if (filters.maxValue !== undefined) {
+            finalQuery = finalQuery.lte('value', filters.maxValue)
+          }
+
+          const { data: expandedData, error: expandedError, count: expandedCount } = await finalQuery
+          
+          if (!expandedError && expandedData) {
+            // Usar dados expandidos se disponível
+            data = expandedData
+            count = expandedCount
+            console.log('✅ Query expandida bem-sucedida com todas as colunas')
+          } else {
+            // Se a query expandida falhar, usar dados básicos
+            console.log('⚠️ Query expandida falhou, usando dados básicos')
+          }
+        } catch (expandErr) {
+          // Se houver erro ao expandir, usar dados básicos
+          console.log('⚠️ Erro ao expandir query, usando dados básicos:', expandErr)
+        }
+      }
+
+      // Se houver erro sobre colunas não encontradas, tentar novamente com colunas básicas
+      const isColumnError = fetchError && (
+        fetchError.message?.includes('project_id') || 
+        fetchError.message?.includes('utm_source') || 
+        fetchError.message?.includes('utm_medium') ||
+        fetchError.message?.includes('utm_campaign') ||
+        fetchError.message?.includes('device_type') ||
+        fetchError.message?.includes('browser') ||
+        fetchError.message?.includes('country') ||
+        fetchError.message?.includes('does not exist') || 
+        fetchError.code === '42703'
+      )
+
+      if (isColumnError) {
+        console.warn('⚠️ Algumas colunas não acessíveis, tentando query com colunas básicas...', {
+          errorMessage: fetchError?.message,
+          errorCode: fetchError?.code
+        });
+
+        // Query mínima com apenas colunas essenciais (sem project_id e sem properties)
         let fallbackQuery = supabase
           .from('events')
-          .select('id, event_type, event_name, visitor_id, experiment_id, variant_id, event_data, utm_data, value, created_at, utm_source, utm_medium, utm_campaign, device_type, browser, country, properties, session_id, referrer, os, city, utm_term, utm_content', { count: 'exact' })
+          .select('id, event_type, event_name, visitor_id, experiment_id, variant_id, event_data, utm_data, value, created_at', { count: 'exact' })
           .order('created_at', { ascending: false })
           .range(pageNumber * pageSize, (pageNumber + 1) * pageSize - 1)
 
@@ -346,29 +399,8 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           fallbackQuery = fallbackQuery.lte('created_at', endOfDay.toISOString())
         }
 
-        if (filters.device) {
-          fallbackQuery = fallbackQuery.ilike('device_type', `%${filters.device}%`)
-        }
-
-        if (filters.browser) {
-          fallbackQuery = fallbackQuery.ilike('browser', `%${filters.browser}%`)
-        }
-
-        if (filters.country) {
-          fallbackQuery = fallbackQuery.ilike('country', `%${filters.country}%`)
-        }
-
-        if (filters.utmSource) {
-          fallbackQuery = fallbackQuery.ilike('utm_source', `%${filters.utmSource}%`)
-        }
-
-        if (filters.utmMedium) {
-          fallbackQuery = fallbackQuery.ilike('utm_medium', `%${filters.utmMedium}%`)
-        }
-
-        if (filters.utmCampaign) {
-          fallbackQuery = fallbackQuery.ilike('utm_campaign', `%${filters.utmCampaign}%`)
-        }
+        // Remover filtros de colunas que podem não existir na query fallback
+        // device, browser, country, utm_* serão filtrados no cliente se necessário
 
         if (filters.minValue !== undefined) {
           fallbackQuery = fallbackQuery.gte('value', filters.minValue)
@@ -381,104 +413,80 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
         const { data: fallbackData, error: fallbackError, count: fallbackCount } = await fallbackQuery
 
         if (fallbackError) {
-          // Se fallback também falhar, usar o erro original
-          throw fallbackError
-        }
+          // Tentar uma última query com apenas as colunas mais básicas
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('⚠️ Fallback query falhou, tentando query mínima...', {
+              fallbackError: serializeError(fallbackError)
+            })
+          }
 
-        data = fallbackData
-        count = fallbackCount
+          try {
+            const minimalQuery = supabase
+              .from('events')
+              .select('id, event_type, event_name, visitor_id, created_at', { count: 'exact' })
+              .order('created_at', { ascending: false })
+              .range(pageNumber * pageSize, (pageNumber + 1) * pageSize - 1)
 
-        console.log('✅ Fallback query successful without project_id filter');
-      } else if (fetchError) {
-        // Análise detalhada do erro
-        const errorAnalysis: any = {
-          hasError: !!fetchError,
-          errorType: typeof fetchError,
-          errorConstructor: fetchError?.constructor?.name,
-          errorString: String(fetchError),
-          errorKeys: Object.keys(fetchError || {}),
-          errorOwnPropertyNames: Object.getOwnPropertyNames(fetchError || {}),
-          errorJSON: null,
-          errorMessage: null,
-          errorCode: null,
-          errorDetails: null,
-          errorHint: null,
-        }
-
-        // Tentar acessar propriedades usando diferentes métodos
-        try {
-          // Método 1: Acesso direto
-          errorAnalysis.errorMessage = (fetchError as any)?.message
-          errorAnalysis.errorCode = (fetchError as any)?.code
-          errorAnalysis.errorDetails = (fetchError as any)?.details
-          errorAnalysis.errorHint = (fetchError as any)?.hint
-          errorAnalysis.errorStatus = (fetchError as any)?.status
-          errorAnalysis.errorStatusCode = (fetchError as any)?.statusCode
-
-          // Método 2: Usando 'in' operator
-          errorAnalysis.hasMessage = 'message' in (fetchError || {})
-          errorAnalysis.hasCode = 'code' in (fetchError || {})
-          errorAnalysis.hasDetails = 'details' in (fetchError || {})
-
-          // Método 3: Tentar JSON.stringify com replacer
-          errorAnalysis.errorJSON = JSON.stringify(fetchError, (key, value) => {
-            if (key === 'message' || key === 'code' || key === 'details' || key === 'hint') {
-              return value
+            // Aplicar apenas filtros básicos
+            if (filters.eventType !== 'all') {
+              minimalQuery.eq('event_type', filters.eventType)
             }
-            return value
-          }, 2)
-        } catch (e) {
-          errorAnalysis.accessError = String(e)
+            if (filters.experimentId !== 'all') {
+              minimalQuery.eq('experiment_id', filters.experimentId)
+            }
+
+            const { data: minimalData, error: minimalError, count: minimalCount } = await minimalQuery
+
+            if (minimalError) {
+              // Se até a query mínima falhar, lançar o erro original
+              throw fetchError
+            }
+
+            // Usar dados da query mínima
+            data = minimalData
+            count = minimalCount
+          } catch (minimalErr) {
+            // Se até a query mínima falhar, lançar o erro original
+            throw fetchError
+          }
+        } else {
+          data = fallbackData
+          count = fallbackCount
         }
 
-        // Determinar mensagem de erro
-        const isEmptyObject = errorAnalysis.errorKeys.length === 0 &&
-          errorAnalysis.errorOwnPropertyNames.length === 0
-
-        let errorMessage = errorAnalysis.errorMessage ||
-          (isEmptyObject ? 'Query blocked - possibly due to RLS policies or missing permissions' : 'Unknown Supabase error')
-
-        // Se for objeto vazio, fornecer contexto adicional
-        if (isEmptyObject) {
-          errorAnalysis.suggestedFix = 'Verify RLS policies allow SELECT on events table. Check if project_id filter is causing issues.'
-        }
-
+      } else if (fetchError) {
+        // Usar serializeError para garantir que temos informações úteis
         const serializedError = serializeError(fetchError)
+        
+        // Determinar mensagem de erro
+        const errorMessage = serializedError?.message || 
+                            (fetchError as any)?.message ||
+                            'Erro ao buscar eventos do banco de dados'
 
-        // Log detalhado sem usar spread para evitar problemas de serialização
-        console.error('🔴 Supabase query error (detailed):')
-        console.error('  isEmptyObject:', isEmptyObject)
-        console.error('  errorMessage:', errorAnalysis.errorMessage)
-        console.error('  errorCode:', errorAnalysis.errorCode)
-        console.error('  errorDetails:', errorAnalysis.errorDetails)
-        console.error('  errorHint:', errorAnalysis.errorHint)
-        console.error('  errorType:', errorAnalysis.errorType)
-        console.error('  errorConstructor:', errorAnalysis.errorConstructor)
-        console.error('  errorKeys:', errorAnalysis.errorKeys)
-        console.error('  errorOwnPropertyNames:', errorAnalysis.errorOwnPropertyNames)
-        console.error('  errorJSON:', errorAnalysis.errorJSON)
-        console.error('  serializedError:', serializedError)
-        console.error('  projectId:', projectId, '(type:', typeof projectId, ')')
-        console.error('  queryInfo:', {
-          eventType: filters.eventType,
-          search: filters.search,
-          experimentId: filters.experimentId,
-          visitorId: filters.visitorId,
-        })
-        console.error('  raw fetchError object:', fetchError)
+        // Log detalhado do erro (apenas em desenvolvimento)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔴 Supabase query error:', {
+            serializedError,
+            errorType: typeof fetchError,
+            projectId,
+          })
+        }
 
         // Criar um novo erro com informações
         const error = new Error(errorMessage)
-        if (errorAnalysis.errorCode) (error as any).code = errorAnalysis.errorCode
-        if (errorAnalysis.errorDetails) (error as any).details = errorAnalysis.errorDetails
-        if (errorAnalysis.errorHint) (error as any).hint = errorAnalysis.errorHint
+        if (serializedError?.code) (error as any).code = serializedError.code
+        if (serializedError?.details) (error as any).details = serializedError.details
+        if (serializedError?.hint) (error as any).hint = serializedError.hint
         if (serializedError?.status) (error as any).status = serializedError.status
         if (serializedError?.statusCode) (error as any).statusCode = serializedError.statusCode
 
-          // Adicionar análise completa ao erro para debug
-          (error as any).errorAnalysis = errorAnalysis
-
         throw error
+      }
+
+      // Validar que temos dados ou um erro claro
+      if (!data && !fetchError && process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Query retornou sem dados e sem erro - pode ser problema de RLS ou permissões')
+        // Não lançar erro aqui, apenas usar array vazio
       }
 
       // Map database events to include computed fields for compatibility
@@ -518,46 +526,118 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
       setPage(pageNumber)
 
     } catch (err) {
-      let errorMessage = 'Unknown error'
-      let errorCode = null
-      let errorDetails = null
-      let errorHint = null
-      let errorStatus = null
-      let errorStatusCode = null
-
-      if (err instanceof Error) {
+      // Usar serializeError para garantir que sempre temos informações úteis
+      const serializedError = serializeError(err)
+      
+      // Log do erro apenas em desenvolvimento
+      if (process.env.NODE_ENV === 'development') {
+        console.error('🔴 Erro capturado no fetchEvents:', serializedError)
+      }
+      
+      // Extrair informações do erro serializado com fallbacks robustos
+      let errorMessage = 'Erro desconhecido ao carregar eventos'
+      
+      if (serializedError?.message) {
+        errorMessage = serializedError.message
+      } else if (err instanceof Error && err.message) {
         errorMessage = err.message
-        errorCode = (err as any).code || null
-        errorDetails = (err as any).details || null
-        errorHint = (err as any).hint || null
-        errorStatus = (err as any).status || null
-        errorStatusCode = (err as any).statusCode || null
       } else if (typeof err === 'string') {
         errorMessage = err
       } else if (err && typeof err === 'object') {
-        const errObj = err as any
-        errorMessage = errObj.message || String(err) || 'Unknown error'
-        errorCode = errObj.code || null
-        errorDetails = errObj.details || null
-        errorHint = errObj.hint || null
-        errorStatus = errObj.status || null
-        errorStatusCode = errObj.statusCode || null
+        const errStr = String(err)
+        if (errStr !== '[object Object]') {
+          errorMessage = errStr
+        } else {
+          // Tentar extrair mensagem de propriedades comuns
+          const errObj = err as any
+          errorMessage = errObj.message || errObj.error || errObj.msg || errorMessage
+        }
+      }
+      
+      const errorCode = serializedError?.code || (err as any)?.code || undefined
+      const errorDetails = serializedError?.details || (err as any)?.details || undefined
+      const errorHint = serializedError?.hint || (err as any)?.hint || undefined
+      const errorStatus = serializedError?.status || (err as any)?.status || undefined
+      const errorStatusCode = serializedError?.statusCode || (err as any)?.statusCode || undefined
+
+      // Construir objeto de log garantindo que sempre tenha informações úteis
+      const errorLog: any = {
+        message: errorMessage || 'Erro desconhecido',
+        timestamp: new Date().toISOString(),
+        projectId: projectId || 'não fornecido',
+        filters: {
+          eventType: filters.eventType || 'all',
+          search: filters.search || '',
+          experimentId: filters.experimentId || 'all',
+        },
+        errorType: typeof err,
+        errorString: String(err || 'null/undefined')
       }
 
-      console.error('Failed to fetch events:', {
-        message: errorMessage,
-        code: errorCode,
-        details: errorDetails,
-        hint: errorHint,
-        status: errorStatus,
-        statusCode: errorStatusCode,
-        projectId,
-        filters,
-        errorType: typeof err,
-        errorConstructor: err?.constructor?.name,
-        stack: err instanceof Error ? err.stack : undefined,
-        errorString: String(err)
-      })
+      // Adicionar propriedades opcionais apenas se existirem e não forem null/undefined
+      if (errorCode !== undefined && errorCode !== null) errorLog.code = errorCode
+      if (errorDetails !== undefined && errorDetails !== null) errorLog.details = errorDetails
+      if (errorHint !== undefined && errorHint !== null) errorLog.hint = errorHint
+      if (errorStatus !== undefined && errorStatus !== null) errorLog.status = errorStatus
+      if (errorStatusCode !== undefined && errorStatusCode !== null) errorLog.statusCode = errorStatusCode
+      
+      if (err?.constructor?.name) errorLog.errorConstructor = err.constructor.name
+      if (serializedError && serializedError !== null && typeof serializedError === 'object' && Object.keys(serializedError).length > 0) {
+        errorLog.serializedError = serializedError
+      }
+      
+      // Garantir que temos pelo menos algumas informações básicas
+      if (!errorLog.message || errorLog.message === 'Erro desconhecido') {
+        errorLog.message = `Erro do tipo ${typeof err} capturado em ${new Date().toISOString()}`
+      }
+
+      // Adicionar stack trace se disponível
+      if (err instanceof Error && err.stack) {
+        errorLog.stack = err.stack
+      }
+
+      // Adicionar informações adicionais se o erro for um objeto
+      if (err && typeof err === 'object') {
+        try {
+          const keys = Object.keys(err)
+          if (keys.length > 0) {
+            errorLog.errorKeys = keys
+          }
+          const ownProps = Object.getOwnPropertyNames(err)
+          if (ownProps.length > keys.length) {
+            errorLog.ownPropertyNames = ownProps.filter(p => !keys.includes(p))
+          }
+        } catch (e) {
+          // Ignorar erros ao tentar inspecionar o objeto
+          errorLog.inspectionError = String(e)
+        }
+      }
+
+      // Garantir que o log não está vazio e tem pelo menos a mensagem
+      if (!errorLog.message || errorLog.message === 'Erro desconhecido ao carregar eventos') {
+        // Tentar extrair qualquer informação útil do erro
+        if (err === null || err === undefined) {
+          errorLog.message = 'Erro null ou undefined capturado'
+        } else if (typeof err === 'object') {
+          try {
+            const errStr = JSON.stringify(err, null, 2)
+            if (errStr && errStr !== '{}' && errStr !== 'null') {
+              errorLog.message = `Erro capturado: ${errStr.substring(0, 200)}`
+            } else {
+              errorLog.message = 'Erro capturado mas não foi possível extrair informações (objeto vazio)'
+            }
+          } catch {
+            errorLog.message = `Erro capturado: ${String(err).substring(0, 200)}`
+          }
+        } else {
+          errorLog.message = `Erro capturado: ${String(err).substring(0, 200)}`
+        }
+      }
+
+      // Log apenas em desenvolvimento
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to fetch events:', errorLog)
+      }
 
       // Exibir feedback visual de erro para o usuário
       toast.error('Erro ao carregar eventos', {
@@ -710,18 +790,14 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
 
       const errors = results.filter(r => r.result?.error)
 
-      // Log detalhes de cada resultado antes de processar erros
-      if (errors.length > 0) {
-        console.error('🔍 Debug: Verificando erros antes de serializar')
+      // Log detalhes apenas em desenvolvimento
+      if (errors.length > 0 && process.env.NODE_ENV === 'development') {
         errors.forEach(({ name, result }) => {
           const err = result?.error
           if (err) {
-            // Log apenas informações relevantes
             console.error(`Query "${name}" erro:`, {
               message: err.message,
               code: err.code,
-              details: err.details,
-              hint: err.hint
             })
           }
         })
@@ -743,26 +819,13 @@ export function useEvents(filters: EventFilters, options: UseEventsOptions = {})
           (firstErrorResult && String(firstErrorResult)) ||
           'Unknown error fetching stats'
 
-        // Log separado para cada informação
-        console.error('❌ Errors in fetchStats')
-        console.error('Error count:', errors.length)
-        console.error('Error details:', JSON.stringify(errorDetails, null, 2))
-        console.error('Project ID:', projectId)
-        console.error('Filters:', JSON.stringify(filters, null, 2))
-        console.error('First error serialized:', JSON.stringify(serializedFirstError, null, 2))
-
-        if (firstErrorResult) {
-          console.error('First error raw object type:', typeof firstErrorResult)
-          console.error('First error raw object constructor:', firstErrorResult?.constructor?.name)
-
-          // Tentar serializar o erro bruto
-          try {
-            const errorStr = JSON.stringify(firstErrorResult, Object.getOwnPropertyNames(firstErrorResult), 2)
-            console.error('First error serialized (raw):', errorStr || 'Could not serialize')
-          } catch (serializeErr) {
-            console.error('Could not serialize raw error:', serializeErr)
-            console.error('First error toString:', firstErrorResult.toString?.() || String(firstErrorResult))
-          }
+        // Log apenas em desenvolvimento
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ Errors in fetchStats:', {
+            errorCount: errors.length,
+            firstError: serializedFirstError,
+            projectId
+          })
         }
 
         const error = new Error(firstErrorMessage)

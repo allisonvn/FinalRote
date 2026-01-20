@@ -91,10 +91,34 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Cancelar também na Kiwify via API
-    // if (subscription.kiwify_subscription_id) {
-    //   await kiwifyClient.cancelSubscription(subscription.kiwify_subscription_id);
-    // }
+    // 7. Cancelar também na Kiwify via API
+    if (subscription.kiwify_subscription_id) {
+      try {
+        const { kiwifyClient } = await import('@/lib/kiwify/api-client');
+        const result = await kiwifyClient.cancelSubscription(
+          subscription.kiwify_subscription_id
+        );
+
+        if (!result.success) {
+          console.error('[Subscription] Falha ao cancelar na Kiwify:', result.error);
+          // Não falha a operação local, mas loga o erro
+          await supabase.from('subscription_logs').insert({
+            subscription_id: subscription.id,
+            user_id: authUser.id,
+            event_type: 'kiwify_cancel_failed',
+            event_source: 'system',
+            metadata: {
+              error: result.error,
+              kiwify_subscription_id: subscription.kiwify_subscription_id,
+            },
+          });
+        } else {
+          console.log('[Subscription] Assinatura cancelada na Kiwify com sucesso');
+        }
+      } catch (kiwifyError) {
+        console.error('[Subscription] Erro ao comunicar com Kiwify:', kiwifyError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

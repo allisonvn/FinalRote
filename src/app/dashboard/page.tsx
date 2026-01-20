@@ -34,36 +34,27 @@ import { cn } from '@/lib/utils'
 import SettingsPanel from '@/components/settings/SettingsPanel'
 
 // 🚀 Lazy load componentes pesados para melhor performance e code splitting
-// 🚀 Lazy load componentes pesados para melhor performance e code splitting
-const EventTrendsChart = lazy(() =>
-  import('@/components/dashboard/event-trends-chart')
-    .then(mod => {
-      if (!mod || !mod.EventTrendsChart) {
-        console.error('❌ Falha ao carregar EventTrendsChart:', mod)
-        // Retornar um componente dummy para não quebrar a UI com "Element type is invalid"
-        return { default: () => <div className="p-4 text-red-500">Erro ao carregar gráfico</div> }
-      }
-      return { default: mod.EventTrendsChart }
-    })
-    .catch(err => {
-      console.error('❌ Erro no import do EventTrendsChart:', err)
-      return { default: () => <div className="p-4 text-red-500">Erro de carregamento</div> }
-    })
+// Componente de fallback para erros de carregamento
+const ErrorFallback = ({ message }: { message: string }) => (
+  <div className="p-4 text-red-500">{message}</div>
 )
 
-const UTMAnalysisTable = lazy(() =>
-  import('@/components/dashboard/utm-analysis-table')
-    .then(mod => {
-      if (!mod || !mod.UTMAnalysisTable) {
-        console.error('❌ Falha ao carregar UTMAnalysisTable:', mod)
-        return { default: () => <div className="p-4 text-red-500">Erro ao carregar tabela</div> }
-      }
-      return { default: mod.UTMAnalysisTable }
-    })
-    .catch(err => {
-      console.error('❌ Erro no import da UTMAnalysisTable:', err)
-      return { default: () => <div className="p-4 text-red-500">Erro de carregamento</div> }
-    })
+const EventTrendsChart = lazy(() => 
+  import('@/components/dashboard/event-trends-chart').then(mod => {
+    if (!mod.default && !mod.EventTrendsChart) {
+      throw new Error('EventTrendsChart não encontrado no módulo')
+    }
+    return { default: mod.default || mod.EventTrendsChart }
+  })
+)
+
+const UTMAnalysisTable = lazy(() => 
+  import('@/components/dashboard/utm-analysis-table').then(mod => {
+    if (!mod.default && !mod.UTMAnalysisTable) {
+      throw new Error('UTMAnalysisTable não encontrado no módulo')
+    }
+    return { default: mod.default || mod.UTMAnalysisTable }
+  })
 )
 
 // Import skeleton components para loading states
@@ -254,7 +245,7 @@ export default function Dashboard() {
           return
         }
 
-        console.log('🔄 Carregando projetos para usuário:', sessionData.session.user.id)
+        // Log removido para reduzir ruído no console
 
         const { data, error } = await (supabase as any)
           .from('projects')
@@ -268,7 +259,7 @@ export default function Dashboard() {
           return
         }
 
-        console.log('✅ Projetos carregados:', data?.length || 0)
+        // Log removido para reduzir ruído no console
         setProjects(data || [{ id: 'b302fac6-3255-4923-833b-5e71a11d5bfe', name: 'Projeto Principal' }])
       } catch (err) {
         console.error('❌ Erro ao buscar projetos:', err)
@@ -545,10 +536,10 @@ export default function Dashboard() {
       }
 
       if (user) {
-        console.log('✅ Usuário autenticado:', user.email)
+        // Log removido para reduzir ruído no console
         setUser(user)
       } else {
-        console.log('❌ Usuário não autenticado, redirecionando...')
+        // Log removido para reduzir ruído no console
         window.location.href = '/auth/signin'
       }
     } catch (error) {
@@ -560,14 +551,14 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      console.log('🔄 Carregando experimentos do Supabase...')
+      // Log removido para reduzir ruído no console
 
       // Verificar autenticação primeiro
       const { data: { user }, error: authError } = await supabase.auth.getUser()
-      console.log('👤 Usuário autenticado:', user?.id || 'NENHUM')
+      // Log removido para reduzir ruído no console
 
       if (authError || !user) {
-        console.log('⚠️ Usuário não autenticado, usando dados vazios')
+        // Log removido para reduzir ruído no console
         setExperiments([])
         return
       }
@@ -605,7 +596,7 @@ export default function Dashboard() {
         throw experimentsError
       }
 
-      console.log('✅ Experimentos carregados para o usuário:', experimentsData?.length || 0)
+      // Log removido para reduzir ruído no console
 
       // Transformar dados para o formato esperado (com variants)
       const formattedExperiments = (experimentsData || []).map((exp: any) => ({
@@ -627,7 +618,7 @@ export default function Dashboard() {
       setInitialLoad(false) // Marcar carregamento inicial como completo
 
       // ✅ Estatísticas agora vêm do hook em tempo real
-      console.log('📊 Estatísticas em tempo real:', realtimeStats)
+      // Log removido para reduzir ruído no console
 
     } catch (error) {
       // Melhorar serialização do erro para logging
@@ -2035,10 +2026,6 @@ ${baseCode}
       {/** helper to label current period */}
       { /* NOTE: simple map for period label */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {(() => { /* block scope to compute label */ })()}
-        { /* compute label inline */}
-        { /* eslint-disable-next-line */}
-        {null}
         { /* Using local timeRange for subtitles */}
         <KpiCard
           title="Experimentos Ativos"
@@ -2099,7 +2086,7 @@ ${baseCode}
         return (
           <ChartsSection
             experiments={experiments}
-            stats={realtimeStats}
+            stats={realtimeStats || undefined}
             realtime={{
               isConnected,
               recentEvents,
@@ -2124,6 +2111,10 @@ ${baseCode}
   // ===== Events Content =====
   const renderEventsContent = () => {
     return <EventsTabContent />
+  }
+
+  const renderDataContent = () => {
+    return <DataTabContent />
   }
 
   // Componente de conteúdo da aba Eventos (baseado na página dashboard/events)
@@ -2254,9 +2245,7 @@ ${baseCode}
 
       // Debug: verificar se os dados estão chegando
       if (stats.total_events > 0) {
-        console.log('📊 Stats carregados:', stats)
-        console.log('📈 Distribution data:', distributionData)
-        console.log('📅 Events count:', events.length)
+        // Logs removidos para reduzir ruído no console
       }
 
       const midPoint = Math.floor(timeSeriesData.length / 2)
@@ -2483,7 +2472,8 @@ ${baseCode}
     )
   }
 
-  const EventsSection = () => {
+  // Componente de conteúdo da aba Dados (anteriormente EventsSection)
+  const DataTabContent = () => {
     const [events, setEvents] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [eventTypeFilter, setEventTypeFilter] = useState('all')
@@ -2521,101 +2511,66 @@ ${baseCode}
         if (error) console.error('Erro ao buscar eventos:', error)
 
         if (!eventsData || eventsData.length === 0) {
-          const mockEvents = generateMockEvents(daysAgo)
-          setEvents(mockEvents)
-          calculateMockEventStats(mockEvents)
-        } else {
-          setEvents(eventsData)
-          await calculateEventStats(startDate)
+          setEvents([])
+          setEventStats({ total: 0, pageviews: 0, clicks: 0, conversions: 0, uniqueVisitors: 0, totalRevenue: 0 })
+          return
         }
+
+        setEvents(eventsData)
+        await calculateEventStats(startDate)
       } catch (error) {
         console.error('Erro ao carregar eventos:', error)
-        const mockEvents = generateMockEvents(7)
-        setEvents(mockEvents)
-        calculateMockEventStats(mockEvents)
+        setEvents([])
+        setEventStats({ total: 0, pageviews: 0, clicks: 0, conversions: 0, uniqueVisitors: 0, totalRevenue: 0 })
       } finally {
         setLoading(false)
       }
     }
 
-    const generateMockEvents = (daysAgo: number) => {
-      const events = []
-      const eventTypes = ['pageview', 'click', 'conversion', 'custom']
-      const experiments = [
-        { id: 'exp-1', name: 'Landing Page A/B Test' },
-        { id: 'exp-2', name: 'CTA Button Experiment' },
-        { id: 'exp-3', name: 'Pricing Page Test' }
-      ]
-      const visitors = Array.from({ length: 20 }, (_, i) => `visitor_${i + 1}_` + Math.random().toString(36).slice(2, 8))
+    const normalizeEventType = (type?: string) => {
+      if (!type) return ''
+      return type === 'pageview' ? 'page_view' : type
+    }
 
-      for (let i = 0; i < 100; i++) {
-        const experiment = experiments[Math.floor(Math.random() * experiments.length)]
-        const adjustedType = Math.random() < 0.6 ? 'pageview' : Math.random() < 0.3 ? 'click' : Math.random() < 0.1 ? 'conversion' : 'custom'
-
-        events.push({
-          id: `mock-event-${i}`,
-          event_type: adjustedType,  // Usando event_type (padrão Supabase)
-          type: adjustedType,  // Mantendo type para compatibilidade
-          event_name: getEventName(adjustedType),
-          visitor_id: visitors[Math.floor(Math.random() * visitors.length)],
-          value: adjustedType === 'conversion' ? Math.round(Math.random() * 200 + 25) : 0,
-          event_data: getEventProperties(adjustedType, experiment),  // Usando event_data (padrão Supabase)
-          properties: getEventProperties(adjustedType, experiment),  // Mantendo properties para compatibilidade
-          created_at: new Date(Date.now() - Math.random() * daysAgo * 24 * 60 * 60 * 1000).toISOString(),
-          page_url: getEventUrl(adjustedType),
-          experiments: experiment,
-        })
-      }
-      return events.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    }
-    const getEventName = (type: string) => {
-      const names = { pageview: ['landing_page_view'], click: ['cta_button_click'], conversion: ['purchase_completed'], custom: ['video_watched'] }
-      return names[type as keyof typeof names]?.[0] || 'generic_event'
-    }
-    const getEventProperties = (type: string, experiment: any) => {
-      const utmSources = ['google', 'facebook', 'instagram', 'email', 'direct', 'youtube', 'linkedin']
-      const utmMediums = ['cpc', 'social', 'email', 'organic', 'referral', 'display']
-      const utmCampaigns = ['black_friday_2024', 'summer_sale', 'product_launch', 'remarketing', 'brand_awareness']
-      const baseProps = { variant: Math.random() < 0.5 ? 'Controle' : 'Variante A', utm_source: utmSources[Math.floor(Math.random() * utmSources.length)], utm_medium: utmMediums[Math.floor(Math.random() * utmMediums.length)], utm_campaign: utmCampaigns[Math.floor(Math.random() * utmCampaigns.length)], device: Math.random() < 0.7 ? 'desktop' : 'mobile' }
-      if (type === 'click') return { ...baseProps, button_text: 'Começar Agora' }
-      if (type === 'conversion') return { ...baseProps, value: Math.round(Math.random() * 200 + 25) }
-      return baseProps
-    }
-    const getEventUrl = (type: string) => `https://exemplo.com/${type}`
-    const calculateMockEventStats = (events: any[]) => {
-      setEventStats({
-        total: events.length,
-        pageviews: events.filter(e => e.event_type === 'pageview' || e.type === 'pageview').length,
-        clicks: events.filter(e => e.event_type === 'click' || e.type === 'click').length,
-        conversions: events.filter(e => e.event_type === 'conversion' || e.type === 'conversion').length,
-        uniqueVisitors: new Set(events.map(e => e.visitor_id)).size,
-        totalRevenue: events.filter(e => e.event_type === 'conversion' || e.type === 'conversion').reduce((sum, e) => sum + (e.value || 0), 0)
-      })
-    }
     const calculateEventStats = async (startDate: string) => {
       const { count: total } = await supabase.from('events').select('*', { count: 'exact', head: true }).gte('created_at', startDate)
-      const { count: pageviews } = await supabase.from('events').select('*', { count: 'exact', head: true }).eq('event_type', 'pageview').gte('created_at', startDate)
+      const { count: pageviews } = await supabase.from('events').select('*', { count: 'exact', head: true }).in('event_type', ['page_view', 'pageview']).gte('created_at', startDate)
       const { count: clicks } = await supabase.from('events').select('*', { count: 'exact', head: true }).eq('event_type', 'click').gte('created_at', startDate)
       const { count: conversions } = await supabase.from('events').select('*', { count: 'exact', head: true }).eq('event_type', 'conversion').gte('created_at', startDate)
       const { data: uniqueData } = await supabase.from('events').select('visitor_id, value').gte('created_at', startDate)
-      setEventStats({ total: total || 0, pageviews: pageviews || 0, clicks: clicks || 0, conversions: conversions || 0, uniqueVisitors: uniqueData ? new Set(uniqueData.map(e => e.visitor_id)).size : 0, totalRevenue: uniqueData?.reduce((sum, e) => sum + (e.value || 0), 0) || 0 })
+      setEventStats({
+        total: total || 0,
+        pageviews: pageviews || 0,
+        clicks: clicks || 0,
+        conversions: conversions || 0,
+        uniqueVisitors: uniqueData ? new Set(uniqueData.map((e: any) => e.visitor_id)).size : 0,
+        totalRevenue: uniqueData?.reduce((sum: number, e: any) => sum + (e.value || 0), 0) || 0
+      })
     }
 
-    const eventTypes = ['all', 'pageview', 'click', 'conversion', 'custom']
+    const eventTypes = ['all', 'page_view', 'click', 'conversion', 'custom']
     const experimentsList = [...new Set(events.map(e => e.experiments?.name).filter(Boolean))]
 
     const filteredEvents = events.filter(event => {
       // O Supabase salva dados em event_data, não em properties
       const properties = event.event_data || event.properties || {}
+      const normalizedType = normalizeEventType(event.event_type || event.type)
+      const normalizedFilter = eventTypeFilter === 'all' ? 'all' : normalizeEventType(eventTypeFilter)
 
-      return (eventTypeFilter === 'all' || event.type === eventTypeFilter || event.event_type === eventTypeFilter) &&
+      return (normalizedFilter === 'all' || normalizedType === normalizedFilter) &&
         (experimentFilter === 'all' || event.experiments?.name === experimentFilter) &&
         (utmSourceFilter === 'all' || properties.utm_source === utmSourceFilter) &&
         (utmMediumFilter === 'all' || properties.utm_medium === utmMediumFilter) &&
         (utmCampaignFilter === 'all' || properties.utm_campaign === utmCampaignFilter)
     })
 
-    const formatEventType = (type: string) => ({ pageview: 'Visualização', click: 'Clique', conversion: 'Conversão', custom: 'Custom' }[type] || type)
+    const formatEventType = (type: string) => ({
+      page_view: 'Visualização',
+      pageview: 'Visualização',
+      click: 'Clique',
+      conversion: 'Conversão',
+      custom: 'Custom'
+    }[type] || type)
 
     if (loading && events.length === 0) {
       return (
@@ -2637,7 +2592,8 @@ ${baseCode}
       />
     }
 
-    const eventTypeIcons: Record<string, JSX.Element> = {
+    const eventTypeIcons: Record<string, React.ReactNode> = {
+      page_view: <Eye className="w-4 h-4 text-blue-500" />,
       pageview: <Eye className="w-4 h-4 text-blue-500" />,
       click: <MousePointerClick className="w-4 h-4 text-orange-500" />,
       conversion: <Goal className="w-4 h-4 text-green-500" />,

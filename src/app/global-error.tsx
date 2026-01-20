@@ -13,16 +13,39 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Garantir que temos um erro válido antes de logar
-    if (error && (error instanceof Error || error.message || error.stack)) {
-      // Log the error using our error handler
-      logError(error instanceof Error ? error : new Error(error.message || 'Erro desconhecido'), {
-        errorBoundary: 'global-error',
-      })
+    try {
+      if (error) {
+        // Normalizar o erro para garantir que seja um Error válido
+        let normalizedError: Error
+        if (error instanceof Error) {
+          normalizedError = error
+        } else if (typeof error === 'object' && error !== null) {
+          // Tentar extrair o máximo de informação possível do objeto
+          const err = error as any
+          const message = err.message || err.error || err.code || 'Erro desconhecido'
+          normalizedError = new Error(String(message))
 
-      // Handle chunk load errors specifically
-      if (isChunkLoadError(error instanceof Error ? error : new Error(error.message || ''))) {
-        handleChunkLoadError(error instanceof Error ? error : new Error(error.message || ''))
+          // Preservar stack e digest se existirem
+          if (err.stack) normalizedError.stack = String(err.stack)
+          if (err.digest) (normalizedError as any).digest = String(err.digest)
+        } else {
+          normalizedError = new Error(String(error || 'Erro desconhecido'))
+        }
+
+        // Log the error using our error handler
+        logError(normalizedError, {
+          errorBoundary: 'global-error',
+        })
+
+        // Handle chunk load errors specifically
+        if (isChunkLoadError(normalizedError)) {
+          handleChunkLoadError(normalizedError)
+        }
       }
+    } catch (e) {
+      // Se houver erro ao processar, logar de forma simples
+      console.error('Erro ao processar erro global:', e)
+      console.error('Erro original:', error)
     }
   }, [error])
 

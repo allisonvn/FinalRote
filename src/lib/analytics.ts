@@ -89,8 +89,6 @@ export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30
         )
       ]) as any
 
-      console.log('📊 Dados de experiments:', result)
-
       experiments = result.data?.map((exp: any) => ({
         experiment_id: exp.id,
         experiment_name: exp.name,
@@ -100,14 +98,15 @@ export async function getDashboardStats(range: '7d' | '30d' | '90d' | '1y' = '30
       })) || []
       expError = result.error
     } catch (viewError: any) {
-      console.warn('⚠️ Erro ao buscar experimentos (continuando com fallback):', viewError?.message || viewError)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Erro ao buscar experimentos:', viewError?.message || viewError)
+      }
       experiments = []
       expError = viewError
     }
 
-    if (expError) {
-      console.warn('⚠️ Erro ao buscar experimentos (continuando):', expError.message || expError)
-      // Continuar com dados vazios em caso de erro
+    if (expError && process.env.NODE_ENV === 'development') {
+      console.warn('⚠️ Erro ao buscar experimentos:', expError.message || expError)
     }
 
     // Buscar total de eventos (visitantes únicos)
@@ -242,7 +241,7 @@ export async function getExperimentMetrics(range: '24h' | '7d' | '30d' | '90d' |
     // Buscar estatísticas de cada experimento
     const metrics = await Promise.all(experiments.map(async (exp: any) => {
       // SEMPRE buscar de assignments e events para garantir dados reais
-      console.log(`📊 Buscando dados para experimento: ${exp.name}`)
+      // Log removido para reduzir ruído no console
 
       // Buscar variantes para identificar o controle
       const { data: variants } = await supabase
@@ -278,10 +277,13 @@ export async function getExperimentMetrics(range: '24h' | '7d' | '30d' | '90d' |
           .select('visitor_id, variant_id, event_type')
           .eq('experiment_id', exp.id)
 
-        console.log(`📊 Dados encontrados para ${exp.name}:`, {
-          assignments: assignments?.length || 0,
-          events: events?.length || 0
-        })
+        // Log removido para reduzir ruído no console
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`📊 Dados encontrados para ${exp.name}:`, {
+            assignments: assignments?.length || 0,
+            events: events?.length || 0
+          })
+        }
 
         if (assignments && assignments.length > 0) {
           const controlId = variants.find((v: any) => v.is_control)?.id

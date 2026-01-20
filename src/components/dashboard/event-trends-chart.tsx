@@ -133,7 +133,7 @@ export function EventTrendsChart({
     switch (chartType) {
       case 'bar':
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
             <BarChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis {...xAxisProps} />
@@ -164,7 +164,7 @@ export function EventTrendsChart({
 
       case 'line':
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
             <LineChart {...commonProps}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis {...xAxisProps} />
@@ -223,7 +223,7 @@ export function EventTrendsChart({
       case 'area':
       default:
         return (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
             <AreaChart {...commonProps}>
               <defs>
                 <linearGradient id="colorPageViews" x1="0" y1="0" x2="0" y2="1">
@@ -393,7 +393,7 @@ export function EventTrendsChart({
           </div>
 
           {/* Chart */}
-          <div className="h-80 w-full min-h-80">
+          <div className="h-80 w-full min-h-80 min-w-0">
             {renderChart()}
           </div>
 
@@ -462,8 +462,8 @@ export function EventTrendsChart({
 
             return (
               <>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-64 w-full min-w-0">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256}>
                     <PieChart>
                       <Pie
                         data={filteredData}
@@ -541,3 +541,6 @@ export function EventTrendsChart({
     </div>
   )
 }
+
+// Default export para compatibilidade com React.lazy()
+export default EventTrendsChart

@@ -141,7 +141,7 @@ export async function GET(
     // 8. Buscar eventos recentes (últimos 10)
     const { data: recentEvents } = await supabase
       .from('events')
-      .select('id, event_type, visitor_id, value, created_at, properties')
+      .select('id, event_type, visitor_id, value, created_at, event_data')
       .eq('experiment_id', experimentId)
       .order('created_at', { ascending: false })
       .limit(10)

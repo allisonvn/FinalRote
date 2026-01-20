@@ -9,10 +9,14 @@ if (typeof window !== 'undefined') {
   // Aguardar o DOM estar pronto
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('ChunkErrorHandler inicializado')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('ChunkErrorHandler inicializado')
+      }
     })
   } else {
-    console.log('ChunkErrorHandler inicializado')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('ChunkErrorHandler inicializado')
+    }
   }
 
   // Interceptar erros de webpack chunks especificamente
@@ -30,11 +34,15 @@ if (typeof window !== 'undefined') {
           error.message?.includes('ERR_ABORTED') ||
           error.message?.includes('net::ERR_ABORTED')
         )) {
-          console.warn('ChunkLoadError interceptado:', error)
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('ChunkLoadError interceptado:', error)
+          }
 
           // Tentar recarregar a página após um delay
           setTimeout(() => {
-            console.log('Recarregando página devido a ChunkLoadError...')
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Recarregando página devido a ChunkLoadError...')
+            }
             window.location.reload()
           }, 1000)
         }
@@ -47,44 +55,90 @@ if (typeof window !== 'undefined') {
   const originalFetch = window.fetch
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     // Extrair URL primeiro para verificar antes de fazer a requisição
-    const url = typeof input === 'string' ? input : input.toString()
+    let url: string
+    try {
+      if (typeof input === 'string') {
+        url = input
+      } else if (input instanceof URL) {
+        url = input.toString()
+      } else if (input instanceof Request) {
+        url = input.url
+      } else {
+        url = String(input)
+      }
+    } catch {
+      url = String(input)
+    }
+    
     const isChunkOrStatic = url.includes('/_next/static/') || url.includes('/assets/')
+    const isSupabaseRequest = url.includes('supabase.co') || url.includes('/rest/v1/') || url.includes('/auth/v1/')
 
     try {
       const response = await originalFetch(input, init)
 
       // Verificar se é uma requisição para chunks do Next.js
       if (isChunkOrStatic && !response.ok) {
-        console.warn(`Erro ao carregar chunk: ${url} - Status: ${response.status}`)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Erro ao carregar chunk: ${url} - Status: ${response.status}`)
+        }
 
         // Se for erro 400 ou 404, tentar recarregar a página
         if (response.status === 400 || response.status === 404) {
           setTimeout(() => {
-            console.log('Recarregando página devido a erro de chunk...')
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Recarregando página devido a erro de chunk...')
+            }
             window.location.reload()
           }, 1000)
         }
       }
 
       return response
-    } catch (error) {
-      // Se for chunk ou recurso estático, logar e retornar resposta mockada
+    } catch (error: any) {
+      // Se for chunk ou recurso estático, tentar retornar resposta mockada
       if (isChunkOrStatic) {
-        console.warn(`Erro ao carregar recurso estático: ${url}`, error)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Erro ao carregar recurso estático: ${url}`, error)
+        }
+        // Retornar resposta mockada para evitar quebrar a aplicação
         return new Response(null, {
           status: 404,
           statusText: 'Not Found (mock)'
         })
       }
 
-      // Para requisições ao Supabase, não logar "Failed to fetch" pois será tratado pelo código da aplicação
-      const isSupabaseRequest = url.includes('supabase.co') || url.includes('/rest/v1/')
+      // Para requisições ao Supabase, propagar o erro silenciosamente
+      // O código da aplicação já trata esses erros adequadamente
       if (isSupabaseRequest) {
-        // Propagar o erro silenciosamente - o código de analytics já trata isso
+        // Verificar se é um erro de rede esperado (não logar)
+        const isNetworkError = error?.message?.includes('Failed to fetch') ||
+                              error?.message?.includes('NetworkError') ||
+                              error?.name === 'TypeError' ||
+                              error?.name === 'NetworkError' ||
+                              error?.message?.includes('ERR_NETWORK_CHANGED') ||
+                              error?.message?.includes('ERR_INTERNET_DISCONNECTED') ||
+                              error?.message?.includes('ERR_NAME_NOT_RESOLVED')
+        
+        // Propagar o erro silenciosamente - será tratado pelo código da aplicação
+        // Não logar erros de rede esperados do Supabase
         throw error
       }
 
-      // Para outras requisições, propagar o erro normalmente
+      // Para outras requisições, verificar se é erro de rede esperado
+      const isNetworkError = error?.message?.includes('Failed to fetch') ||
+                            error?.message?.includes('NetworkError') ||
+                            error?.name === 'TypeError' ||
+                            error?.name === 'NetworkError' ||
+                            error?.message?.includes('ERR_NETWORK_CHANGED') ||
+                            error?.message?.includes('ERR_INTERNET_DISCONNECTED') ||
+                            error?.message?.includes('ERR_NAME_NOT_RESOLVED')
+      
+      // Se for erro de rede genérico, logar apenas em desenvolvimento
+      if (isNetworkError && process.env.NODE_ENV === 'development') {
+        console.warn(`Erro de rede ao fazer requisição: ${url}`, error)
+      }
+
+      // Propagar o erro normalmente
       throw error
     }
   }

@@ -41,10 +41,39 @@ export function logError(error: Error | unknown, errorInfo?: Partial<ErrorInfo>)
         errorObj = error
       } else if (typeof error === 'string') {
         errorObj = new Error(error)
-      } else if (error && typeof error === 'object' && 'message' in error) {
-        errorObj = new Error(String(error.message))
+      } else if (error && typeof error === 'object') {
+        // Tentar extrair o máximo de informação possível
+        const err = error as Record<string, unknown>
+        const message = err.message || err.error || err.code || ''
+
+        if (message && typeof message === 'string') {
+          errorObj = new Error(message)
+        } else if (
+          typeof err.toString === 'function' &&
+          err.toString() !== '[object Object]'
+        ) {
+          errorObj = new Error(err.toString())
+        } else {
+          // Tentar stringify se for um objeto simples
+          try {
+            const str = JSON.stringify(err)
+            if (str && str !== '{}') {
+              errorObj = new Error(`Erro objeto: ${str}`)
+            } else {
+              errorObj = new Error('Erro desconhecido (objeto sem propriedades enumeráveis)')
+            }
+          } catch {
+            errorObj = new Error('Erro desconhecido (objeto não serializável)')
+          }
+        }
+
+        // Copiar propriedades extras se existirem (stack, digest, etc)
+        if (err.stack && typeof err.stack === 'string') errorObj.stack = err.stack
+        if (err.digest && typeof err.digest === 'string') (errorObj as any).digest = err.digest
+      } else if (error === null || error === undefined) {
+        errorObj = new Error('Erro desconhecido (null/undefined)')
       } else {
-        errorObj = new Error('Erro desconhecido')
+        errorObj = new Error(`Erro desconhecido (tipo: ${typeof error}): ${String(error)}`)
       }
     } catch (e) {
       errorObj = new Error('Erro ao processar objeto de erro')
@@ -65,13 +94,13 @@ export function logError(error: Error | unknown, errorInfo?: Partial<ErrorInfo>)
       try {
         console.group('🚨 Error Logged')
         console.error('Error:', errorObj)
-        
+
         // Construir logData de forma segura e garantida
         const logData: Record<string, unknown> = {
           message: errorData.message || 'Erro desconhecido',
           timestamp: errorData.timestamp,
         }
-        
+
         if (errorData.stack) {
           logData.stack = errorData.stack
         }
@@ -87,17 +116,13 @@ export function logError(error: Error | unknown, errorInfo?: Partial<ErrorInfo>)
         if (errorData.url) {
           logData.url = errorData.url
         }
-        
+
         // Garantir que sempre temos pelo menos message e timestamp
-        if (logData.message && logData.timestamp) {
-          console.error('Error Info:', logData)
-        } else {
-          console.error('Error Info:', {
-            message: 'Erro desconhecido',
-            timestamp: Date.now(),
-            originalError: String(error),
-          })
-        }
+        console.error('Error Info:', {
+          ...logData,
+          _isLogged: true,
+          _source: errorInfo?.errorBoundary || 'unknown'
+        })
         console.groupEnd()
       } catch (loggingError) {
         // Se houver erro ao logar, pelo menos logar o erro original de forma simples

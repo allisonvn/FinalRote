@@ -9,6 +9,7 @@ import {
   validateKiwifyWebhook,
   processKiwifyWebhook,
 } from '@/lib/kiwify/webhooks-integrated';
+import { sendEmail } from '@/lib/resend/client';
 import type { KiwifyWebhookPayload } from '@/types/kiwify';
 
 export async function POST(request: NextRequest) {
@@ -72,18 +73,47 @@ export async function POST(request: NextRequest) {
         .eq('id', webhookRecord.id);
     }
 
-    // 7. Se processou com sucesso, enviar email de aviso
+    // 7. Se processou com sucesso, enviar email de aviso de pagamento atrasado
     if (result.success && result.userId) {
-      // Buscar informações do usuário e assinatura
-      const { data: userInfo } = await supabase
-        .from('users_extra')
-        .select('*, subscriptions(*)')
-        .eq('id', result.userId)
-        .single();
+      try {
+        // Buscar informações do usuário
+        const { data: user } = await supabase
+          .from('users')
+          .select('email, full_name')
+          .eq('id', result.userId)
+          .single();
 
-      if (userInfo) {
-        // TODO: Integrar com Resend para enviar email de pagamento atrasado
-        console.log('Email de pagamento atrasado deve ser enviado para:', result.userId);
+        if (user?.email) {
+          const webhookData = webhook as any;
+          const nextBillingAt = webhookData.subscription?.next_billing_at;
+          const orderAmount = webhookData.order?.amount;
+
+          const emailResult = await sendEmail({
+            to: user.email,
+            template: 'payment-late',
+            data: {
+              name: user.full_name || 'Cliente',
+              appName: 'Rota Final',
+              dueDate: nextBillingAt
+                ? new Date(nextBillingAt).toLocaleDateString('pt-BR')
+                : 'Data não informada',
+              amount: orderAmount
+                ? `R$ ${(orderAmount / 100).toFixed(2)}`
+                : 'Valor pendente',
+              paymentUrl: webhookData.order?.checkout_url ||
+                `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.rotafinal.com'}/billing`
+            },
+            userId: result.userId
+          });
+
+          if (emailResult.success) {
+            console.log(`[Webhook] Email de pagamento atrasado enviado para ${user.email}`);
+          } else {
+            console.error(`[Webhook] Falha ao enviar email: ${emailResult.error}`);
+          }
+        }
+      } catch (emailError) {
+        console.error('[Webhook] Erro ao enviar email de pagamento atrasado:', emailError);
       }
     }
 

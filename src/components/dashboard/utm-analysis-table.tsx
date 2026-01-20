@@ -896,3 +896,6 @@ function CampaignDetailsModal({ campaign, events, open, onOpenChange }: Campaign
     </Dialog>
   )
 }
+
+// Default export para compatibilidade com React.lazy()
+export default UTMAnalysisTable

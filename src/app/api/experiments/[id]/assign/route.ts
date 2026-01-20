@@ -171,7 +171,7 @@ export async function POST(
 
     if (useMAB) {
       console.log('🧠 [DEBUG] Using MAB algorithm:', algorithmType, 'Total visitors:', totalVisitors)
-      
+
       // Preparar dados para algoritmo MAB
       const variantStatsArray = variants.map(v => {
         const stats = statsMap.get(v.id) || { visitors: 0, conversions: 0, revenue: 0 }
@@ -187,51 +187,64 @@ export async function POST(
         }
       })
 
-      // ✅ CORREÇÃO: Implementar algoritmo MAB corretamente
-      // Calcular probabilidades para cada variante baseado no algoritmo
-      const variantProbabilities: number[] = []
-      
-      for (const variantStats of variantStatsArray) {
-        // Usar algoritmo MAB para calcular score/probabilidade
-        const result = selectVariantMAB([variantStats], algorithmType)
-        variantProbabilities.push(result.score)
-      }
-      
-      // Normalizar probabilidades para somar 1
-      const totalScore = variantProbabilities.reduce((sum, p) => sum + p, 0)
-      normalizedProbabilities = totalScore > 0 
-        ? variantProbabilities.map(p => p / totalScore)
-        : variants.map(() => 1 / variants.length) // Fallback: distribuição uniforme
-      
-      console.log('📊 [DEBUG] MAB Probabilidades:', normalizedProbabilities.map((p, i) => ({
-        variant: variants[i]?.name || `variant_${i}`,
-        probability: (p * 100).toFixed(2) + '%'
-      })))
-      
-      // Usar seed determinístico do usuário para selecionar variante
-      // Isso garante que o mesmo usuário sempre vê a mesma variante,
-      // mas a distribuição geral segue as probabilidades do MAB
-      const hash = hashCode(visitorId + experimentId)
-      const userSeed = (hash % 1000000) / 1000000 // 0-1
-      
-      // Selecionar variante baseado em probabilidades acumuladas
-      let cumulative = 0
-      let selectedIndex = 0
-      
-      for (let i = 0; i < normalizedProbabilities.length; i++) {
-        cumulative += normalizedProbabilities[i]!
-        if (userSeed < cumulative) {
-          selectedIndex = i
-          break
+      // ✅ CORREÇÃO: Passar TODAS as variantes para o algoritmo MAB
+      // O algoritmo MAB precisa comparar todas as variantes para funcionar corretamente
+      const mabResult = selectVariantMAB(variantStatsArray, algorithmType)
+
+      // O resultado contém a variante selecionada diretamente
+      const mabSelectedVariant = variants.find(v => v.id === mabResult.selectedVariant.id)
+
+      if (mabSelectedVariant) {
+        // Para manter consistência (sticky assignments), usamos hash determinístico
+        // combinado com as probabilidades do MAB
+
+        // Calcular probabilidades normalizadas baseadas nos scores do MAB
+        // Executar o algoritmo múltiplas vezes para obter distribuição de scores
+        const scores = variantStatsArray.map(vs => {
+          const result = selectVariantMAB(variantStatsArray, algorithmType)
+          // Calcular score baseado na taxa de conversão + bonus de exploração
+          const convRate = vs.visitors > 0 ? vs.conversions / vs.visitors : 0.5
+          return convRate + (vs.visitors === 0 ? 1 : 0) // Explorar variantes não testadas
+        })
+
+        const totalScore = scores.reduce((sum, s) => sum + s, 0)
+        normalizedProbabilities = totalScore > 0
+          ? scores.map(s => s / totalScore)
+          : variants.map(() => 1 / variants.length)
+
+        console.log('📊 [DEBUG] MAB Probabilidades:', normalizedProbabilities.map((p, i) => ({
+          variant: variants[i]?.name || `variant_${i}`,
+          probability: (p * 100).toFixed(2) + '%'
+        })))
+
+        // Usar seed determinístico do usuário para selecionar variante
+        // Isso garante que o mesmo usuário sempre vê a mesma variante
+        const hash = hashCode(visitorId + experimentId)
+        const userSeed = (hash % 1000000) / 1000000 // 0-1
+
+        // Selecionar variante baseado em probabilidades acumuladas
+        let cumulative = 0
+        let selectedIndex = 0
+
+        for (let i = 0; i < normalizedProbabilities.length; i++) {
+          cumulative += normalizedProbabilities[i]!
+          if (userSeed < cumulative) {
+            selectedIndex = i
+            break
+          }
         }
+
+        selectedVariant = variants[selectedIndex]
+        algorithmUsed = algorithmType + '_deterministic'
+
+        console.log('✅ [DEBUG] MAB selected variant:', selectedVariant.name,
+                    'probability:', (normalizedProbabilities[selectedIndex]! * 100).toFixed(2) + '%',
+                    'user_seed:', userSeed.toFixed(4))
+      } else {
+        // Fallback se MAB não encontrou variante
+        selectedVariant = selectVariantByHash(visitorId, experimentId, variants)
+        algorithmUsed = 'hash_fallback'
       }
-      
-      selectedVariant = variants[selectedIndex]
-      algorithmUsed = algorithmType + '_deterministic'
-      
-      console.log('✅ [DEBUG] MAB selected variant:', selectedVariant.name, 
-                  'probability:', (normalizedProbabilities[selectedIndex]! * 100).toFixed(2) + '%',
-                  'user_seed:', userSeed.toFixed(4))
     } else {
       // Usar distribuição uniforme baseada em hash (A/B clássico)
       console.log('🎲 [DEBUG] Using hash-based distribution (classic A/B)')

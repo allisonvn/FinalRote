@@ -9,6 +9,7 @@ import {
   validateKiwifyWebhook,
   processKiwifyWebhook,
 } from '@/lib/kiwify/webhooks-integrated';
+import { sendEmail } from '@/lib/resend/client';
 import type { KiwifyWebhookPayload } from '@/types/kiwify';
 
 export async function POST(request: NextRequest) {
@@ -74,17 +75,45 @@ export async function POST(request: NextRequest) {
 
     // 7. Se processou com sucesso, enviar email de cancelamento
     if (result.success && result.userId) {
-      // Buscar informações do usuário
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('*, plans(*)')
-        .eq('id', result.subscriptionId)
-        .single();
+      try {
+        // Buscar informações do usuário
+        const { data: user } = await supabase
+          .from('users')
+          .select('email, full_name')
+          .eq('id', result.userId)
+          .single();
 
-      if (subscription) {
-        // TODO: Integrar com Resend para enviar email de cancelamento
-        console.log('Email de cancelamento deve ser enviado para:', result.userId);
-        console.log('Acesso até:', subscription.current_period_end);
+        // Buscar informações da assinatura
+        const { data: subscription } = await supabase
+          .from('subscriptions')
+          .select('*, plans(*)')
+          .eq('id', result.subscriptionId)
+          .single();
+
+        if (user?.email) {
+          const emailResult = await sendEmail({
+            to: user.email,
+            template: 'subscription-canceled',
+            data: {
+              name: user.full_name || 'Cliente',
+              appName: 'Rota Final',
+              cancelDate: new Date().toLocaleDateString('pt-BR'),
+              accessUntil: subscription?.current_period_end
+                ? new Date(subscription.current_period_end).toLocaleDateString('pt-BR')
+                : 'Fim do período atual',
+              reactivateUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.rotafinal.com'}/pricing`
+            },
+            userId: result.userId
+          });
+
+          if (emailResult.success) {
+            console.log(`[Webhook] Email de cancelamento enviado para ${user.email}`);
+          } else {
+            console.error(`[Webhook] Falha ao enviar email: ${emailResult.error}`);
+          }
+        }
+      } catch (emailError) {
+        console.error('[Webhook] Erro ao enviar email de cancelamento:', emailError);
       }
     }
 

@@ -10,9 +10,10 @@ interface EmptyStateProps {
   actionLabel?: string
   onAction?: () => void
   className?: string
+  icon?: React.ReactNode
 }
 
-export function EmptyState({ title, description, actionLabel, onAction, className }: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction, className, icon }: EmptyStateProps) {
   return (
     <div className={cn('relative overflow-hidden rounded-2xl border border-input card-glass shadow-soft p-10 text-center', className)}>
       {/* Background blobs */}
@@ -23,7 +24,7 @@ export function EmptyState({ title, description, actionLabel, onAction, classNam
 
       <div className="relative mx-auto max-w-xl space-y-3">
         <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-primary text-primary-foreground grid place-items-center shadow-medium ring-1 ring-border/70">
-          <Plus className="h-6 w-6" strokeWidth={1.75} />
+          {icon || <Plus className="h-6 w-6" strokeWidth={1.75} />}
         </div>
         <h3 className="text-2xl font-bold tracking-tight">{title}</h3>
         {description && (

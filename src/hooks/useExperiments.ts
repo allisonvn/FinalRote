@@ -1,4 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+'use client'
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { createClient } from '@/lib/supabase/client'
+import { useState, useCallback, useMemo } from 'react'
 
 type Experiment = {
   id: string
@@ -19,6 +23,10 @@ type Experiment = {
     weight?: number
     config?: any
   }>
+  project?: {
+    name: string
+    slug: string
+  }
 }
 
 type ExperimentFilters = {
@@ -33,10 +41,20 @@ type ExperimentSort = {
   direction: 'asc' | 'desc'
 }
 
+type CreateExperimentInput = {
+  name: string
+  description?: string
+  project_id?: string | null
+  algorithm?: string
+  traffic_allocation?: number
+}
+
+type UpdateExperimentInput = Partial<Experiment> & { id: string }
+
 export function useExperiments() {
-  const [experiments, setExperiments] = useState<Experiment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+
   const [filters, setFilters] = useState<ExperimentFilters>({
     status: 'all',
     query: '',
@@ -47,165 +65,205 @@ export function useExperiments() {
     direction: 'desc'
   })
 
-  // Mock data for development
-  const loadExperiments = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  // Query para buscar experimentos do Supabase
+  const {
+    data: experiments,
+    isLoading: loading,
+    error: queryError,
+    refetch
+  } = useQuery({
+    queryKey: ['experiments', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('experiments')
+        .select(`
+          *,
+          variants (*),
+          project:projects (name, slug)
+        `)
+        .order('created_at', { ascending: false })
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Mock data
-      const mockData: Experiment[] = [
-        {
-          id: '1',
-          name: 'Teste de Botão CTA',
-          description: 'Testando diferentes cores do botão principal',
-          status: 'running',
-          created_at: new Date().toISOString(),
-          algorithm: 'thompson_sampling',
-          traffic_allocation: 100,
-          variants: [
-            { id: '1a', name: 'Controle', key: 'A', is_control: true, weight: 50 },
-            { id: '1b', name: 'Verde', key: 'B', is_control: false, weight: 50 }
-          ]
-        },
-        {
-          id: '2',
-          name: 'Headline da Homepage',
-          description: 'Testando diferentes headlines',
-          status: 'draft',
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          algorithm: 'ucb1',
-          traffic_allocation: 50,
-          variants: [
-            { id: '2a', name: 'Original', key: 'A', is_control: true, weight: 50 },
-            { id: '2b', name: 'Nova versão', key: 'B', is_control: false, weight: 50 }
-          ]
-        }
-      ]
-
-      // Apply filters
-      let filteredData = mockData
-
+      // Aplicar filtros
       if (filters.status && filters.status !== 'all') {
-        filteredData = filteredData.filter(exp => exp.status === filters.status)
+        query = query.eq('status', filters.status)
       }
-
+      if (filters.project_id) {
+        query = query.eq('project_id', filters.project_id)
+      }
       if (filters.query) {
-        const searchTerm = filters.query.toLowerCase()
-        filteredData = filteredData.filter(exp =>
-          exp.name.toLowerCase().includes(searchTerm) ||
-          exp.description?.toLowerCase().includes(searchTerm)
-        )
+        query = query.ilike('name', `%${filters.query}%`)
       }
 
-      setExperiments(filteredData)
-    } catch (err) {
-      console.error('Error loading experiments:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load experiments')
-    } finally {
-      setLoading(false)
-    }
-  }, [filters, sort])
+      const { data, error } = await query
 
-  // Create new experiment
-  const createExperiment = useCallback(async (data: {
-    name: string
-    description?: string
-    project_id?: string | null
-    algorithm?: string
-    traffic_allocation?: number
-  }) => {
-    try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      const newExperiment: Experiment = {
-        id: Date.now().toString(),
-        name: data.name.trim(),
-        description: data.description?.trim(),
-        status: 'draft',
-        created_at: new Date().toISOString(),
-        project_id: data.project_id,
-        algorithm: data.algorithm || 'thompson_sampling',
-        traffic_allocation: data.traffic_allocation || 100,
-        variants: [
-          { id: Date.now() + '_a', name: 'Controle', key: 'A', is_control: true, weight: 50 },
-          { id: Date.now() + '_b', name: 'Variante B', key: 'B', is_control: false, weight: 50 }
-        ]
+      if (error) {
+        console.error('Error fetching experiments:', error)
+        throw new Error(`Falha ao carregar experimentos: ${error.message}`)
       }
 
-      setExperiments(prev => [newExperiment, ...prev])
+      return (data || []) as Experiment[]
+    },
+    staleTime: 30000, // 30 segundos
+    refetchOnWindowFocus: true
+  })
+
+  const error = queryError instanceof Error ? queryError.message : null
+
+  // Mutation para criar experimento
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateExperimentInput) => {
+      // Buscar user e org
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('default_org_id')
+        .eq('id', user.id)
+        .single()
+
+      const orgId = userData?.default_org_id
+      if (!orgId) throw new Error('Organização não encontrada')
+
+      // Buscar ou criar projeto padrão se não especificado
+      let projectId = data.project_id
+      if (!projectId) {
+        const { data: defaultProject } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('org_id', orgId)
+          .limit(1)
+          .single()
+
+        projectId = defaultProject?.id
+      }
+
+      const { data: newExperiment, error } = await supabase
+        .from('experiments')
+        .insert({
+          name: data.name.trim(),
+          description: data.description?.trim() || null,
+          project_id: projectId,
+          algorithm: data.algorithm || 'thompson_sampling',
+          traffic_allocation: data.traffic_allocation || 100,
+          status: 'draft',
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Criar variantes padrão
+      if (newExperiment) {
+        await supabase.from('variants').insert([
+          {
+            experiment_id: newExperiment.id,
+            name: 'Controle',
+            key: 'A',
+            is_control: true,
+            traffic_percentage: 50,
+            is_active: true,
+          },
+          {
+            experiment_id: newExperiment.id,
+            name: 'Variante B',
+            key: 'B',
+            is_control: false,
+            traffic_percentage: 50,
+            is_active: true,
+          }
+        ])
+      }
+
       return newExperiment
-    } catch (err) {
-      console.error('Error creating experiment:', err)
-      throw err
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['experiments'] })
     }
-  }, [loadExperiments])
+  })
 
-  // Update experiment
-  const updateExperiment = useCallback(async (id: string, updates: Partial<Experiment>) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 200))
+  // Mutation para atualizar
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...updates }: UpdateExperimentInput) => {
+      const { data, error } = await supabase
+        .from('experiments')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
 
-      setExperiments(prev =>
-        prev.map(exp =>
-          exp.id === id ? { ...exp, ...updates } : exp
-        )
-      )
-    } catch (err) {
-      console.error('Error updating experiment:', err)
-      throw err
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['experiments'] })
     }
-  }, [])
+  })
 
-  // Delete experiment
-  const deleteExperiment = useCallback(async (id: string) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 200))
+  // Mutation para deletar
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // Deletar variantes primeiro (cascade pode não estar configurado)
+      await supabase.from('variants').delete().eq('experiment_id', id)
 
-      setExperiments(prev => prev.filter(exp => exp.id !== id))
-    } catch (err) {
-      console.error('Error deleting experiment:', err)
-      throw err
+      const { error } = await supabase
+        .from('experiments')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['experiments'] })
     }
-  }, [])
+  })
 
-  // Duplicate experiment
+  // Função para duplicar experimento
   const duplicateExperiment = useCallback(async (id: string) => {
-    try {
-      const original = experiments.find(exp => exp.id === id)
-      if (!original) throw new Error('Experiment not found')
+    const original = experiments?.find(exp => exp.id === id)
+    if (!original) throw new Error('Experimento não encontrado')
 
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      const duplicated: Experiment = {
-        ...original,
-        id: Date.now().toString(),
+    const { data: newExperiment, error } = await supabase
+      .from('experiments')
+      .insert({
         name: `${original.name} (Cópia)`,
+        description: original.description,
+        project_id: original.project_id,
+        algorithm: original.algorithm,
+        traffic_allocation: original.traffic_allocation,
         status: 'draft',
-        created_at: new Date().toISOString(),
-        variants: original.variants?.map(v => ({
-          ...v,
-          id: Date.now() + '_' + v.key.toLowerCase()
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Duplicar variantes
+    if (newExperiment && original.variants) {
+      await supabase.from('variants').insert(
+        original.variants.map(v => ({
+          experiment_id: newExperiment.id,
+          name: v.name,
+          key: v.key,
+          is_control: v.is_control,
+          traffic_percentage: v.weight || 50,
+          is_active: true,
         }))
-      }
-
-      setExperiments(prev => [duplicated, ...prev])
-      return duplicated
-    } catch (err) {
-      console.error('Error duplicating experiment:', err)
-      throw err
+      )
     }
-  }, [experiments])
 
-  // Filtered and sorted experiments
+    queryClient.invalidateQueries({ queryKey: ['experiments'] })
+    return newExperiment
+  }, [experiments, supabase, queryClient])
+
+  // Experimentos filtrados e ordenados
   const filteredExperiments = useMemo(() => {
-    const result = [...experiments]
+    const result = [...(experiments || [])]
 
-    // Apply sorting
+    // Aplicar ordenação
     result.sort((a, b) => {
       const aVal = a[sort.key]
       const bVal = b[sort.key]
@@ -230,11 +288,12 @@ export function useExperiments() {
 
   // Stats
   const stats = useMemo(() => {
-    const total = experiments.length
-    const running = experiments.filter(exp => exp.status === 'running').length
-    const draft = experiments.filter(exp => exp.status === 'draft').length
-    const completed = experiments.filter(exp => exp.status === 'completed').length
-    const paused = experiments.filter(exp => exp.status === 'paused').length
+    const exps = experiments || []
+    const total = exps.length
+    const running = exps.filter(exp => exp.status === 'running').length
+    const draft = exps.filter(exp => exp.status === 'draft').length
+    const completed = exps.filter(exp => exp.status === 'completed').length
+    const paused = exps.filter(exp => exp.status === 'paused').length
 
     return { total, running, draft, completed, paused }
   }, [experiments])
@@ -249,11 +308,6 @@ export function useExperiments() {
     setSort(prev => ({ ...prev, ...newSort }))
   }, [])
 
-  // Load experiments on mount and when filters change
-  useEffect(() => {
-    loadExperiments()
-  }, [loadExperiments])
-
   return {
     experiments: filteredExperiments,
     loading,
@@ -263,10 +317,13 @@ export function useExperiments() {
     sort,
     updateFilters,
     updateSort,
-    createExperiment,
-    updateExperiment,
-    deleteExperiment,
+    createExperiment: createMutation.mutate,
+    updateExperiment: updateMutation.mutate,
+    deleteExperiment: deleteMutation.mutate,
     duplicateExperiment,
-    refetch: loadExperiments
+    isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    refetch
   }
 }
